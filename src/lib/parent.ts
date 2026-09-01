@@ -21,6 +21,7 @@ import { BADGE_COUNT, rankFor } from './achievements';
 import { GLOSSARY, wordsEarned } from './glossary';
 import { standing, type Career } from './career';
 import { mastery, reachable } from './mastery';
+import { closest, curriculum, reached, type Stage } from './curriculum';
 import type { ThesisScore } from './thesis';
 
 export interface ParentLine {
@@ -41,6 +42,19 @@ export interface ParentReport {
   understanding: ParentLine[];
   /** Things not yet demonstrated. Honest, and never framed as failure. */
   notYet: string[];
+  /**
+   * The four stages, named by the concept each teaches, with the evidence
+   * underneath. This is the answer to "what is my child actually learning" —
+   * a question the rest of this report answered only for the part already
+   * finished, which is no use at all to a parent looking at it on day one.
+   *
+   * It is deliberately the whole ladder including the stages not yet open.
+   * A syllabus with the future cut off is a progress bar, and a progress bar
+   * says nothing about what is being taught.
+   */
+  ladder: Stage[];
+  /** One sentence above the ladder. Never a percentage, never a grade. */
+  ladderLine: string;
   conversationStarter: string;
   /**
    * The record across every season, not just this run.
@@ -228,11 +242,26 @@ export function parentReport(
     }
   }
 
-  for (const criterion of gate.criteria) {
-    if (!criterion.met && criterion.id === 'held-through-loss') {
-      notYet.push('Reacts strongly to one bad day. The seven-day average is the lesson still landing.');
+  /*
+   * Only ever said about a child who has actually had a bad day.
+   *
+   * The readiness criteria are unmet by default, so on a fresh save this
+   * printed "reacts strongly to one bad day" about a kid who had not yet
+   * played one — the first thing a parent read about their child was a
+   * character judgement the game had invented. `Not yet` is for things not
+   * shown, never for things not attempted.
+   */
+  if (history.length >= 3) {
+    for (const criterion of gate.criteria) {
+      if (!criterion.met && criterion.id === 'held-through-loss') {
+        notYet.push('Reacts strongly to one bad day. The seven-day average is the lesson still landing.');
+      }
     }
   }
+
+  /* ---- The ladder ---- */
+
+  const ladder = curriculum(game, theses);
 
   /* ---- Something to ask at dinner ---- */
 
@@ -246,6 +275,8 @@ export function parentReport(
     activity,
     understanding,
     notYet: [...new Set(notYet)],
+    ladder,
+    ladderLine: ladderLine(ladder, history.length),
     conversationStarter: starter,
     career: career
       ? {
@@ -286,6 +317,32 @@ function headlineFor(game: Game): string {
  * One question, picked to be answerable by the kid and interesting to the
  * parent. Always about a decision the kid actually made.
  */
+/**
+ * The one line above the ladder.
+ *
+ * The hardest case is the one that caused this to be built: a parent opening
+ * the report before their child has played a single day. The old report simply
+ * had nothing to say, which is why it was hidden on a first run — and hiding
+ * it meant the person evaluating whether this teaches anything was shown a
+ * lemonade game and no evidence whatsoever. So the empty state is not an
+ * apology. It is the syllabus, offered as a promise, with the mechanism stated
+ * plainly enough that a sceptical adult can check it later.
+ */
+export function ladderLine(ladder: Stage[], daysTraded: number): string {
+  const { held, outOf } = reached(ladder);
+  if (daysTraded === 0) {
+    return 'Nothing shown yet — they have not started. Every line below fills in from something they do, never from something they are told.';
+  }
+  const next = closest(ladder);
+  if (held === 0) {
+    return next
+      ? `Nothing counted twice yet. Closest: ${next.grownUpName.toLowerCase()}.`
+      : 'Nothing counted yet. This fills in from what they do.';
+  }
+  const tail = next ? ` Closest next: ${next.grownUpName.toLowerCase()}.` : '';
+  return `${held} of ${outOf} shown more than once in the stages they have reached.${tail}`;
+}
+
 export function conversationStarter(game: Game): string {
   const summary = weekSummary(game.stand.history);
 

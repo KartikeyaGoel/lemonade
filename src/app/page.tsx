@@ -186,6 +186,16 @@ type Phase =
   | 'thesis'
   | 'reckoning';
 
+/**
+ * Screens where a child's reward is never allowed to appear.
+ *
+ * `run` and `close` are excluded because a badge over the day's profit and
+ * loss hides the thing it is rewarding. `parent` and `classroom` are excluded
+ * for the opposite reason: an adult is reading, and nothing on those screens is
+ * addressed to a kid.
+ */
+const KID_FREE_SCREENS = new Set<Phase>(['run', 'close', 'parent', 'classroom']);
+
 /** The wall each act opens on, in the kid's language. */
 const ACT_WALLS: Record<number, string> = {
   2: 'You found the best price. You still cannot make more than 30 cups a day.',
@@ -955,7 +965,15 @@ export default function Page() {
         <TitleScreen
           onStart={start}
           hasSave={hasSave && (game.stand.history.length > 0 || game.act > 1)}
-          onParent={firstRun ? undefined : openParent}
+          /* Never gated on having played.
+             This was `firstRun ? undefined : openParent`, so the one screen
+             built to show a grown-up what the game teaches did not exist
+             until the kid had already finished a run and come back. A parent
+             evaluating it cold — which is every parent, once — was shown a
+             lemonade stand and no evidence of anything. The ladder in the
+             report is written to be worth reading on day zero. */
+          onParent={openParent}
+          parentLabel={firstRun ? 'For a grown-up: what this teaches' : 'For a grown-up'}
           rank={
             isUnlocked('trophies', game, career)
               ? { avatar: career.avatar, name: me, rank: rankFor(held.length).name }
@@ -1367,8 +1385,15 @@ export default function Page() {
           result, so putting it on top of the day's result is self-defeating —
           and on day one there are two of them plus a word, which between them
           covered the profit and loss entirely. They land on the next screen,
-          one at a time. */}
-      {phase !== 'run' && phase !== 'close' && badgeQueue.length > 0 && (
+          one at a time.
+
+          They also wait for 'parent' and 'classroom'. Those two screens are
+          not the child's game — they are the thirty seconds in which an adult
+          decides whether any of this teaches anything — and a gold rosette
+          bouncing over the evidence is the exact impression we are trying not
+          to give. The queue is not consumed, only held: the badge is still
+          there when the kid comes back. */}
+      {!KID_FREE_SCREENS.has(phase) && badgeQueue.length > 0 && (
         <BadgeToast
           badges={badgeQueue}
           raised={phase === 'plan' || phase === 'market'}

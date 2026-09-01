@@ -29,6 +29,19 @@ export function ActIntroScreen({
         <div className="font-body text-xs font-extrabold uppercase tracking-[0.3em] text-ink/50">
           Act {act}
         </div>
+        {/* The question, above the name.
+            This is the child's half of a stage that the grown-up report names
+            after its economics. A kid reading "what is a cup worth to them?"
+            has been given something to find out; the same stage labelled
+            "Price, cost and margin" would have handed them homework. Same
+            stage, and only the register changes. */}
+        <p
+          className={`mt-2 font-body text-sm font-extrabold ${
+            act === 4 ? 'text-lemon-light' : 'text-wood-deep'
+          }`}
+        >
+          {title.question}
+        </p>
         <SignHeading
           className={`mt-1 text-6xl leading-[0.9] ${act === 4 ? '!text-lemon-light' : ''}`}
         >

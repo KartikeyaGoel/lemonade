@@ -1173,3 +1173,91 @@ Verified after the change — the served HTML contains no external URL at all.
   now cover the reward layer, the place screens and the classroom board.
 - **No error boundary.** A thrown component in production was a blank white
   page. Now: one sentence, the promise that their save is intact, and a button.
+
+## 41. The first customer, and the difference between a symptom and a fix
+
+A parent played the deployed build and sent back five things. Two of them were
+about pacing:
+
+> Things I am thinking of are slowing this down to incorporate key lessons
+> along the way and then a recap in the end. Instead of days we can have stages
+> based on concepts. Like financial concepts.
+
+Both are wrong as written, and both are right about something.
+
+**They are wrong as written.** Four acts, seven days, a fortnight and twelve
+market weeks is not a fast game — it is a long one, and the recap she asked for
+already existed at the end of it, which is precisely why she never saw it.
+"Stage 2: Fixed and Variable Costs" on a child's screen is a chapter heading,
+and a child who reads a chapter heading knows they have been handed homework.
+Shipping her prescription would have made the game worse for the player in
+order to reassure the buyer, which is the standard way this category dies.
+
+**They are right about the thing underneath.** She could not see the learning.
+Not "the learning was thin" — she could not *see* it, because:
+
+- `onParent` on the title screen was `firstRun ? undefined : openParent`. The
+  one screen in the product built to show an adult what the game teaches did
+  not render until the child had finished a run and come back to a save. Every
+  parent evaluating it cold — which is every parent, once — was shown a
+  lemonade stand and no evidence of anything at all.
+- There was no route to it during play. Not from the stand, not from the yard,
+  not from the market. Title screen and finale, and nothing else.
+- Nothing anywhere named the idea a child was currently inside. The acts *are*
+  organised by concept — price and margin, capacity and fixed cost, valuation,
+  markets — and the only label on any of it was "Day 3 of 7".
+
+So the customer reported the symptom accurately and guessed at the cause. That
+is the normal division of labour, and taking the guess literally would have
+been the mistake.
+
+### Two registers, one stage
+
+`ACT_TITLES` now carries four fields where it carried two. The child gets
+`question`; the grown-up gets `grownUpConcept` and `grownUpWhy`. Same stage,
+and only the register changes with the reader.
+
+| The child reads | The grown-up reads |
+| --- | --- |
+| What is a cup worth to them? | Price, cost and margin |
+| What is worth spending on? | Capacity, fixed cost and competition |
+| What is the whole thing worth? | Valuation, and price against earnings |
+| Whose business do I want a piece of? | Public markets, and reading a filing |
+
+`src/lib/curriculum.ts` groups the ten `mastery` skills under those four
+headings and hands the result to the parent view. A test asserts that no
+concept noun — margin, capital, valuation, equity, earnings, unit economics,
+fixed cost — ever appears in a kid-facing field, because the whole argument for
+two registers collapses the first time one leaks.
+
+### What a parent now sees before their child has played
+
+The ladder is deliberately the *whole* syllabus, including the stages that have
+not opened. A syllabus with the future cut off is a progress bar, and a
+progress bar says nothing about what is being taught.
+
+Two things came out of building the empty state honestly:
+
+- The career card was rendering `0 seasons · 0 days · 0 of 30 badges · 0 of 26
+  words` at the top of the screen. A scoreboard of nothing, as the answer to
+  "what is my child learning". It is hidden until there is a record.
+- `notYet` contained *"Reacts strongly to one bad day"* on a fresh save,
+  because the readiness criteria are unmet by default. The first thing a parent
+  read about their child was a character judgement the software had invented.
+  `Not yet` is for things not shown, never for things not attempted.
+
+### The badge over the evidence
+
+Verifying the above in a browser turned up a kid's badge toast bouncing over
+the parent's report. `run` and `close` were already excluded, for the reason
+that a rosette on top of a profit and loss hides the thing it is rewarding.
+`parent` and `classroom` are now excluded for the opposite reason: an adult is
+reading, and nothing on those screens is addressed to a child. The queue is
+held rather than consumed — the badge is still there when the kid comes back.
+
+### What this does not answer
+
+Her other three points stand, and two of them are not code. Nobody has still
+played this. `TEACHING.md` has still never been run in a classroom. And the
+falsifiable part of the reframe above is simple: if she reads the ladder and
+still says *slow it down*, then she meant the clock and this was the wrong fix.

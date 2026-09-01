@@ -25,6 +25,7 @@ export function TitleScreen({
   onStart,
   hasSave,
   onParent,
+  parentLabel = 'For a grown-up',
   extras = [],
   road,
   rank,
@@ -33,6 +34,14 @@ export function TitleScreen({
   hasSave: boolean;
   /** Deliberately small and low-contrast: this screen belongs to the kid. */
   onParent?: () => void;
+  /**
+   * What the grown-up link says.
+   *
+   * Before the kid has played, that screen is a syllabus rather than a record,
+   * and calling it the same thing in both cases wastes the only moment a
+   * sceptical adult is deciding whether this teaches anything.
+   */
+  parentLabel?: string;
   extras?: Array<{ emoji: string; label: string; onClick: () => void }>;
   /** The four acts, with the market visible and locked from day one. */
   road?: { stops: Stop[]; line: string };
@@ -105,16 +114,15 @@ export function TitleScreen({
           </div>
         )}
 
-        {/* Gated on `onParent` alone, not on there being a save. A parent
-            checking in after their kid started a new season had no way to
-            reach this at all. */}
+        {/* Gated on `onParent` alone, not on there being a save, and no longer
+            hidden on a first run — see the note at the call site. */}
         {onParent && (
           <button
             type="button"
             onClick={onParent}
             className="mt-4 rounded-full bg-white/45 px-4 py-1.5 font-body text-xs font-extrabold text-ink/60"
           >
-            For a grown-up
+            {parentLabel}
           </button>
         )}
       </div>

@@ -1,6 +1,8 @@
 'use client';
 
 import type { ParentReport } from '@/lib/parent';
+import type { Stage } from '@/lib/curriculum';
+import type { Skill } from '@/lib/mastery';
 import { ChunkyButton, SignHeading, Sky } from '../ui';
 
 /**
@@ -34,8 +36,14 @@ export function ParentScreen({
         </div>
 
         {/* The record across every season. This is the evidence a parent is
-            actually here for, and it survives the kid starting over. */}
-        {report.career && (
+            actually here for, and it survives the kid starting over.
+
+            Hidden when there is no record yet. A card reading 0 badges, 0
+            words and 0 days of business, at the top of the one screen meant to
+            show what a child is learning, is worse than no card: it answers
+            the parent's question with a scoreboard of nothing. On a fresh
+            install the ladder below leads instead. */}
+        {report.career && report.career.lifetimeDays > 0 && (
           <div className="mt-4 rounded-2xl border-[3px] border-ink/20 bg-white/85 p-4">
             <div className="flex items-baseline justify-between">
               <span className="font-sign text-2xl text-ink">{report.career.name}</span>
@@ -67,6 +75,29 @@ export function ParentScreen({
             )}
           </div>
         )}
+
+        {/* The ladder.
+            This is the section a parent came for, and until now the report had
+            no equivalent: everything else here describes what has already
+            happened, which on a first run is nothing at all. Four stages, the
+            concept each one teaches, and the evidence underneath. */}
+        <div className="mt-4 rounded-2xl border-[3px] border-ink/20 bg-white/85 p-4">
+          <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/50">
+            What it teaches, stage by stage
+          </div>
+          <p className="mt-1 font-body text-[13px] font-bold leading-snug text-ink/70">
+            {report.ladderLine}
+          </p>
+          <div className="mt-3 space-y-3">
+            {report.ladder.map((stage) => (
+              <Rung key={stage.act} stage={stage} />
+            ))}
+          </div>
+          <p className="mt-3 border-t-2 border-dashed border-ink/15 pt-2 font-body text-[11px] font-bold leading-snug text-ink/50">
+            A tick means they did it on separate days, unprompted. Nothing here counts because the
+            game showed them a word.
+          </p>
+        </div>
 
         {report.understanding.length > 0 && (
           <Section title="What they can do" tone="good">
@@ -183,6 +214,75 @@ function Stat({ label, value }: { label: string; value: string }) {
         {label}
       </div>
       <div className="font-ledger text-sm font-bold tabular-nums text-ink">{value}</div>
+    </div>
+  );
+}
+
+/**
+ * One stage of the ladder.
+ *
+ * The state chip and the count are deliberately separate. A child can finish a
+ * stage having shown one of its three skills, and both halves of that are
+ * worth knowing; a single blended percentage would hide the honest one.
+ */
+function Rung({ stage }: { stage: Stage }) {
+  const locked = stage.state === 'locked';
+  return (
+    <div className={locked ? 'opacity-45' : undefined}>
+      <div className="flex items-baseline gap-2">
+        <span className="font-body text-[10px] font-extrabold uppercase tracking-[0.16em] text-ink/40">
+          {stage.act}
+        </span>
+        <span className="flex-1 font-body text-[13px] font-extrabold leading-tight text-ink">
+          {stage.grownUpConcept}
+        </span>
+        <span className="font-body text-[10px] font-extrabold uppercase tracking-wide text-ink/45">
+          {stage.state === 'here'
+            ? 'Here now'
+            : stage.state === 'done'
+              ? `${stage.held}/${stage.outOf}`
+              : 'Ahead'}
+        </span>
+      </div>
+      <p className="mt-0.5 font-body text-[11px] font-bold leading-snug text-ink/55">
+        {stage.grownUpWhy}
+      </p>
+      <div className="mt-1.5 space-y-1">
+        {stage.skills.map((skill) => (
+          <Rungskill key={skill.id} skill={skill} locked={locked} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Rungskill({ skill, locked }: { skill: Skill; locked: boolean }) {
+  const last = skill.sightings[skill.sightings.length - 1];
+  const mark = skill.level === 'held' ? '\u2713' : skill.level === 'emerging' ? '\u25D0' : '\u25CB';
+  return (
+    <div className="flex gap-1.5">
+      <span
+        aria-hidden
+        className={`font-body text-[12px] font-extrabold leading-snug ${
+          skill.level === 'held' ? 'text-mint' : 'text-ink/35'
+        }`}
+      >
+        {mark}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div
+          className={`font-body text-[12px] font-bold leading-snug ${
+            skill.level === 'held' ? 'text-ink/85' : 'text-ink/55'
+          }`}
+        >
+          {skill.grownUpName}
+        </div>
+        {!locked && last && (
+          <div className="font-body text-[11px] font-bold leading-snug text-ink/45">
+            {last.when}: {last.what}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -140,11 +140,67 @@ export function createChallengeGame(spec: ChallengeSpec, friendResult: RunResult
  * Act boundaries
  * ------------------------------------------------------------------ */
 
-export const ACT_TITLES: Record<Act, { name: string; promise: string }> = {
-  1: { name: 'One stand', promise: 'Find the price that actually makes money.' },
-  2: { name: 'Scale', promise: 'Spend money to make money. Someone else opens up too.' },
-  3: { name: 'Ownership', promise: 'Find out what your business is worth, and to whom.' },
-  4: { name: 'Markets', promise: 'Other people\'s lemonade stands, at a much bigger scale.' },
+/**
+ * What an act is, said twice.
+ *
+ * A parent asked for stages named after the concepts they teach instead of
+ * days. She is right that the learning was invisible and wrong about the fix:
+ * "Act 2: Fixed and Variable Costs" is a chapter heading, and a kid who reads
+ * a chapter heading knows they have been handed homework. Every gamified
+ * curriculum that died, died on that line.
+ *
+ * So each act carries both names. The kid gets a `question` — the thing they
+ * are actually about to find out, in their words, phrased as something worth
+ * knowing. The grown-up gets `grownUpConcept`, which is the same act with the
+ * economics named, and never appears on a screen a child looks at.
+ *
+ * They are the same stage. Only the register changes with the reader.
+ */
+export const ACT_TITLES: Record<
+  Act,
+  {
+    name: string;
+    promise: string;
+    /** Kid-facing. The question this act answers. */
+    question: string;
+    /** Grown-up register only. What it teaches, named. */
+    grownUpConcept: string;
+    /** Grown-up register only. Why it is the right thing to teach here. */
+    grownUpWhy: string;
+  }
+> = {
+  1: {
+    name: 'One stand',
+    promise: 'Find the price that actually makes money.',
+    question: 'What is a cup worth to them?',
+    grownUpConcept: 'Price, cost and margin',
+    grownUpWhy:
+      'Unit economics before anything else. A child who can say what they keep from a dollar can read every business that follows.',
+  },
+  2: {
+    name: 'Scale',
+    promise: 'Spend money to make money. Someone else opens up too.',
+    question: 'What is worth spending on?',
+    grownUpConcept: 'Capacity, fixed cost and competition',
+    grownUpWhy:
+      'The difference between buying a thing once and paying a wage every day — capital versus running cost, felt as two different kinds of risk.',
+  },
+  3: {
+    name: 'Ownership',
+    promise: 'Find out what your business is worth, and to whom.',
+    question: 'What is the whole thing worth?',
+    grownUpConcept: 'Valuation, and price against earnings',
+    grownUpWhy:
+      'That a business has a value separate from its cash, that the value is a multiple of what it earns, and that a good business at a bad price is a bad purchase.',
+  },
+  4: {
+    name: 'Markets',
+    promise: 'Other people\'s lemonade stands, at a much bigger scale.',
+    question: 'Whose business do I want a piece of?',
+    grownUpConcept: 'Public markets, and reading a filing',
+    grownUpWhy:
+      'Applying all of the above to real companies and real accounts — plus the two habits that decide outcomes: spreading money out, and sitting still when a price falls.',
+  },
 };
 
 /**

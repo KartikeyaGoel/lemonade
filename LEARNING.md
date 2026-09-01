@@ -530,3 +530,33 @@ Honest, after all of this:
 - **The club still travels by copy-paste.** A consequence of having no backend,
   and the biggest remaining drag on the social loop.
 - **Quarterly fundamentals.** Still 10-K only; see §9.
+
+## 19. An hour lost to a service worker, and the guard that ends it
+
+An edit to `ParentScreen.tsx` compiled, passed its tests, and was not on the
+screen. Three restarts and an `rm -rf .next` later, the cause:
+
+```js
+navigator.serviceWorker.controller   // → CONTROLLED
+```
+
+A worker installed by an earlier **production** run was still controlling
+`localhost:3000`. `OfflineReady` already declined to register in development —
+and the comment above that guard correctly predicted this exact failure — but
+declining to register does nothing about one that is already there.
+
+Why it bit so specifically: `sw.js` treats anything under `/_next/static/` as
+immutable and serves it cache-first without revalidation. In a production build
+that is correct, because those filenames carry a content hash and a new build
+means new names. **In development they are not hashed.** The path is stable
+across every edit, so the first cached copy wins for ever. Some chunks were
+fresh and some were a day old, which is why the symptom was a *partial* update
+and took so long to recognise as a caching problem at all.
+
+Development now actively evicts: unregister every worker, delete every
+`lemonade-` cache. Cheap, and it saves the next person the same hour.
+
+The wider lesson is about the shape of the bug rather than the bug. Every check
+in this repo passed while the thing on the screen was wrong, because every
+check reads the source and the browser was not reading the source. A test suite
+cannot tell you that the artefact under test is not the artefact being served.
