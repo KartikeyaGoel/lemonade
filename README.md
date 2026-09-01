@@ -42,7 +42,7 @@ mobile-first.
 | --- | --- |
 | `npm run dev` | Dev server |
 | `npm run build` | Production build |
-| `npm test` | 401 unit tests over the simulation, valuation and market logic |
+| `npm test` | 641 unit tests over the simulation, valuation and market logic |
 | `npm run data` | Re-fetch real fundamentals and prices |
 | `npm run data:check` | Report what is in the bundled data, and fail if stale |
 
