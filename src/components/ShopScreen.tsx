@@ -8,7 +8,7 @@ import {
   type GameState,
   totalLemons,
 } from '@/lib/simulation';
-import { ChunkyButton, HeaderBar, SignHeading, Sky, money } from './ui';
+import { ChunkyButton, Coach, HeaderBar, SignHeading, Sky, money } from './ui';
 
 /**
  * Shopping, as one decision.
@@ -33,6 +33,9 @@ export function ShopScreen({
   const [target, setTarget] = useState(() => Math.min(maxCups, 28));
   const plan = batchPlan(state, target);
 
+  const firstEver = state.history.length === 0;
+  const [touched, setTouched] = useState(false);
+
   const pantryLemons = totalLemons(state.lemonLots);
   const hasPantry = pantryLemons > 0 || state.sugarServings > 0 || state.cupsInStock > 0;
 
@@ -51,15 +54,22 @@ export function ShopScreen({
           </div>
         </div>
 
+        {firstEver && !touched && (
+          <Coach className="mt-3">Slide it. Watch the shopping list change.</Coach>
+        )}
+
         <input
           aria-label="Batch size in cups"
-          className="slider mt-5"
+          className={`slider ${firstEver && !touched ? 'mt-1' : 'mt-5'}`}
           type="range"
           min={0}
           max={Math.max(4, maxCups)}
           step={1}
           value={target}
-          onChange={(event) => setTarget(Number(event.target.value))}
+          onChange={(event) => {
+            setTouched(true);
+            setTarget(Number(event.target.value));
+          }}
           style={{ ['--fill' as string]: `${(target / Math.max(4, maxCups)) * 100}%` }}
         />
         <div className="flex justify-between font-body text-xs font-extrabold text-ink/50">

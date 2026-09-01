@@ -24,7 +24,6 @@
 
 import type { Game } from './progress';
 import type { Career } from './career';
-import { ECON } from './simulation';
 
 export type Feature =
   | 'trophies'
@@ -90,7 +89,7 @@ export const UNLOCK_COPY: Record<Feature, Unlock> = {
   challenge: {
     feature: 'challenge',
     title: 'Challenge a friend',
-    because: 'You have played a whole week. Now you can send somebody that exact week.',
+    because: 'Send somebody a day you have played. Same weather, same money — the only difference is what you each decide.',
     emoji: '⚔️',
   },
   club: {
@@ -137,10 +136,27 @@ export function isUnlocked(feature: Feature, game: Game, career: Career): boolea
     case 'whats-next':
       return daysPlayed >= 1;
 
-    // You cannot send a friend a week you have not played, and comparing runs
-    // only teaches anything once you know what a run feels like.
+    /**
+     * Two days.
+     *
+     * This used to be a whole week, which put the only other-people feature in
+     * the game forty minutes past the front door. Every game a kid actually
+     * plays — Clash Royale, Roblox, Clash of Clans — has somebody else in it
+     * inside the first session, and the reason is not social: it is that a
+     * rival is the only opponent who makes your own decisions feel like
+     * decisions.
+     *
+     * Two days rather than one, for two reasons. You cannot send a day you
+     * have not played, and a kid whose entire experience is one day has no
+     * idea yet that the weather moves — so the comparison would read as luck.
+     * By day two they have seen two different skies, which is exactly what
+     * makes "same sky, different choices" mean something.
+     *
+     * It also keeps the one-card rule: day one announces the trophy case, day
+     * two announces this. Never two at once.
+     */
     case 'challenge':
-      return daysPlayed >= ECON.TOTAL_DAYS || career.challengesPlayed > 0;
+      return daysPlayed >= 2 || career.challengesPlayed > 0;
 
     // Arguing about what a company is worth requires having your own money in
     // one. Act 4 is the first moment that is true.

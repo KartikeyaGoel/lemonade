@@ -275,3 +275,64 @@ which is exactly why they are worth writing down:
   up to a year stale relative to the week being replayed. That is exactly what a
   real investor between filings has, so it is defensible — but 10-Qs would be
   closer.
+
+## 10. The measurement problem, and the mechanic that fixes it
+
+Every claim in §1–§9 assumed something that was not true: that a kid who raises
+their price and earns less will conclude something correct about pricing.
+
+They will not, and it is not their fault. In a seeded world the weather moves at
+the same time as the price. A kid who charges 20c more on a day that turns cold
+earns less and learns "charging more loses money", which is the opposite of what
+the day actually demonstrated. Across seven days they will draw the right
+conclusion about half the time. Fifty percent confidence in a false rule is
+worse than no rule.
+
+This is a measurement problem, not a difficulty problem or a copy problem. It
+cannot be fixed by explaining better, because the kid's data genuinely does not
+distinguish the two causes.
+
+The bench fixes it by holding the world still. The plan is replayed against
+yesterday's actual crowd — same seed, same weather, same people — so the only
+thing that differs between two tries is the decision. The gap is then
+decomposed:
+
+| Line | This run |
+| --- | --- |
+| Charging more, +$0.75 a cup on the 36 you were selling | +$27.00 |
+| Selling fewer cups, 11 fewer at $1.75 | −$19.25 |
+| Fewer lemons and sugar | +$1.77 |
+| **Gap** | **+$9.52** |
+
+Three lines, summing exactly to the gap, produced by a decision the kid made on
+purpose. That is the price elasticity of demand — the single most important idea
+in Act 1 and the one that transfers directly to reading a company's pricing
+power — arrived at by experiment rather than assertion.
+
+What this changes about the learning claim: Act 1 no longer teaches "there is a
+best price, go and find it by trial and error over a week". It teaches
+*how to isolate a variable*, which is a more valuable thing to know than the
+answer it produces, and it is the same move an analyst makes when they ask
+whether revenue grew because of volume or because of price.
+
+What it does not do is remove the risk. The rehearsal is yesterday and says so.
+Today's sky is still unknown, so a kid who optimises hard against yesterday and
+then meets a cold day loses money — and learns the second lesson, which is that
+a good decision and a good outcome are different things. That lesson has its own
+badge, and it is the one that matters most in Act 4.
+
+## 11. What playing it for ten minutes with fresh eyes cost us
+
+Four things that no amount of reasoning about the design had caught, all found by
+opening the game and behaving like a twelve-year-old:
+
+| Found | Why it mattered | Fixed by |
+| --- | --- | --- |
+| The game never says what you are trying to do | Objective inferred from context is objective half-understood | A goal, on screen, from the first morning |
+| Three new words on day one, in three stacked panels | Nobody reads the third one. Possibly not the first | One word a day; the rest queue |
+| Two badge toasts covering the first P&L | The reward hiding the result it was given for | Badges wait for the statement, then arrive singly |
+| The tappable stand read as a picture | A new kind of screen needs a finger, once | One hint, retired when they tap |
+
+The general lesson is uncomfortable and worth writing down: every one of these
+was a *learning* failure caused by a *presentation* decision. The curriculum was
+right and the delivery was quietly eating it.

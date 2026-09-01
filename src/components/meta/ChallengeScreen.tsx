@@ -2,38 +2,55 @@
 
 import { useState } from 'react';
 import {
+  CHALLENGE_DAYS,
   compareRuns,
+  createChallenge,
   decodeChallenge,
   decodeResult,
   encodeChallenge,
   encodeResult,
+  summariseRun,
   type ChallengeSpec,
   type Comparison,
   type RunResult,
 } from '@/lib/challenge';
+import type { DayRecord } from '@/lib/simulation';
 import { ChunkyButton, CodeBox, CodeInput, SignHeading, Sky, money } from '../ui';
 
 /**
  * Same-Sky Challenge.
  *
- * The seed is the week. Two kids who put in the same code get the identical
- * seven days — the same forecasts, the same days that turned out hot when they
- * were promised cool — so the entire difference in the result is decisions.
+ * The seed is the weather. Two kids who put in the same code get identical
+ * days — the same forecasts, the same days that turned out hot when they were
+ * promised cool — so the entire difference in the result is decisions.
  *
  * Which is why this screen never leads with the winner. It leads with the
  * arithmetic of *why*, and the four lines add up to the gap. "You beat me by $41
  * and $28 of it was charging twenty cents more" teaches something. "You won"
  * does not.
+ *
+ * Two lengths, and the short one matters more than it looks. A week is the real
+ * contest, but a week is forty minutes, and a thing two kids do to each other
+ * at lunchtime has to fit in lunchtime. One day is about two minutes: send the
+ * code, both play the same Tuesday, compare. That is the shape of every
+ * head-to-head a middle schooler already plays, and it is available on their
+ * second day rather than after a full week of solo play.
  */
 export function ChallengeScreen({
-  mySpec,
-  myResult,
+  seed,
+  me,
+  history,
+  badges,
   onPlayChallenge,
   onCompared,
   onBack,
 }: {
-  mySpec: ChallengeSpec | null;
-  myResult: RunResult | null;
+  seed: number;
+  /** The kid's own name, for the score code. */
+  me: string;
+  /** Their days so far. A challenge of N days is the first N of them. */
+  history: DayRecord[];
+  badges: number;
   onPlayChallenge: (spec: ChallengeSpec) => void;
   /** Fires once, when a friend's score has actually been read in. */
   onCompared: (comparison: Comparison) => void;
@@ -42,6 +59,18 @@ export function ChallengeScreen({
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [challengeError, setChallengeError] = useState<string | null>(null);
   const [resultError, setResultError] = useState<string | null>(null);
+
+  const canSendWeek = history.length >= CHALLENGE_DAYS;
+  const [days, setDays] = useState(() => (canSendWeek ? CHALLENGE_DAYS : 1));
+
+  /**
+   * The spec and the score are both derived from the length, and they have to
+   * agree: a code that says one day paired with a score for a whole week would
+   * make `sameSky` false and the comparison meaningless.
+   */
+  const mySpec: ChallengeSpec | null = history.length > 0 ? createChallenge(seed, days) : null;
+  const myResult: RunResult | null =
+    history.length > 0 ? summariseRun(seed, me, history.slice(0, days), badges) : null;
 
   if (comparison) {
     return <CompareView comparison={comparison} onBack={() => setComparison(null)} />;
@@ -56,16 +85,33 @@ export function ChallengeScreen({
           </div>
           <SignHeading className="mt-2 text-4xl">Same sky</SignHeading>
           <p className="mt-2 font-body text-sm font-bold leading-snug text-ink/70">
-            Send a friend the exact week you just played — same weather, same everything. Then
+            Send a friend the exact days you played — same weather, same money to start with. Then
             the only difference is what you each decided.
           </p>
         </div>
 
+        {/* How long. A duel is two minutes; a week is the real contest. */}
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <LengthButton
+            on={days === 1}
+            title="One day"
+            note="about 2 minutes"
+            onClick={() => setDays(1)}
+          />
+          <LengthButton
+            on={days === CHALLENGE_DAYS}
+            title="Whole week"
+            note={canSendWeek ? 'the real contest' : 'play a week first'}
+            disabled={!canSendWeek}
+            onClick={() => setDays(CHALLENGE_DAYS)}
+          />
+        </div>
+
         {mySpec && myResult && (
-          <div className="mt-6 space-y-3">
+          <div className="mt-4 space-y-3">
             <div className="rounded-2xl border-[3px] border-ink/20 bg-white/80 p-3">
               <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/45">
-                Your week
+                {days === 1 ? 'Your first day' : `Your first ${days} days`}
               </div>
               <div className="mt-1 flex items-baseline gap-3">
                 <span className="font-sign text-4xl text-ink">{money(myResult.profit)}</span>
@@ -75,8 +121,24 @@ export function ChallengeScreen({
               </div>
             </div>
 
-            <CodeBox label="1. Send them this to play your week" code={encodeChallenge(mySpec)} />
-            <CodeBox label="2. Then send them your score" code={encodeResult(myResult)} />
+            {/* One tap, one paste, one message. Two separate codes meant a kid
+                doing a two-minute duel had to switch apps four times, and the
+                score code alone runs to sixty characters — which reads as
+                homework next to a game where you tap a friend's name. The
+                codes stay visible underneath for anyone reading them out. */}
+            <ShareBothButton
+              lines={[
+                days === 1 ? 'Play my day:' : 'Play my week:',
+                encodeChallenge(mySpec),
+                'Then beat my score:',
+                encodeResult(myResult),
+              ]}
+            />
+            <CodeBox
+              label={days === 1 ? '1. The day itself' : '1. The week itself'}
+              code={encodeChallenge(mySpec)}
+            />
+            <CodeBox label="2. Your score" code={encodeResult(myResult)} small />
           </div>
         )}
 
@@ -96,7 +158,7 @@ export function ChallengeScreen({
                   return;
                 }
                 if (!myResult) {
-                  setResultError('Play a week of your own first, so there is something to compare.');
+                  setResultError('Play a day of your own first, so there is something to compare.');
                   return;
                 }
                 setResultError(null);
@@ -110,7 +172,7 @@ export function ChallengeScreen({
 
         <div className="mt-6">
           <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/45">
-            Or play somebody else&apos;s week
+            Or play somebody else&apos;s days
           </div>
           <div className="mt-1.5">
             <CodeInput
@@ -129,7 +191,8 @@ export function ChallengeScreen({
             />
           </div>
           <p className="mt-1.5 font-body text-[11px] font-bold text-ink/50">
-            This starts a fresh stand on their weather. Your trophies stay.
+            This starts a fresh stand on their weather, for however many days their code says. Your
+            trophies stay.
           </p>
         </div>
 
@@ -140,6 +203,57 @@ export function ChallengeScreen({
         </div>
       </div>
     </Sky>
+  );
+}
+
+/** Puts the whole invitation on the clipboard as one message. */
+function ShareBothButton({ lines }: { lines: string[] }) {
+  const [done, setDone] = useState(false);
+  const message = lines.join('\n');
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(message);
+      setDone(true);
+      window.setTimeout(() => setDone(false), 1800);
+    } catch {
+      // Clipboard blocked. Both codes are on screen underneath.
+      setDone(false);
+    }
+  };
+
+  return (
+    <ChunkyButton variant="lemon" full onClick={copy} className="!text-base">
+      {done ? 'Copied — go paste it' : '📋 Copy the whole challenge'}
+    </ChunkyButton>
+  );
+}
+
+function LengthButton({
+  on,
+  title,
+  note,
+  disabled,
+  onClick,
+}: {
+  on: boolean;
+  title: string;
+  note: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded-2xl border-[3px] px-3 py-2 text-left transition-transform active:translate-y-[2px] ${
+        on ? 'border-mint bg-mint/20' : 'border-ink/20 bg-white/70'
+      } ${disabled ? 'opacity-45' : ''}`}
+    >
+      <span className="block font-body text-sm font-extrabold text-ink">{title}</span>
+      <span className="block font-body text-[11px] font-bold text-ink/55">{note}</span>
+    </button>
   );
 }
 

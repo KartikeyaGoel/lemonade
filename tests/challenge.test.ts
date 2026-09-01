@@ -18,6 +18,7 @@ import {
   runDay,
   type GameState,
 } from '../src/lib/simulation';
+import { act1Complete } from '../src/lib/progress';
 
 /** Plays a whole week at a fixed price and batch size. */
 function playWeek(seed: number, price: number, cups: number) {
@@ -172,5 +173,47 @@ describe('the comparison', () => {
     expect(comparison.gap).toBe(0);
     expect(comparison.lines).toEqual([]);
     expect(comparison.headline).toBe('Dead level');
+  });
+});
+
+describe('a duel is one day, and behaves like one', () => {
+  it('carries the length in the code, so both kids stop on the same day', () => {
+    const spec = createChallenge(99_001, 1);
+    expect(spec.days).toBe(1);
+    expect(decodeChallenge(encodeChallenge(spec))).toEqual(spec);
+  });
+
+  it('ends Act 1 after the challenge length rather than after seven days', () => {
+    const oneDay = runDay(createInitialState(99_001), {
+      ...orderForTargetCups(createInitialState(99_001), 28),
+      price: 1.6,
+    }).nextState;
+
+    expect(act1Complete(oneDay, 1)).toBe(true);
+    expect(act1Complete(oneDay)).toBe(false);
+  });
+
+  it('scores a duel off the first day of the same seed, so it is comparable', () => {
+    const week = playWeek(99_001, 1.6, 28);
+    const duel = summariseRun(99_001, 'Me', week.history.slice(0, 1));
+    expect(duel.days).toBe(1);
+    expect(duel.profit).toBeCloseTo(week.history[0].profit, 2);
+  });
+
+  it('refuses to call a duel and a week the same sky', () => {
+    const week = playWeek(99_001, 1.6, 28);
+    const mine = summariseRun(99_001, 'Me', week.history.slice(0, 1));
+    const theirs = summariseRun(99_001, 'Them', week.history);
+    expect(compareRuns(mine, theirs).sameSky).toBe(false);
+  });
+
+  it('compares two duels on the same day and still reconciles', () => {
+    const cheap = summariseRun(99_001, 'Cheap', playWeek(99_001, 0.9, 28).history.slice(0, 1));
+    const dear = summariseRun(99_001, 'Dear', playWeek(99_001, 2.1, 28).history.slice(0, 1));
+    const comparison = compareRuns(dear, cheap);
+
+    expect(comparison.sameSky).toBe(true);
+    const summed = comparison.lines.reduce((total, line) => total + line.dollars, 0);
+    expect(summed).toBeCloseTo(comparison.gap, 1);
   });
 });

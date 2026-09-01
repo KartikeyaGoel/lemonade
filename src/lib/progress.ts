@@ -16,6 +16,7 @@ import {
   weekSummary,
   type DayRecord,
   type GameState,
+  type Insight,
 } from './simulation';
 import {
   ACT2_DAYS,
@@ -65,6 +66,20 @@ export interface Game {
   portfolio: PortfolioState | null;
   /** Insight ids already given, so a word is never taught twice. */
   learned: string[];
+  /**
+   * Words earned but not yet handed over.
+   *
+   * Day one genuinely earns three of them — revenue, profit, capacity — and
+   * playing it made the cost obvious: three panels of italic explanation under
+   * the first profit and loss a kid has ever read. That is a vocabulary list,
+   * and a vocabulary list is the thing this game exists not to be.
+   *
+   * So they queue. One a day, in the order they were earned, each still sitting
+   * next to the numbers that produced it. Nothing is lost and nothing is
+   * skipped; a kid on day three is simply still being told one new thing rather
+   * than three.
+   */
+  pendingInsights: Insight[];
   /** Total days of business traded across every act. */
   daysTraded: number;
   /** Which run through the whole arc this is. Kept for the career record. */
@@ -87,6 +102,7 @@ export function createGame(seed = Math.floor(Math.random() * 1_000_000)): Game {
     ownership: createOwnershipState(),
     portfolio: null,
     learned: [],
+    pendingInsights: [],
     daysTraded: 0,
     season: 1,
     theses: [],
@@ -114,9 +130,15 @@ export const ACT_TITLES: Record<Act, { name: string; promise: string }> = {
   4: { name: 'Markets', promise: 'Other people\'s lemonade stands, at a much bigger scale.' },
 };
 
-/** Act 1 ends after the seventh day. */
-export function act1Complete(stand: GameState): boolean {
-  return stand.history.length >= ECON.TOTAL_DAYS;
+/**
+ * Act 1 ends after the seventh day — unless this run is a short challenge.
+ *
+ * A duel is one day. It is the same act, the same stand and the same
+ * arithmetic; it just stops sooner, because a thing you send a friend at
+ * lunchtime has to be finishable at lunchtime.
+ */
+export function act1Complete(stand: GameState, lastDay: number = ECON.TOTAL_DAYS): boolean {
+  return stand.history.length >= lastDay;
 }
 
 /** Act 2 ends when a manager has run it profitably, or the fortnight is up. */

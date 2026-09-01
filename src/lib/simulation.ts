@@ -156,6 +156,17 @@ export interface DayRecord {
   fixedCost?: number;
   /** Lemons bought and thrown away. Money spent on nothing. */
   spoiledLemons?: number;
+  /** What the sky was promised to do, as opposed to what it did. */
+  forecast?: Forecast;
+  /**
+   * The seed as it stood *before* this day was played.
+   *
+   * Kept so the day can be played again against a different plan. Without it a
+   * finished day is a number in a list; with it, the crowd that turned up is
+   * reproducible, and "the same people, twenty cents dearer" becomes a question
+   * the kid can actually ask. See `rehearseDay`.
+   */
+  seedBefore?: number;
 }
 
 export interface GameState {
@@ -670,6 +681,8 @@ export function runDay(
     marketShare: params.marketShare,
     fixedCost,
     spoiledLemons: aged.spoiledLemons,
+    forecast: state.forecast,
+    seedBefore: state.seed,
   };
 
   const isLastDay = params.lastDay !== null && state.day >= params.lastDay;
@@ -731,6 +744,54 @@ export function runDay(
     cashFloored,
     nextState,
   };
+}
+
+/**
+ * Yesterday's crowd, today's plan.
+ *
+ * The hardest thing to learn from this game is the *derivative*: what happens
+ * to the money when you change the price and nothing else. Seven days of play
+ * will not teach it, because the weather moves at the same time as the price
+ * and the kid cannot tell which one did what. A scientist would hold the world
+ * still and change one thing. So we let them.
+ *
+ * This replays the crowd that actually turned up — same seed, same forecast,
+ * same weather — against whatever plan the kid is currently holding. It is a
+ * rehearsal, so nothing here is ever saved: the outcome is read and thrown
+ * away, and the day they open for real is drawn fresh.
+ *
+ * Two things it deliberately is not:
+ *
+ * - It is not a prediction. It answers "if the same people came back" and says
+ *   so on screen. Today's sky is unknown and stays unknown, so grinding the
+ *   dials against yesterday still loses money when it turns cold — which is
+ *   itself the lesson underneath, and the one no projection can teach.
+ * - It is not an oracle over data the kid does not have. Every input is a day
+ *   they already lived through. Nothing about tomorrow leaks backwards.
+ *
+ * Returns null for a day recorded before we kept the seed, which is the only
+ * honest answer: we cannot reproduce that crowd, so we will not pretend to.
+ */
+export function rehearseDay(
+  state: GameState,
+  decisions: Decisions,
+  params: Partial<DayParams> | undefined,
+  past: DayRecord,
+): DayOutcome | null {
+  if (past.seedBefore === undefined || past.forecast === undefined) return null;
+
+  // Today's cash and today's pantry — this is a plan for today, and the lemons
+  // sitting in the crate are as old as they really are. Only the crowd is
+  // borrowed. `status` is forced because a rehearsal after the last day is
+  // still a fair question.
+  const asItWas: GameState = {
+    ...state,
+    status: 'playing',
+    seed: past.seedBefore,
+    forecast: past.forecast,
+  };
+
+  return runDay(asItWas, decisions, params);
 }
 
 export function clampPrice(price: number): number {

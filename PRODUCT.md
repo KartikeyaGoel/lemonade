@@ -531,7 +531,181 @@ the kid could not have had.
 ## 22. Out of scope, permanently
 
 Real money or brokerage integration of any kind. Day trading, leverage,
-options, shorting. Multiplayer. Leaderboards. Streaks. Badges. Any screen
+options, shorting. Live multiplayer of any kind — see §25 for why the
+asynchronous version is not a compromise. Leaderboards. Streaks. Badges. Any screen
 whose primary content is explanatory text. Copied assets, names or art from
 other games — mechanics are not copyrightable and we borrow structure freely,
 but expression and assets are off limits.
+
+## 23. The interface is a place, not a form
+
+The planning screen was, for a long time, a heading and two labelled sliders
+with three summary cards under them. Everything on it was correct. It was also
+a settings menu, and a kid reads a settings menu as homework.
+
+Watching a middle schooler play a factory-builder made the gap obvious. In that
+game nothing is a slider in a list. Every machine is an object on the floor with
+its current setting written underneath it — `15 ×$0.50`, `20 / 1 of 2hrs` — and
+you tap the object to go inside it and change it. Two things follow from that
+which no form gets for free:
+
+1. **The whole plan is legible at a glance.** You do not open four panels to
+   find out what your factory is set to; you look at it.
+2. **The interface teaches the topology.** You learn what is connected to what
+   by looking at the floor, not by reading a description of it.
+
+So the plan lives on the stand. The price is on the sign, because the sign is
+what the customers read. The batch is in the crate of lemons, because that is
+where the lemons are. The margin is in the cash box. Regulars are a board on a
+post. The rival is across the road, small, because he is over there and not
+here. Tapping a thing opens a sheet — the stand stays visible behind it, so a
+kid is never navigating, only looking closer.
+
+Every badge in the scene is a real figure from the kid's own state, the same one
+the sheets and the statement use. A scene that showed a friendlier rounded
+version of the truth would be worse than the form it replaced.
+
+## 24. The bench, and the only honest way to teach a demand curve
+
+Here is the measurement problem that Act 1 had and could not solve by trying
+harder. A kid raises their price and earns less. Was it the price, or was it the
+weather? Both moved. Seven days of noisy data will not separate them, and a kid
+who cannot separate them learns the wrong lesson roughly half the time — which
+is worse than learning nothing, because it is confidently wrong.
+
+A scientist would hold the world still and change one thing. So the bench lets
+them:
+
+> **Try it on yesterday's crowd.**
+
+The kid's current plan is replayed against the crowd that actually turned up
+yesterday — same seed, same forecast, same weather, same people — and the result
+is kept in a short list. Change one number, try again, and the two results are
+compared with the gap decomposed into the decisions that caused it:
+
+```
+You charged more and sold fewer — and still came out ahead.   +$9.52
+  Charging more        +$0.75 a cup on the 36 you were selling      +$27.00
+  Selling fewer cups   11 cups fewer, at $1.75                      −$19.25
+  Fewer lemons and sugar                                             +$1.77
+```
+
+Those lines sum to the gap exactly, and a test holds them to it. That paragraph
+is the price elasticity of demand, discovered rather than defined, in a kid's own
+numbers, from a decision they made on purpose.
+
+Four rules keep it from becoming a cheat:
+
+- **It is yesterday, and it says so.** Today's weather is unknown and stays
+  unknown. Optimising hard against yesterday still loses money when it turns
+  cold, which is the second lesson and the one no projection can teach.
+- **It uses no data the kid does not have.** Every input is a day they lived
+  through. Nothing about tomorrow leaks backwards.
+- **Nothing is saved.** A rehearsal is read and thrown away; the real day is
+  drawn fresh.
+- **The list is six long.** Enough for a hypothesis, a control and a few
+  variations. Not enough to grind a slider until the number peaks, which would
+  turn a question into a search.
+
+The one thing it still never shows is a prediction of today. That remains the
+thing they are here to find out.
+
+## 25. When other people arrive
+
+The question was whether stretching single-player out risks boredom, given that
+Clash Royale is multiplayer at minute one. Looking at what those games actually
+do rather than what they are famous for:
+
+| Game | First session | What actually retains |
+| --- | --- | --- |
+| Clash of Clans | Single-player goblin maps | The clan — gated at Town Hall 3, joined later |
+| Clash Royale | Genuinely PvP immediately | But the *content* is the opponent; 3-minute matches |
+| Minecraft | Alone, for days or weeks | Showing people. Servers come much later |
+| Roblox (Adopt Me, Brookhaven) | Multiplayer by default | Parallel play, not co-op. Everyone in their own house |
+| Good Pizza, Great Pizza | Alone, forever | Short loop, rising difficulty, a story |
+
+The pattern is not "multiplayer early". It is **asynchronous social presence
+early, synchronous co-operation late**. Kids need to feel observed and compared
+in the first session — that is what makes it not-homework — but they do not need
+a live partner, and a live partner is the one thing we cannot ship (no backend,
+no accounts, no data belonging to a child on anybody's server).
+
+So three tiers, all of them offline:
+
+1. **The rival, from Act 2 day one.** A stand across the road with a price on
+   its sign. Not a control — a fact about the street. Somebody to beat.
+2. **The duel, from day two.** A short code that carries one day of weather.
+   Both kids play the same Tuesday with the same twenty dollars and compare,
+   and the comparison decomposes the gap the same way the bench does. Two
+   minutes. This used to be a full week, which put the only other-people
+   feature in the game forty minutes past the front door.
+3. **The club, in Act 4.** A shared portfolio passed between phones, where a
+   proposal needs a reason and a vote.
+
+Day two rather than day one for the duel, deliberately: a kid whose entire
+experience is one day does not yet know the weather moves, so the comparison
+would read as luck rather than as decisions.
+
+## 26. Is this too much?
+
+Honest audit. The game now contains: a stand, a bench, upgrades, staff,
+locations, a rival, a round of regulars, deals, a buyout, an equity offer, a
+market, a portfolio, a thesis gate, a reckoning, a trophy case, a glossary,
+duels, a club, seasons and a parent view. That is more systems than Clash of
+Clans has, and Clash of Clans is not a game anybody calls simple.
+
+The count is not the problem. Clash of Clans introduces thirty systems and
+nobody is overwhelmed, because at any given moment there is **one thing lit up
+and a finger pointing at it**. The problem is under-teaching at the moment of
+arrival, and playing our own first ten minutes with fresh eyes found exactly
+that:
+
+- The game never stated its own objective. A kid got a forecast, a shopping list
+  and a price dial, and had to infer that the point was to end the week with
+  more than twenty dollars. Fixed: the goal is on screen, permanently, from the
+  first morning.
+- Day one handed over three new words in three stacked panels of italic
+  explanation, under the first profit and loss a kid has ever read. Fixed: one
+  word a day, the rest queue.
+- Two badges and a word landed on top of that statement as overlays, covering
+  it completely. Fixed: badges wait until the statement has been read, then
+  arrive one at a time, and never over a pinned button.
+- The new stand scene is a kind of screen nobody has seen before, so a kid who
+  does not know it is touchable reads it as a picture. Fixed: a finger, once.
+
+The rules that keep it in hand, and they are load-bearing:
+
+- **One card a day.** Day one announces the trophy case. Day two announces the
+  duel. Never two at once. `announceable()` enforces it; a test holds it.
+- **One word a day.** `Game.pendingInsights` queues the rest.
+- **One finger.** A hint is one sentence and one arrow, it points at exactly one
+  thing, and it goes away when the kid *does the thing* — never when they tap
+  "Got it!", because tapping "Got it!" teaches nothing. Nothing is ever blocked
+  while a hint is up.
+- **Nothing exists until it has a meaning.** Every gate in `unlocks.ts` has the
+  moment that justifies it written next to it, and the rule is always "what has
+  just happened makes this obvious", never "they have played long enough".
+
+## 27. Text is the enemy, and it is not the same as rigour
+
+A twelve-year-old scrolls past a paragraph. This is not a reason to teach less;
+it is a reason to stop using prose as the delivery mechanism for things that are
+not prose.
+
+Concretely, and each of these was a real paragraph that is now not one:
+
+- The ingredient breakdown was `7 lemons $3.50 + sugar $1.12 + cups $0.84`,
+  followed by a sentence about the per-cup cost. It is now `🍋 7 · $3.50   🥄
+  $1.12   🥤 $0.84   ≈ $0.20 a cup`. Same four figures, a third of the words.
+- Every new word had two paragraphs: what just happened, and why it will matter
+  with real companies. The first is the lesson and stays visible. The second is
+  real and worth keeping, so it waits behind **Why this matters ›**. Curiosity
+  opens it; nobody is made to read it.
+- "Next up" was three goals with an instruction under each — six lines of small
+  print at the bottom of a long screen. Now it is three titles with a chevron.
+- The plan screen's numbers moved onto the objects they belong to, which
+  deleted every label that existed only to say which slider was which.
+
+What is never compressed: the profit and loss. It is a table of the kid's own
+figures that reconcile on paper, and it is the one screen in the game allowed to
+look precise and grown-up. Numbers are not text.

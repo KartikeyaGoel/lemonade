@@ -98,12 +98,7 @@ import {
   type Career,
 } from '@/lib/career';
 import { announceable, isFirstRun, isUnlocked, newlyUnlocked, type Unlock } from '@/lib/unlocks';
-import {
-  createChallenge,
-  summariseRun,
-  type ChallengeSpec,
-  type RunResult,
-} from '@/lib/challenge';
+import type { ChallengeSpec } from '@/lib/challenge';
 import { buildThesis, quantClaim, qualClaim, scoreAll, type Thesis } from '@/lib/thesis';
 import type { ClubState } from '@/lib/club';
 import { STANDS_FOR_SALE } from '@/lib/ownership';
@@ -139,6 +134,9 @@ import { NextUp } from '@/components/meta/NextUp';
 import { ReckoningScreen } from '@/components/meta/ReckoningScreen';
 
 /** One screen, one decision. */
+/** How many new words a kid is handed at the end of one day. One. */
+const WORDS_PER_DAY = 1;
+
 type Phase =
   | 'title'
   | 'act-intro'
@@ -323,13 +321,17 @@ export default function Page() {
 
   /* ---------------- The day loop ---------------- */
 
+
+
   const openStand = useCallback(
     (price: number, cups: number, ranByManager = false) => {
       if (!game) return;
 
+      // A duel is a one-day Act 1, so the last day comes from the challenge
+      // rather than from ECON. Everything else about the day is identical.
       const params =
         game.act === 1
-          ? DEFAULT_DAY_PARAMS
+          ? { ...DEFAULT_DAY_PARAMS, lastDay: game.challenge?.spec.days ?? ECON.TOTAL_DAYS }
           : { ...deriveDayParams(game.business, price), equityShare: game.ownership.equitySoldPct };
 
       const order = orderForTargetCups(game.stand, cups);
@@ -345,18 +347,31 @@ export default function Page() {
         result.subscriberCups > 0
           ? [recurringRevenueInsight(result.subscriberCups, result.subscriberPrice, result.weather)]
           : [];
+      // Filtered against what is queued as well as what has been given, or a
+      // word waiting its turn would be earned again tomorrow and end up in the
+      // queue twice.
       const earned = unrecorded(
         [...act1Insights, ...act2Insights, ...roundInsights],
-        game.learned,
+        [...game.learned, ...game.pendingInsights.map((insight) => insight.id)],
       );
+
+      // One word a day. Day one earns three, and three explanations stacked
+      // under the first P&L a kid has ever read is a worksheet. The rest wait
+      // their turn — see `Game.pendingInsights`.
+      const queue = [...game.pendingInsights, ...earned];
+      const today = queue.slice(0, WORDS_PER_DAY);
+      const waiting = queue.slice(WORDS_PER_DAY);
 
       setPlanned(projectDay(game.stand, cups, price, params));
       setOutcome(result);
-      setNewInsights(earned);
+      setNewInsights(today);
 
       setGame({
         ...game,
-        learned: [...game.learned, ...earned.map((i) => i.id)],
+        // Only what was actually handed over counts as learned; that is what
+        // gates the harder panels and fills the words tab.
+        learned: [...game.learned, ...today.map((i) => i.id)],
+        pendingInsights: waiting,
         business: updateHandsOff(game.business, ranByManager, result.profit),
         ownership: recordInvestorCut(game.ownership, result.investorCut),
       });
@@ -394,7 +409,10 @@ export default function Page() {
     setNewInsights([]);
 
     // Act boundaries.
-    if (advanced.act === 1 && act1Complete(advanced.stand)) {
+    if (
+      advanced.act === 1 &&
+      act1Complete(advanced.stand, advanced.challenge?.spec.days ?? ECON.TOTAL_DAYS)
+    ) {
       setPhase('week-end');
       return;
     }
@@ -703,11 +721,6 @@ export default function Page() {
   const me = career.name || 'You';
   const firstRun = isFirstRun(game, career);
   const knowsPE = game.learned.includes('pe-ratio') || career.words.includes('pe-ratio');
-  const mySpec = createChallenge(game.seed);
-  const myResult: RunResult | null =
-    game.stand.history.length > 0
-      ? summariseRun(game.seed, me, game.stand.history.slice(0, ECON.TOTAL_DAYS), held.length)
-      : null;
 
   /**
    * The queues jump the phase, but never over the day itself.
@@ -1077,8 +1090,10 @@ export default function Page() {
     case 'challenge':
       return (
         <ChallengeScreen
-          mySpec={mySpec}
-          myResult={myResult}
+          seed={game.seed}
+          me={me}
+          history={game.stand.history}
+          badges={held.length}
           onPlayChallenge={playChallenge}
           onCompared={(comparison) => {
             setCareer((current) =>
@@ -1130,8 +1145,17 @@ export default function Page() {
   return (
     <>
       {screen}
-      {phase !== 'run' && badgeQueue.length > 0 && (
-        <BadgeToast badges={badgeQueue} onDismiss={() => setBadgeQueue([])} />
+      {/* Badges wait for 'run' *and* 'close'. A badge is a reward for the day's
+          result, so putting it on top of the day's result is self-defeating —
+          and on day one there are two of them plus a word, which between them
+          covered the profit and loss entirely. They land on the next screen,
+          one at a time. */}
+      {phase !== 'run' && phase !== 'close' && badgeQueue.length > 0 && (
+        <BadgeToast
+          badges={badgeQueue}
+          raised={phase === 'plan' || phase === 'market'}
+          onDismiss={() => setBadgeQueue((queue) => queue.slice(1))}
+        />
       )}
     </>
   );

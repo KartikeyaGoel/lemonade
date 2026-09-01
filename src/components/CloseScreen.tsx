@@ -84,18 +84,21 @@ export function CloseScreen({
               amount={outcome.revenue}
             />
           )}
+          {/* The breakdown reads as three icons rather than a sentence with two
+              plus signs in it. Same three numbers, a third of the words. */}
           <Line
             label="Ingredients"
-            detail={
-              outcome.cupsSold > 0
-                ? `${outcome.ingredients.lemonsUsed} ${outcome.ingredients.lemonsUsed === 1 ? 'lemon' : 'lemons'} ${money(outcome.ingredients.lemons)} + sugar ${money(outcome.ingredients.sugar)} + cups ${money(outcome.ingredients.cups)}`
-                : 'nothing poured'
-            }
+            detail={outcome.cupsSold > 0 ? null : 'nothing poured'}
             amount={-outcome.ingredients.total}
           />
           {outcome.cupsSold > 0 && (
-            <div className="-mt-0.5 mb-1 font-body text-[11px] font-bold text-ink/40">
-              works out at about {money(outcome.ingredients.perCup)} a cup
+            <div className="-mt-0.5 mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-body text-[11px] font-bold text-ink/45">
+              <span>
+                🍋 {outcome.ingredients.lemonsUsed} · {money(outcome.ingredients.lemons)}
+              </span>
+              <span>🥄 {money(outcome.ingredients.sugar)}</span>
+              <span>🥤 {money(outcome.ingredients.cups)}</span>
+              <span className="text-ink/35">≈ {money(outcome.ingredients.perCup)} a cup</span>
             </div>
           )}
 
@@ -192,7 +195,11 @@ export function CloseScreen({
           </div>
         )}
 
-        {/* What the day taught, named only now that it has been felt. */}
+        {/* What the day taught, named only now that it has been felt.
+            One sentence is visible. The "why it will matter later" half is real
+            and worth keeping, but it is the second paragraph of italic text on a
+            screen a twelve-year-old is already scrolling past, so it waits
+            behind a tap. Curiosity opens it; nobody is made to read it. */}
         {insights.length > 0 && (
           <div className="mt-4 space-y-3">
             {insights.map((insight, i) => (
@@ -211,9 +218,17 @@ export function CloseScreen({
                 </div>
                 <div className="mt-1 font-sign text-2xl leading-none text-ink">{insight.term}</div>
                 <p className="mt-1.5 font-body text-sm font-bold text-ink/80">{insight.evidence}</p>
-                <p className="mt-1.5 font-body text-[13px] font-semibold italic text-ink/60">
-                  {insight.carriesForward}
-                </p>
+                <details className="group mt-2">
+                  <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full border-2 border-wood-dark/40 px-2 py-0.5 font-body text-[11px] font-extrabold text-wood-deep">
+                    Why this matters
+                    <span aria-hidden className="transition-transform group-open:rotate-90">
+                      ›
+                    </span>
+                  </summary>
+                  <p className="mt-1.5 font-body text-[13px] font-semibold italic text-ink/60">
+                    {insight.carriesForward}
+                  </p>
+                </details>
               </div>
             ))}
           </div>
@@ -243,14 +258,22 @@ export function CloseScreen({
   );
 }
 
-function Line({ label, detail, amount }: { label: string; detail: string; amount: number }) {
+function Line({
+  label,
+  detail,
+  amount,
+}: {
+  label: string;
+  detail: string | null;
+  amount: number;
+}) {
   return (
     <div className="py-1">
       <div className="ledger-row">
         <span className="font-body font-extrabold">{label}</span>
         <span className={amount < 0 ? 'text-ink/80' : ''}>{money(amount)}</span>
       </div>
-      <div className="font-body text-[11px] font-bold text-ink/40">{detail}</div>
+      {detail && <div className="font-body text-[11px] font-bold text-ink/40">{detail}</div>}
     </div>
   );
 }

@@ -26,14 +26,21 @@ export function WeekEndScreen({
   challengeResult?: boolean;
 }) {
   const summary = weekSummary(state.history);
+  // A duel is one day, and a screen that says "seven days" after one of them
+  // is the kind of small lie that makes a kid stop trusting the numbers.
+  const short = summary.days < ECON.TOTAL_DAYS;
 
   return (
     <Sky mood="dawn">
       <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-5 pb-8 pt-8">
         <div className="text-center">
-          <div className="font-sign text-6xl leading-none text-wood-deep">You figured out pricing.</div>
+          <div className="font-sign text-6xl leading-none text-wood-deep">
+            {short ? 'That was your day.' : 'You figured out pricing.'}
+          </div>
           <p className="mt-3 font-body text-base font-extrabold text-ink/70">
-            Seven days. {money(summary.totalProfit)} of profit. Here is every price you tried.
+            {summary.days} {summary.days === 1 ? 'day' : 'days'}. {money(summary.totalProfit)} of
+            profit.{' '}
+            {summary.days > 1 ? 'Here is every price you tried.' : 'Here is what you charged.'}
           </p>
         </div>
 

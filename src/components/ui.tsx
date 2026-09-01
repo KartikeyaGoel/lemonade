@@ -257,3 +257,76 @@ export function CodeInput({
     </div>
   );
 }
+
+/**
+ * The pointing finger.
+ *
+ * Clash of Clans does not explain its systems. It puts a finger on the one
+ * thing to tap, greys out everything else, and lets you find out what happened.
+ * Nobody reads a tutorial; everybody follows a finger.
+ *
+ * So a hint here is one sentence and one arrow, and it goes away the moment the
+ * kid does the thing rather than when they acknowledge it — there is no "Got
+ * it!" button, because tapping "Got it!" teaches nothing. Nothing is ever
+ * blocked while it is up: a kid who ignores it can still play.
+ *
+ * Which hint shows is derived from how far the kid has got, not remembered in a
+ * flag, so it cannot desynchronise from the game and cannot be missed.
+ */
+export function Coach({
+  children,
+  point = 'down',
+  className = '',
+}: {
+  children: ReactNode;
+  point?: 'up' | 'down';
+  className?: string;
+}) {
+  return (
+    <div className={`pointer-events-none relative z-20 flex flex-col items-center ${className}`}>
+      {point === 'up' && <Nib direction="up" />}
+      <div className="animate-bob rounded-2xl border-[3px] border-lemon-deep bg-[#1F1A14] px-3 py-2 text-center font-body text-[12px] font-extrabold leading-tight text-white shadow-[0_4px_0_0_rgba(0,0,0,0.35)]">
+        {children}
+      </div>
+      {point === 'down' && <Nib direction="down" />}
+    </div>
+  );
+}
+
+function Nib({ direction }: { direction: 'up' | 'down' }) {
+  return (
+    <span
+      aria-hidden
+      className={`h-2.5 w-4 bg-lemon-deep ${direction === 'down' ? '-mt-px' : '-mb-px'}`}
+      style={{
+        clipPath: direction === 'down' ? 'polygon(0 0, 100% 0, 50% 100%)' : 'polygon(50% 0, 0 100%, 100% 100%)',
+      }}
+    />
+  );
+}
+
+/**
+ * What the kid is trying to do, in one line, permanently on screen.
+ *
+ * Playing the first ten minutes with fresh eyes turned up something
+ * embarrassing: the game never states its own objective. A kid gets a forecast,
+ * a shopping list and a price dial, and has to infer from context that the point
+ * is to end the week with more than twenty dollars. Every game the target
+ * audience plays states the goal and keeps it visible — the factory builder in
+ * the reference screenshot has it pinned to the top left corner all game.
+ */
+export function GoalStrip({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-1 flex items-center gap-2 rounded-2xl border-[3px] border-ink/15 bg-white/70 px-3 py-1.5">
+      <span aria-hidden className="text-sm">
+        🎯
+      </span>
+      <span className="font-body text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink/45">
+        Goal
+      </span>
+      <span className="flex-1 text-right font-body text-[12px] font-extrabold leading-tight text-ink/75">
+        {children}
+      </span>
+    </div>
+  );
+}

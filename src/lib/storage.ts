@@ -80,6 +80,7 @@ function migrate(game: Game): Game {
       ? { ...game.portfolio, windowStart: game.portfolio.windowStart ?? windowStartFor(game.portfolio.seed) }
       : null,
     learned: game.learned ?? [],
+    pendingInsights: Array.isArray(game.pendingInsights) ? game.pendingInsights : [],
     daysTraded: game.daysTraded ?? game.stand?.history?.length ?? 0,
     season: game.season ?? 1,
     theses: Array.isArray(game.theses) ? game.theses : [],

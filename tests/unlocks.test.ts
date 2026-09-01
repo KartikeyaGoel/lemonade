@@ -80,9 +80,14 @@ describe('each system arrives at the moment it makes sense', () => {
     expect(isUnlocked('whats-next', withDays(1), createCareer())).toBe(true);
   });
 
-  it('offers a challenge only once a whole week has been played', () => {
-    expect(isUnlocked('challenge', withDays(ECON.TOTAL_DAYS - 1), createCareer())).toBe(false);
-    expect(isUnlocked('challenge', withDays(ECON.TOTAL_DAYS), createCareer())).toBe(true);
+  it('offers a challenge on the second day, so somebody else is in the game early', () => {
+    expect(isUnlocked('challenge', withDays(1), createCareer())).toBe(false);
+    expect(isUnlocked('challenge', withDays(2), createCareer())).toBe(true);
+  });
+
+  it('still offers the challenge to a kid who only ever played a duel', () => {
+    const career = { ...createCareer(), challengesPlayed: 1 };
+    expect(isUnlocked('challenge', createGame(1), career)).toBe(true);
   });
 
   it('offers a club only once the kid has their own money in the market', () => {

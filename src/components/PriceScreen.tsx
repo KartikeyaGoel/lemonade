@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ECON, ingredientCostOf, type GameState } from '@/lib/simulation';
-import { ChunkyButton, HeaderBar, SignHeading, Sky, money } from './ui';
+import { ChunkyButton, Coach, HeaderBar, SignHeading, Sky, money } from './ui';
 import { Stand } from './Stand';
 
 /**
@@ -32,6 +32,7 @@ export function PriceScreen({
   const perCup = cupsMakeable > 0 ? ingredientCostOf(cupsMakeable).perCup : 0;
   const marginPerCup = price - perCup;
   const showMargin = learned.includes('margin') || learned.includes('unit-cost');
+  const firstEver = state.history.length === 0;
 
   const nudge = (delta: number) =>
     setPrice((current) => Math.min(ECON.MAX_PRICE, Math.max(0, Math.round((current + delta) * 100) / 100)));
@@ -46,6 +47,12 @@ export function PriceScreen({
         <div className="mt-4 flex justify-center">
           <Stand price={price} compact />
         </div>
+
+        {firstEver && (
+          <Coach point="up" className="mt-1">
+            A cup costs you {money(perCup)} to make. Charge more than that.
+          </Coach>
+        )}
 
         {/* Big physical stepper: the primary control. */}
         <div className="mt-5 flex items-center justify-center gap-4">

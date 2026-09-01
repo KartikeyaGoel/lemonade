@@ -1,18 +1,32 @@
 'use client';
 
 import { FORECAST_COPY, type GameState, ECON, weekSummary } from '@/lib/simulation';
-import { ChunkyButton, Ground, HeaderBar, SignHeading, Sky, WeatherArt, money } from './ui';
+import {
+  ChunkyButton,
+  Coach,
+  GoalStrip,
+  Ground,
+  HeaderBar,
+  SignHeading,
+  Sky,
+  WeatherArt,
+  money,
+} from './ui';
 import { Stand } from './Stand';
 
 /**
  * Morning. Zero decisions on purpose — the kid taps once and moves on.
  * Its only job is to make a new day feel like a new day, and to show the
  * forecast as a genuine hint rather than a promise.
+ *
+ * And, on the very first morning, to say what the game is. It went ten minutes
+ * without stating its own objective, which a kid resolves by guessing.
  */
 export function MorningScreen({ state, onContinue }: { state: GameState; onContinue: () => void }) {
   const forecast = FORECAST_COPY[state.forecast];
   const summary = weekSummary(state.history);
   const yesterday = state.history[state.history.length - 1];
+  const firstEver = state.history.length === 0;
 
   return (
     <Sky mood={state.forecast}>
@@ -21,6 +35,14 @@ export function MorningScreen({ state, onContinue }: { state: GameState; onConti
 
       <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-64px)] w-full max-w-md flex-col items-center px-5 pb-8 pt-6">
         <SignHeading className="text-center text-5xl">Day {state.day}</SignHeading>
+
+        {firstEver && (
+          <div className="w-full">
+            <GoalStrip>
+              {ECON.TOTAL_DAYS} days to grow {money(ECON.STARTING_CASH)}
+            </GoalStrip>
+          </div>
+        )}
 
         <div className="signboard mt-5 w-full text-center animate-popIn">
           <div className="font-sign text-3xl text-ink">{forecast.headline}</div>
@@ -51,8 +73,12 @@ export function MorningScreen({ state, onContinue }: { state: GameState; onConti
           </div>
         </div>
 
+        {firstEver && (
+          <Coach className="relative z-10 mb-1">Buy lemons first. Then pick a price.</Coach>
+        )}
+
         <ChunkyButton variant="lemon" full onClick={onContinue} className="relative z-10">
-          Open up shop →
+          {firstEver ? 'Go shopping →' : 'Open up shop →'}
         </ChunkyButton>
       </div>
 
