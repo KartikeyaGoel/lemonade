@@ -1071,3 +1071,34 @@ draws in a day depends on the weather and nothing else**. That is not obvious
 from reading the function, and a plausible optimisation — only generate the
 people who might buy — would break the challenge system, the club and the
 classroom board silently and at once. `tests/challenge.test.ts` now pins it.
+
+## 39. Offline, because the classroom is where this matters most
+
+The game has no backend, makes no network calls from a child's device, and keeps
+every save in `localStorage`. There was never a reason for it to stop working
+when the wifi did — except that a web page needs the network to load itself.
+
+`public/sw.js` fixes that, and the strategy is deliberately boring. Hashed build
+assets are immutable by construction, so cache-first with no revalidation.
+Navigations are network-first with a cached fallback, so a child on a good
+connection always gets the newest build and a child on none still gets the game.
+Nothing cross-origin is touched at all, because nothing should be going there.
+
+Two details that were not obvious:
+
+- **The install warms the cache by reading the shell.** Relying on the fetch
+  handler alone leaves a hole: the browser only downloads what it needs, so a
+  modern browser never fetches the polyfill bundle, and it is therefore missing
+  when an older browser comes to the same device offline. The worker fetches
+  `/`, pulls every `/_next/static/…` URL out of the HTML, and caches the lot.
+  Verified: eight referenced, eight cached, none missing.
+- **No `skipWaiting`, and not in development.** A new worker takes over on the
+  next load rather than swapping assets under a child halfway through a day. And
+  in development a cache-first worker cheerfully stores hot-update chunks and
+  serves stale ones back, which presents as an edit that did not take.
+
+Haptics came with it, on the same switch as the sound. Only cues that mark
+something *finishing* buzz — the till, a badge, an unlock, the finale, a bad
+day. A buzz on every cup would fire forty times a day, drain a battery, and stop
+meaning anything by the fourth one. Held to that by a test, because it is
+exactly the sort of rule that erodes.

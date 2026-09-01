@@ -523,6 +523,4 @@ Honest, after all of this:
   three things wrong with it in the first ten minutes.
 - **The club still travels by copy-paste.** A consequence of having no backend,
   and the biggest remaining drag on the social loop.
-- **No offline.** There is a manifest and no service worker, so a school with
-  bad wifi loses the lesson.
 - **Quarterly fundamentals.** Still 10-K only; see §9.

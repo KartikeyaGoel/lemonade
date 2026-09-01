@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SCORES, cueLength, type Cue } from '../src/lib/sound';
+import { BUZZ_MS, BUZZABLE, SCORES, cueLength, type Cue } from '../src/lib/sound';
 
 const CUES = Object.keys(SCORES) as Cue[];
 
@@ -75,6 +75,26 @@ describe('the score', () => {
         expect(note.secs, cue).toBeGreaterThan(0.01);
         expect(note.at, cue).toBeGreaterThanOrEqual(0);
       }
+    }
+  });
+
+  it('only buzzes for things that finish', () => {
+    // A buzz on every cup fires forty times a day, drains a battery, and stops
+    // meaning anything by the fourth one.
+    expect(BUZZABLE).not.toContain('coin');
+    expect(BUZZABLE).not.toContain('tap');
+    expect(BUZZABLE).not.toContain('tick');
+    expect(BUZZABLE).toContain('cash');
+    expect(BUZZABLE).toContain('badge');
+  });
+
+  it('never asks a phone to buzz for longer than a cue lasts', () => {
+    // A device still buzzing after the screen has moved on reads as a fault.
+    for (const cue of BUZZABLE) {
+      const pattern = BUZZ_MS[cue] ?? 0;
+      const steps = Array.isArray(pattern) ? pattern : [pattern];
+      const total = steps.reduce<number>((sum, ms) => sum + ms, 0);
+      expect(total, cue).toBeLessThanOrEqual(cueLength(cue) * 1000 + 50);
     }
   });
 });

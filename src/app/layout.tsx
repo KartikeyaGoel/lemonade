@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { OfflineReady } from '@/components/OfflineReady';
 
 export const metadata: Metadata = {
   title: 'Lemonade Stand',
@@ -45,7 +46,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full antialiased">{children}</body>
+      <body className="min-h-full antialiased">
+        {children}
+        <OfflineReady />
+      </body>
     </html>
   );
 }

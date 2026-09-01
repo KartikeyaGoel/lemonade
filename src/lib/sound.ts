@@ -205,11 +205,47 @@ function noise(audio: AudioContext): AudioBuffer {
 }
 
 /**
+ * How long the phone buzzes for a cue, in milliseconds.
+ *
+ * Only the cues that mark something *finishing* get one. A buzz on every cup
+ * would fire forty times a day, which drains a battery and stops meaning
+ * anything by the fourth one — and a phone that will not stop vibrating is a
+ * phone a parent takes away.
+ *
+ * It rides the same mute switch as the sound rather than getting a setting of
+ * its own. A child who turned the game silent because they are in a lesson does
+ * not want it buzzing on the desk either, and two toggles for "be quiet" is one
+ * too many.
+ */
+export const BUZZ_MS: Partial<Record<Cue, number | number[]>> = {
+  cash: [14, 40, 22],
+  badge: 18,
+  unlock: [18, 60, 18],
+  fanfare: [24, 60, 24, 60, 40],
+  sad: 32,
+};
+
+/** The cues that get one, so the rule can be tested rather than trusted. */
+export const BUZZABLE = Object.keys(BUZZ_MS) as Cue[];
+
+function buzz(cue: Cue): void {
+  const pattern = BUZZ_MS[cue];
+  if (pattern === undefined) return;
+  try {
+    navigator.vibrate?.(pattern);
+  } catch {
+    // Desktop, an unsupported browser, or a user who has switched it off at the
+    // system level. None of those is a reason to stop.
+  }
+}
+
+/**
  * Play a cue. Never throws, never awaits, safe to call from a render handler
  * and safe to call on a server (where it does nothing).
  */
 export function play(cue: Cue): void {
   if (isMuted()) return;
+  buzz(cue);
   const audio = context();
   if (!audio) return;
 
