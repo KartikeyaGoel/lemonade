@@ -32,6 +32,7 @@ export type Feature =
   | 'whats-next'
   | 'challenge'
   | 'club'
+  | 'playbook'
   | 'seasons';
 
 export interface Unlock {
@@ -97,6 +98,13 @@ export const UNLOCK_COPY: Record<Feature, Unlock> = {
     title: 'Investment club',
     because: 'You have your own money in the market. Pooling it with friends is the next thing.',
     emoji: '🧑‍🤝‍🧑',
+  },
+  playbook: {
+    feature: 'playbook',
+    title: 'Your playbook',
+    because:
+      'Four rules, decided in advance, tested against every twelve weeks of real history there is. This is where you find out whether you have a strategy or a hunch.',
+    emoji: '📓',
   },
   seasons: {
     feature: 'seasons',
@@ -166,6 +174,16 @@ export function isUnlocked(feature: Feature, game: Game, career: Career): boolea
     // advanced would have had it orphaned — created, saved, and unreachable.
     case 'club':
       return game.act >= 4 || career.clubWeeks > 0 || game.club !== null;
+
+    /*
+     * The moment there is money in the market and a first trade behind them.
+     *
+     * Not before: a deck of rules about what to buy means nothing to somebody
+     * who has never bought anything, and it would arrive as homework. One trade
+     * later it arrives as "there is a way to think about this".
+     */
+    case 'playbook':
+      return game.act >= 4 && (game.portfolio?.trades.length ?? 0) > 0;
 
     // Offered when there is a finished run to start again from.
     case 'seasons':

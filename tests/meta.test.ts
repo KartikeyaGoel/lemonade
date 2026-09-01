@@ -39,6 +39,7 @@ import {
   seasonRecord,
   whatsNext,
 } from '../src/lib/progress';
+import { SNAPSHOT } from '../src/lib/companies';
 import { createBusinessState } from '../src/lib/business';
 import { buyoutOffer, createOwnershipState } from '../src/lib/ownership';
 import { createPortfolio } from '../src/lib/market';
@@ -206,23 +207,25 @@ describe('rank comes from badges, never from time', () => {
     expect(rankFor(0).nextName).toBe('Stand owner');
   });
 
-  it('only ever climbs as badges are added', () => {
+  it('only ever climbs as standing is added', () => {
     let last = -1;
-    for (let held = 0; held <= BADGE_COUNT; held++) {
+    for (let held = 0; held <= 90; held++) {
       const rank = rankFor(held);
       expect(rank.index).toBeGreaterThanOrEqual(last);
       last = rank.index;
     }
   });
 
-  it('tops out with nothing left to chase', () => {
-    const top = rankFor(BADGE_COUNT);
-    expect(top.name).toBe('Analyst');
-    expect(top.nextAt).toBeNull();
+  it('does not run out while there is still collection left to gather', () => {
+    // Standing is badges + words + companies read, so the ceiling moves as the
+    // game grows. Badges alone must not reach the last rung.
+    expect(rankFor(BADGE_COUNT).nextAt).not.toBeNull();
+    expect(rankFor(BADGE_COUNT + GLOSSARY.length + SNAPSHOT.length).nextAt).toBeNull();
   });
 
-  it('is reachable: the top rung asks for fewer badges than exist', () => {
-    expect(rankFor(BADGE_COUNT).index).toBeGreaterThan(rankFor(BADGE_COUNT - 10).index);
+  it('is reachable: every rung is passed on the way up', () => {
+    expect(rankFor(80).index).toBeGreaterThan(rankFor(40).index);
+    expect(rankFor(40).index).toBeGreaterThan(rankFor(10).index);
   });
 });
 
@@ -406,7 +409,7 @@ describe('the career record', () => {
   it('shows the rank and how far the next one is', () => {
     const card = careerCard(recordBadges(createCareer('Ada'), ['open-for-business']));
     expect(card.rank.name).toBe('Kid with a jug');
-    expect(card.line).toContain('2 more badges');
+    expect(card.line).toContain('5 more badges');
     expect(card.badges).toEqual({ held: 1, total: BADGE_COUNT });
   });
 

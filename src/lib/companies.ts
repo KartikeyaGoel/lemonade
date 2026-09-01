@@ -59,7 +59,10 @@ export type BusinessModel =
   | 'membership'
   | 'platform'
   | 'brand'
-  | 'many-copies';
+  | 'many-copies'
+  | 'advertising'
+  | 'toll-booth'
+  | 'picks-and-shovels';
 
 export const MODELS: Record<
   BusinessModel,
@@ -95,7 +98,70 @@ export const MODELS: Record<
     standVersion: 'opening a second stand in the park',
     effect: 'Growth is arithmetic: one more of the same, again. Slows the day it runs out of corners.',
   },
+  advertising: {
+    name: 'Advertising',
+    standVersion: 'letting the ice-cream van pin a flyer to your table for a fee',
+    effect: 'The person drinking the lemonade is not the one paying you. Worth knowing whose customer you actually are.',
+  },
+  'toll-booth': {
+    name: 'Toll booth',
+    standVersion: 'taking two cents every time anyone on the street buys anything',
+    effect: 'A tiny slice of an enormous number. Grows with the street rather than with any one stand.',
+  },
+  'picks-and-shovels': {
+    name: 'Picks and shovels',
+    standVersion: 'selling lemons and cups to every other stand on the road',
+    effect: 'You do not have to pick the winner. You are paid by whoever is digging.',
+  },
 };
+
+/**
+ * How far into the market a company sits.
+ *
+ * Eight companies was the right number for a first visit and the wrong number
+ * for a game somebody keeps playing. A kid who wants to look up a company they
+ * care about and cannot find it has been told the market is a fixed menu, which
+ * is both untrue and uninteresting.
+ *
+ * So the market is a collection, and it opens up the way a card game's does.
+ * Tier 1 is what a kid physically touches. Tier 2 is what their family spends
+ * money on. Tier 3 is the businesses you cannot see from the street and have to
+ * read about — an advertising business, a toll booth, a company that sells
+ * shovels to everybody else. That order is pedagogical, not arbitrary: you can
+ * form a view about Nike by looking at your own feet, and you cannot do that
+ * with Visa.
+ *
+ * Gated on badges rather than on time played, so it is earned rather than
+ * waited out.
+ */
+export type Tier = 1 | 2 | 3;
+
+export const TIERS: Record<Tier, { name: string; blurb: string; badgesNeeded: number }> = {
+  1: {
+    name: 'Things you use',
+    blurb: 'Businesses you can form a view about by looking around your own house.',
+    badgesNeeded: 0,
+  },
+  2: {
+    name: 'Where the money goes',
+    blurb: 'The ones your family actually spends money on.',
+    badgesNeeded: 8,
+  },
+  3: {
+    name: 'You have to read about these',
+    blurb: 'Businesses you cannot see from the street. This is where reading the accounts stops being optional.',
+    badgesNeeded: 16,
+  },
+};
+
+export function tierUnlocked(tier: Tier, badges: number): boolean {
+  return badges >= TIERS[tier].badgesNeeded;
+}
+
+/** The companies a kid can actually see, in tier order. */
+export function openCompanies(badges: number): Company[] {
+  return SNAPSHOT.filter((company) => tierUnlocked(company.tier, badges));
+}
 
 /**
  * One fiscal year, as it was published.
@@ -123,6 +189,8 @@ export interface Company {
   ticker: string;
   name: string;
   emoji: string;
+  /** Which part of the collection this belongs to. See `TIERS`. */
+  tier: Tier;
   /** What a kid would recognise it for. */
   whatTheySell: string;
   /** Annual revenue, in millions of dollars. */
@@ -191,6 +259,7 @@ export const SNAPSHOT: Company[] = DATA.companies.map((row) => ({
   ticker: row.ticker,
   name: row.name,
   emoji: row.emoji,
+  tier: (row.tier ?? 1) as Tier,
   whatTheySell: row.whatTheySell,
   revenueM: row.revenueM,
   netIncomeM: row.netIncomeM,
@@ -249,13 +318,41 @@ export function fundamentalsAsOf(company: Company, asOf?: string): Fundamentals 
  * documenting an exception to it.
  */
 export const FIRST_HONEST_WEEK: number = (() => {
-  const firstFilings = DATA.companies.map((company) =>
-    company.annuals.length > 0 ? company.annuals[0].filedOn : '0000-00-00',
-  );
+  /*
+   * Tier 1 only, and that is a change worth explaining.
+   *
+   * This used to take the latest first-filing across every company, so a single
+   * recent flotation shortened the playable history for everybody: adding
+   * Duolingo and DoorDash to the roster cut it from five years to two and a
+   * half, which quietly halved the number of twelve-week windows and made real
+   * market falls rarer in the game than they are in life.
+   *
+   * The honest fix is not to move the line, it is to stop showing a company
+   * before it existed. So the window is bounded by the eight companies every
+   * kid sees from their first week, and anything later-listed is simply absent
+   * from the market until the week its first accounts were public — see
+   * `hasAccountsBy`.
+   */
+  const firstFilings = DATA.companies
+    .filter((company) => (company.tier ?? 1) === 1 && company.annuals.length > 0)
+    .map((company) => company.annuals[0].filedOn);
   const latestFirstFiling = firstFilings.sort().pop() ?? '0000-00-00';
   const index = DATA.weeks.findIndex((date) => date >= latestFirstFiling);
   return index < 0 ? 0 : index;
 })();
+
+/**
+ * Was this company public, with accounts a kid could have read, by this date?
+ *
+ * Act 4 replays a real week. Offering Duolingo in a week before it floated
+ * would be offering a share nobody could have bought, priced off accounts
+ * nobody had seen.
+ */
+export function hasAccountsBy(company: Company, asOf?: string): boolean {
+  if (!asOf) return true;
+  const first = company.annuals[0];
+  return Boolean(first && first.filedOn <= asOf);
+}
 
 /** Real weekly closes for one company, aligned to `WEEK_DATES`. */
 export function closesFor(ticker: string): number[] {

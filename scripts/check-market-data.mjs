@@ -29,6 +29,28 @@ for (const company of data.companies ?? []) {
   if (!Number.isFinite(company.revenueM) || !Number.isFinite(company.sharesM) || company.sharesM <= 0) {
     problems.push(`${company.ticker}: fundamentals incomplete`);
   }
+
+  /*
+   * A split that did not get applied to the share counts.
+   *
+   * Prices are adjusted for splits and 10-K share counts are not, so if the
+   * adjustment is ever missed the historical P/E comes out wrong by the split
+   * factor — Chipotle briefly showed a price-to-earnings ratio of 1. A real
+   * company changing its share count by half in one year would also trip this,
+   * and that is fine: it is exactly as worth a human look.
+   */
+  const years = company.annuals ?? [];
+  for (let i = 1; i < years.length; i++) {
+    const before = years[i - 1].sharesM;
+    const after = years[i].sharesM;
+    const jump = Math.max(after / before, before / after);
+    if (jump > 1.5) {
+      problems.push(
+        `${company.ticker}: shares went ${before}M → ${after}M between ${years[i - 1].fiscalYear} ` +
+          `and ${years[i].fiscalYear} (${jump.toFixed(1)}x) — an unadjusted split?`,
+      );
+    }
+  }
 }
 
 const ageDays = Math.floor((Date.now() - Date.parse(data.fetchedAt)) / 86_400_000);

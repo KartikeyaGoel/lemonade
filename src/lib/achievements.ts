@@ -485,20 +485,41 @@ export interface Rank {
   nextName: string | null;
 }
 
+/*
+ * The ladder runs on *standing*, not on badges alone.
+ *
+ * Badges alone made the ladder finish. There are thirty of them, the last rung
+ * was at twenty-four, and a kid who got there had nothing left to climb — which
+ * is the same completion trap the four acts had, one layer up. A ladder that
+ * ends is a ladder you eventually stop looking at.
+ *
+ * Standing is the three collections added together: badges earned, words
+ * earned, and companies whose accounts the kid has actually read. All three
+ * grow when the game grows — there are twenty-four companies now and there is
+ * no reason there will not be forty — so the ladder stretches with the content
+ * rather than being a percentage of a fixed total.
+ *
+ * It is still not experience points. Nothing here counts time, sessions or
+ * taps. Every point is a thing demonstrated once and kept: a behaviour the game
+ * could observe, a word the kid was given for something they had already done,
+ * or a set of real accounts they opened and looked at.
+ */
 const LADDER: Array<{ at: number; name: string; emoji: string }> = [
   { at: 0, name: 'Kid with a jug', emoji: '🥤' },
-  { at: 3, name: 'Stand owner', emoji: '🍋' },
-  { at: 7, name: 'Corner trader', emoji: '🏪' },
-  { at: 11, name: 'Operator', emoji: '⚙️' },
-  { at: 15, name: 'Owner', emoji: '🔑' },
-  { at: 19, name: 'Investor', emoji: '📈' },
-  { at: 24, name: 'Analyst', emoji: '🧠' },
+  { at: 6, name: 'Stand owner', emoji: '🍋' },
+  { at: 14, name: 'Corner trader', emoji: '🏪' },
+  { at: 24, name: 'Operator', emoji: '⚙️' },
+  { at: 34, name: 'Owner', emoji: '🔑' },
+  { at: 44, name: 'Investor', emoji: '📈' },
+  { at: 56, name: 'Analyst', emoji: '🧠' },
+  { at: 70, name: 'Portfolio manager', emoji: '🗂️' },
 ];
 
-export function rankFor(badgesHeld: number): Rank {
+export function rankFor(standing: number): Rank {
+  const badgesHeld = standing;
   let index = 0;
   for (let i = 0; i < LADDER.length; i++) {
-    if (badgesHeld >= LADDER[i].at) index = i;
+    if (standing >= LADDER[i].at) index = i;
   }
   const next = LADDER[index + 1] ?? null;
   return {

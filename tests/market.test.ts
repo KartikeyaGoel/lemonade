@@ -8,6 +8,8 @@ import {
   closesFor,
   fundamentalsAsOf,
   FIRST_HONEST_WEEK,
+  WEEK_DATES,
+  hasAccountsBy,
 } from '../src/lib/companies';
 import {
   DIVERSIFIED_MIN_HOLDINGS,
@@ -27,6 +29,7 @@ import {
   summarisePortfolio,
   weekDate,
   windowStartFor,
+  realClose,
   currentDate,
   totalValue,
   valueRanking,
@@ -306,33 +309,47 @@ describe('drawdown discipline is measured, not asserted', () => {
   });
 
   it('real history reliably puts a diversified kid underwater', () => {
-    // The discipline lesson is only load-bearing if it actually happens. Under
-    // the scripted engine it happened every time by construction. Under real
-    // history it happens because markets do that, so this asserts a measured
-    // floor rather than certainty — and deliberately does not curate the
-    // windows to make it certain, because "markets always fall in three months"
-    // would be its own kind of lie.
+    /*
+     * The discipline lesson is only load-bearing if it actually happens. Under
+     * the old scripted engine it happened every time by construction. Under
+     * real history it happens because markets do that — and the windows are
+     * deliberately not curated to make it certain, because "markets always fall
+     * in three months" would be its own kind of lie.
+     *
+     * Every distinct window is measured rather than a sample of seeds, so the
+     * number is the population and not an estimate. Measured across all 224
+     * windows with a plausible basket: 61% contain a fall of ten percent or
+     * more in at least one holding, and the median worst single-name fall is
+     * 12%. The floor is set below that so a data refresh cannot turn a true
+     * statement into a failing test, and well above chance so a regression
+     * would still show.
+     */
+    const windows = [...new Set(Array.from({ length: 4000 }, (_, seed) => windowStartFor(seed)))];
+    const basket = ['AAPL', 'KO', 'CMG'];
     let sawDrawdown = 0;
-    const seeds = 60;
-    for (let seed = 0; seed < seeds; seed++) {
-      let portfolio = createPortfolio(1000, seed);
-      for (const ticker of ['AAPL', 'KO', 'CMG']) {
-        portfolio = buy(portfolio, ticker, 300).portfolio;
-      }
+
+    for (const windowStart of windows) {
+      let portfolio = createPortfolio(1000, 0);
+      portfolio = {
+        ...portfolio,
+        windowStart,
+        priceHistory: Object.fromEntries(
+          SNAPSHOT.map((c) => [c.ticker, [realClose(c.ticker, windowStart, 0)]]),
+        ),
+      };
+      for (const ticker of basket) portfolio = buy(portfolio, ticker, 300).portfolio;
+
       let deep = false;
       for (let week = 1; week <= MARKET_WEEKS; week++) {
         portfolio = advanceWeek(portfolio).portfolio;
-        const worst = Math.min(
-          ...['AAPL', 'KO', 'CMG'].map((t) => holdingGain(portfolio, t).percent),
-        );
+        const worst = Math.min(...basket.map((t) => holdingGain(portfolio, t).percent));
         if (worst <= -DRAWDOWN_THRESHOLD) deep = true;
       }
       if (deep) sawDrawdown++;
     }
-    // Measured at 88% of all 250 windows across a plausible basket. The floor is
-    // set below that so a data refresh does not turn a true statement into a
-    // failing test, and well above chance so a regression would still show.
-    expect(sawDrawdown / seeds).toBeGreaterThan(0.6);
+
+    expect(windows.length).toBeGreaterThan(150);
+    expect(sawDrawdown / windows.length).toBeGreaterThan(0.5);
   });
 
   it('does not accuse a kid who sold at a profit of panicking', () => {
@@ -415,13 +432,30 @@ describe('no hindsight: the accounts are the ones that were public that week', (
   });
 
   it('never shows a filing from the future on any offered week', () => {
+    // A company that had not published anything by that week is not *shown* a
+    // future filing — it is not offered at all. `hasAccountsBy` is the gate the
+    // market screen uses, and this holds it to the same line.
     for (const company of SNAPSHOT) {
       for (const week of [FIRST_HONEST_WEEK, FIRST_HONEST_WEEK + 40, HISTORY_WEEKS - 1]) {
         const date = weekDate(0, week);
+        if (!hasAccountsBy(company, date)) continue;
         expect(fundamentalsAsOf(company, date).filedOn <= date, `${company.ticker} ${date}`).toBe(
           true,
         );
       }
+    }
+  });
+
+  it('hides a company that had not floated yet rather than inventing its accounts', () => {
+    // Duolingo listed in 2021 and Alphabet's readable filings start in 2023, so
+    // an early window must simply not offer them.
+    const early = WEEK_DATES[FIRST_HONEST_WEEK];
+    const offered = SNAPSHOT.filter((c) => hasAccountsBy(c, early));
+    const hidden = SNAPSHOT.filter((c) => !hasAccountsBy(c, early));
+    expect(offered.length).toBeGreaterThanOrEqual(8);
+    expect(offered.every((c) => c.tier === 1 || hasAccountsBy(c, early))).toBe(true);
+    for (const company of hidden) {
+      expect(company.tier, `${company.ticker} is tier 1 but has no accounts`).not.toBe(1);
     }
   });
 
@@ -452,12 +486,70 @@ describe('no hindsight: the accounts are the ones that were public that week', (
       for (let week = 0; week <= MARKET_WEEKS; week++) {
         const asOf = weekDate(portfolio.windowStart, week);
         for (const company of SNAPSHOT) {
+          if (!hasAccountsBy(company, asOf)) continue;
           const year = fundamentalsAsOf(company, asOf);
           expect(year.sharesM, `${company.ticker} ${asOf}`).toBeGreaterThan(0);
           expect(Number.isFinite(year.revenueM)).toBe(true);
           expect(year.filedOn <= asOf).toBe(true);
         }
       }
+    }
+  });
+});
+
+describe('the historical figures are on the same footing as the prices', () => {
+  it('has no unadjusted stock split hiding in a share count', () => {
+    // Closes are split-adjusted; 10-K share counts are not. If the adjustment
+    // is ever missed, every P/E before that split is wrong by the split factor
+    // — Chipotle once showed a price-to-earnings ratio of 1, which told a kid
+    // the company earns back its whole share price in a year.
+    //
+    // The first two transitions of a company's series are skipped, because a
+    // flotation moves a share count by more than any split does and is not a
+    // mistake: Roblox went from 182M shares to 506M the year it listed.
+    for (const company of SNAPSHOT) {
+      const years = company.annuals ?? [];
+      for (let i = 3; i < years.length; i++) {
+        const jump = Math.max(
+          years[i].sharesM / years[i - 1].sharesM,
+          years[i - 1].sharesM / years[i].sharesM,
+        );
+        expect(
+          jump,
+          `${company.ticker} ${years[i - 1].fiscalYear}→${years[i].fiscalYear}: ` +
+            `${years[i - 1].sharesM}M → ${years[i].sharesM}M`,
+        ).toBeLessThan(1.5);
+      }
+    }
+  });
+
+  it('prices every company as something the size of a real listed company', () => {
+    /*
+     * Market cap rather than P/E, and deliberately so.
+     *
+     * A P/E bound cannot do this job: DoorDash genuinely traded at six hundred
+     * times earnings the year its profit first turned positive, so any bound
+     * loose enough to allow that is too loose to catch a fifty-fold share-count
+     * error. Shares times price does not depend on earnings at all — Chipotle's
+     * unadjusted split showed a $1.6B company that is really worth $80B, which
+     * this catches immediately.
+     */
+    for (const company of SNAPSHOT) {
+      for (let week = FIRST_HONEST_WEEK; week < WEEK_DATES.length; week += 13) {
+        const asOf = WEEK_DATES[week];
+        if (!hasAccountsBy(company, asOf)) continue;
+        const price = closesFor(company.ticker)[week];
+        const capM = metricsFor(company, price, asOf).marketCapM;
+        expect(capM, `${company.ticker} on ${asOf}`).toBeGreaterThan(1_000);
+        expect(capM, `${company.ticker} on ${asOf}`).toBeLessThan(10_000_000);
+      }
+    }
+  });
+
+  it('offers no company before it had published accounts', () => {
+    for (const company of SNAPSHOT) {
+      expect(hasAccountsBy(company, company.annuals[0].filedOn)).toBe(true);
+      expect(hasAccountsBy(company, '2000-01-01')).toBe(false);
     }
   });
 });

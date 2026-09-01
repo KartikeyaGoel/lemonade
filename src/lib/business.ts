@@ -249,6 +249,7 @@ export function deriveDayParams(business: BusinessState, myPrice: number): DayPa
     equityShare: 0,
     // Act 2 onwards the stand keeps trading; there is no fixed final day.
     lastDay: null,
+    cashFloor: ECON.STARTING_CASH,
     subscribers: business.regulars,
     subscriberDiscount: ROUND.DISCOUNT,
   };

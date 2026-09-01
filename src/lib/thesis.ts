@@ -25,7 +25,7 @@
  * Pure module. No React, no I/O.
  */
 
-import { metricsFor, type Company } from './companies';
+import { formatMillions, metricsFor, type Company } from './companies';
 
 export interface QuantClaim {
   id: string;
@@ -105,6 +105,53 @@ export const QUANT_CLAIMS: QuantClaim[] = [
     evidence: (c, _price, asOf) => {
       const m = metricsFor(c, undefined, asOf);
       return `${c.name} takes in ${(m.year.revenueM / 1000).toFixed(0)} billion a year and keeps ${Math.round(m.netMargin * 100)}c of each dollar. That is a volume business, on purpose.`;
+    },
+  },
+  {
+    id: 'more-people-buying',
+    label: 'More people buy from it every year',
+    /*
+     * Revenue growth on its own, with nothing said about profit.
+     *
+     * Added because Take-Two had no number reason at all: it is loss-making
+     * after a writedown, so every profit-based claim is unavailable, and its
+     * sales grow at 8% — real, but under the bar for "growing fast". A kid
+     * looking at it was offered no honest reason to buy and no explanation
+     * why, which reads as the game being broken rather than the company being
+     * awkward. Growing sales is a genuine reason, and separating it from
+     * profit is the point: it is the difference between a business getting
+     * bigger and a business getting better.
+     */
+    holds: (c, _price, asOf) => metricsFor(c, undefined, asOf).year.revenueGrowth >= 0.05,
+    evidence: (c, _price, asOf) => {
+      const { revenueGrowth, revenueM } = metricsFor(c, undefined, asOf).year;
+      return `${c.name}'s sales are growing about ${pct(revenueGrowth)} a year, to ${(revenueM / 1000).toFixed(1)} billion. That is more people buying, whatever the profit is doing.`;
+    },
+  },
+  {
+    id: 'cheap-against-sales',
+    label: 'The whole company costs less than two years of its sales',
+    /*
+     * The one reason left when a company has no earnings to price against.
+     *
+     * Crocs after a writedown had no P/E, sales growing 4% — too slow for any
+     * growth claim — and so not a single number a kid could point at. That is
+     * not a company they should be blocked from having a view on; it is the
+     * company where you have to reach for a different ruler. Price against
+     * sales is the ruler analysts actually use when earnings are absent.
+     *
+     * It is stated flatly rather than as a virtue, because cheap against sales
+     * is exactly what a business in trouble looks like, and finding out which
+     * one this is is the kid's job.
+     */
+    holds: (c, price, asOf) => {
+      const m = metricsFor(c, price, asOf);
+      return m.year.revenueM > 0 && m.marketCapM <= 2 * m.year.revenueM;
+    },
+    evidence: (c, price, asOf) => {
+      const m = metricsFor(c, price, asOf);
+      const years = m.marketCapM / m.year.revenueM;
+      return `Buying all of ${c.name} would cost ${formatMillions(m.marketCapM)}, and it sells ${formatMillions(m.year.revenueM)} a year — ${years.toFixed(1)} years of sales. Cheap on that ruler. Worth asking why.`;
     },
   },
   {

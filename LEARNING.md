@@ -336,3 +336,63 @@ opening the game and behaving like a twelve-year-old:
 The general lesson is uncomfortable and worth writing down: every one of these
 was a *learning* failure caused by a *presentation* decision. The curriculum was
 right and the delivery was quietly eating it.
+
+## 12. Four data bugs that would have taught a kid the wrong number
+
+Expanding the roster from 8 companies to 24 broke things that had been quietly
+wrong all along. Every one of them produced a plausible number rather than an
+error, which is the dangerous kind.
+
+| Bug | What a kid saw | Cause | Fix |
+| --- | --- | --- | --- |
+| Unadjusted stock splits | Chipotle at a **P/E of 1** — earns back its whole share price in a year | Prices are split-adjusted; 10-K share counts are not | Fetch every split and put share counts on today's basis |
+| Adjusted on the wrong date | Walmart with 24bn shares and a third of its true P/E | A 10-K filed *after* a split already restates prior years | Key the adjustment on the **filing** date, not the year end |
+| Tag changed mid-history | Nvidia priced 2026 against 2022 earnings — **P/E 571** | It filed revenue under one XBRL tag until FY2022 and another after | Merge tags, best-first, per year |
+| Filer scaling | McDonald's **P/E 0.0** | It reports "716.4" shares one year and "741,000,000" another | Normalise anything under ten million as already-in-millions |
+
+Plus two of judgement rather than arithmetic:
+
+- **Growth from a base near zero.** Amazon lost money in 2022 and made $78B in
+  2025, which the naive formula called "growing 984% a year" and put on a card
+  next to Coca-Cola's 11% as though they were comparable. Growth now walks the
+  window in and returns null if no span has a sound base.
+- **Today's price against as-of accounts.** A fallback path returned the latest
+  close for a week being replayed in 2023, quoting a multiple nobody ever paid.
+
+Two guards now stand between these and a kid: the fetch script refuses to write
+if any share count jumps more than 1.5× year on year, and a test asserts every
+company's market capitalisation is between $1B and $10T at every quarter of
+every window. That second one is deliberately *not* a P/E bound — DoorDash
+genuinely traded at 600× earnings the year its profit turned positive, so any
+bound loose enough to permit that is too loose to catch a fifty-fold error.
+Shares times price does not depend on earnings at all.
+
+The general lesson, again: **the numbers being real is a claim that has to be
+tested, not a decision you make once.**
+
+## 13. Why a strategy is taught as a distribution
+
+The deepest thing in the product is now one number on the playbook screen:
+
+> Across 224 real twelve-week stretches — **59% of them ended ahead.**
+
+Everything else in Act 4 teaches a kid to reason about *a* company. This teaches
+them what a strategy *is*: not a result, a distribution of results. It is the
+difference between "I made 8%, I'm good at this" and "these rules come out ahead
+about six times in ten, and the worst stretch cost 27%."
+
+It also makes the trade-offs measurable rather than assertable. Running the
+decks:
+
+| Deck | Ahead in | Typical | Worst |
+| --- | --- | --- | --- |
+| Fat margins only, spread thin | 75% | +4.4% | −22% |
+| Big and boring, never sell | 73% | +5.4% | −25% |
+| Cheap + profitable | 66% | +2.8% | −14% |
+| Stuff I use, spread, never sell | 59% | +2.9% | −27% |
+| **Everything, cut at 10%** | **58%** | **+1.2%** | −15% |
+
+The stop-loss deck has the *worst* typical return and one of the lowest hit
+rates, because it sells the bottom every time — and a kid finds that out by
+building it and pressing test, not by being told. That is the self-directed
+learning the whole design is aiming at, and it took a deck to make it possible.

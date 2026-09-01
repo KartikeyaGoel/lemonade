@@ -32,6 +32,7 @@ import { GLOSSARY, wordProgress } from './glossary';
 import type { Career } from './career';
 import type { Thesis } from './thesis';
 import type { ClubState } from './club';
+import { createPlaybook, type Playbook } from './playbook';
 import type { ChallengeSpec, RunResult } from './challenge';
 
 export type Act = 1 | 2 | 3 | 4;
@@ -90,6 +91,21 @@ export interface Game {
   challenge: ChallengeRun | null;
   /** A shared portfolio being passed between phones. */
   club: ClubState | null;
+  /**
+   * True while the kid is running the Saturday stand out of Act 4.
+   *
+   * See `beginWeekend` for why the stand is still standing after it was sold.
+   */
+  weekend: boolean;
+  /**
+   * The kid's rules, kept across the whole run.
+   *
+   * Lives on the game rather than the career because a playbook is a thing you
+   * are working on, and a new season is a good moment to start it again — but
+   * see `restart`, which carries it, because throwing away somebody's strategy
+   * because they pressed replay would be unkind.
+   */
+  playbook: Playbook;
 }
 
 export function createGame(seed = Math.floor(Math.random() * 1_000_000)): Game {
@@ -108,6 +124,8 @@ export function createGame(seed = Math.floor(Math.random() * 1_000_000)): Game {
     theses: [],
     challenge: null,
     club: null,
+    weekend: false,
+    playbook: createPlaybook(),
   };
 }
 
@@ -290,6 +308,73 @@ function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+/* ------------------------------------------------------------------ *
+ * The Saturday stand
+ * ------------------------------------------------------------------ */
+
+/**
+ * What comes out of the investing account to buy lemons, and goes back in on
+ * Sunday along with whatever the day made.
+ */
+export const WEEKEND_FLOAT = 20;
+
+/**
+ * Why the stand is still standing after it was sold.
+ *
+ * The four acts were a sequence, and a sequence has an end. That is the right
+ * shape for a story and the wrong shape for a habit: a kid who finishes reads
+ * it as finished, closes it, and does not come back — which for a product whose
+ * whole purpose is a practice is the only failure that really counts.
+ *
+ * Clash of Clans has a strict sequence too — every building is gated behind a
+ * Town Hall level — but it never *presents* as one. It presents as a village
+ * with a row of tabs, and the sequence is invisible scaffolding underneath. The
+ * loops sit beside each other and money flows between them: the mines fill up
+ * while you raid, and the raiding pays for the mines.
+ *
+ * This is that, and it is also the truest thing in the game. The kid sold their
+ * stand and put the money in the market — and they still make lemonade on
+ * Saturdays, because they can, and the profit goes into the account. So there
+ * are two loops, adjacent rather than sequential: a two-minute one that makes
+ * money out of unit economics, and a twelve-week one that turns money into
+ * ownership. Each week the kid sees exactly what a Saturday buys them, which is
+ * the single clearest statement this product can make about why any of it
+ * matters.
+ *
+ * Twenty dollars comes out of the account as working capital, because a
+ * business needs money before it makes money, and Act 1 taught that on day one.
+ */
+export function beginWeekend(game: Game): Game {
+  if (!game.portfolio) return game;
+  const float = Math.min(WEEKEND_FLOAT, game.portfolio.cash);
+  return {
+    ...game,
+    weekend: true,
+    portfolio: { ...game.portfolio, cash: round2(game.portfolio.cash - float), standFloat: float },
+    stand: { ...game.stand, cash: float, status: 'playing' },
+  };
+}
+
+/** Sunday. Everything in the cash box goes back into the account. */
+export function endWeekend(game: Game): Game {
+  if (!game.portfolio) return { ...game, weekend: false };
+  const swept = round2(game.stand.cash);
+  return {
+    ...game,
+    weekend: false,
+    portfolio: {
+      ...game.portfolio,
+      cash: round2(game.portfolio.cash + swept),
+      standWeek: game.portfolio.week,
+      // What the day actually made, which is what came back minus what went
+      // out. A loss is a real answer and is allowed to be negative.
+      standEarnings: round2(game.portfolio.standEarnings + swept - game.portfolio.standFloat),
+      standFloat: 0,
+    },
+    stand: { ...game.stand, cash: 0 },
+  };
+}
+
 /** Days played in the current act, derived from total history. */
 export function actDay(game: Game): number {
   if (game.act === 1) return game.stand.history.length + 1;
@@ -448,5 +533,8 @@ export function newSeason(game: Game, seed = Math.floor(Math.random() * 1_000_00
     ...createGame(seed),
     season: game.season + 1,
     club: game.club,
+    // Carried, like the club: a season is a fresh run at the arc, not a reason
+    // to delete the rules the kid worked out last time.
+    playbook: game.playbook,
   };
 }

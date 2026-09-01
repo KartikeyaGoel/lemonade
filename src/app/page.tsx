@@ -56,6 +56,9 @@ import {
 } from '@/lib/market';
 import {
   act1Complete,
+  beginWeekend,
+  endWeekend,
+  WEEKEND_FLOAT,
   act2Complete,
   badgeContext,
   badgesHeld,
@@ -95,9 +98,14 @@ import {
   recordDay,
   recordSeason,
   recordWords,
+  recordStudied,
+  standing,
   type Career,
 } from '@/lib/career';
 import { announceable, isFirstRun, isUnlocked, newlyUnlocked, type Unlock } from '@/lib/unlocks';
+import { road, roadLine } from '@/lib/journey';
+import { cardFor } from '@/lib/table';
+import { createPlaybook } from '@/lib/playbook';
 import type { ChallengeSpec } from '@/lib/challenge';
 import { buildThesis, quantClaim, qualClaim, scoreAll, type Thesis } from '@/lib/thesis';
 import type { ClubState } from '@/lib/club';
@@ -125,6 +133,8 @@ import { ParentScreen } from '@/components/acts/ParentScreen';
 import { FinaleScreen } from '@/components/acts/FinaleScreen';
 import { TrophyScreen } from '@/components/meta/TrophyScreen';
 import { ChallengeScreen } from '@/components/meta/ChallengeScreen';
+import { PlaybookScreen } from '@/components/meta/PlaybookScreen';
+import { TableScreen } from '@/components/meta/TableScreen';
 import { ClubScreen } from '@/components/meta/ClubScreen';
 import { ThesisScreen } from '@/components/meta/ThesisScreen';
 import { UnlockCard } from '@/components/meta/UnlockCard';
@@ -159,6 +169,8 @@ type Phase =
   | 'finale'
   | 'trophies'
   | 'challenge'
+  | 'playbook'
+  | 'table'
   | 'club'
   | 'thesis'
   | 'reckoning';
@@ -309,6 +321,13 @@ export default function Page() {
   const start = useCallback(() => {
     if (!game) return;
     if (game.act === 4) {
+      // A Saturday left half-finished is still a Saturday: the float is sitting
+      // in the cash box, so send them back to the stand rather than stranding
+      // it there.
+      if (game.weekend) {
+        setPhase('plan');
+        return;
+      }
       setPhase(game.portfolio?.status === 'closed' ? 'finale' : 'market');
       return;
     }
@@ -327,10 +346,19 @@ export default function Page() {
     (price: number, cups: number, ranByManager = false) => {
       if (!game) return;
 
-      // A duel is a one-day Act 1, so the last day comes from the challenge
-      // rather than from ECON. Everything else about the day is identical.
-      const params =
-        game.act === 1
+      /*
+       * The Saturday stand is a folding table again.
+       *
+       * It deliberately does not inherit the cooler, the pitch or the manager:
+       * the kid sold that business. It also runs with no cash floor, because
+       * the mercy rule that stops a nine-year-old going broke on day three
+       * would quietly print money into an investment account.
+       */
+      const params = game.weekend
+        ? { ...DEFAULT_DAY_PARAMS, lastDay: null, cashFloor: null }
+        : // A duel is a one-day Act 1, so the last day comes from the challenge
+          // rather than from ECON. Everything else about the day is identical.
+          game.act === 1
           ? { ...DEFAULT_DAY_PARAMS, lastDay: game.challenge?.spec.days ?? ECON.TOTAL_DAYS }
           : { ...deriveDayParams(game.business, price), equityShare: game.ownership.equitySoldPct };
 
@@ -400,6 +428,19 @@ export default function Page() {
     };
 
     const advanced: Game = { ...game, stand: nextStand, business, daysTraded: game.daysTraded + 1 };
+
+    // Sunday. The float and the day's takings go back into the account, and the
+    // kid lands back where the money is for.
+    if (advanced.weekend) {
+      setGame(endWeekend(advanced));
+      setCareer((current) => (current ? recordDay(current, outcome.profit) : current));
+      setOutcome(null);
+      setPlanned(null);
+      setNewInsights([]);
+      setPhase('market');
+      return;
+    }
+
     setGame(advanced);
     // Banked now rather than at the end of a season, because most runs are
     // abandoned rather than finished and the parent view reads this number.
@@ -660,7 +701,13 @@ export default function Page() {
     clearGame();
     // The club belongs to a group of people rather than to this run, so
     // starting over must not quietly destroy one somebody else is also in.
-    setGame({ ...createGame(), club: game?.club ?? null });
+    // The playbook is the kid's own thinking and is carried for the same
+    // reason: pressing replay should not delete a strategy they built.
+    setGame({
+      ...createGame(),
+      club: game?.club ?? null,
+      playbook: game?.playbook ?? createPlaybook(),
+    });
     setHasSave(false);
     setPhase('morning');
   }, [game]);
@@ -795,6 +842,26 @@ export default function Page() {
       },
     });
   }
+  if (isUnlocked('playbook', game, career)) {
+    titleExtras.push({
+      emoji: '📊',
+      label: 'Table',
+      onClick: () => {
+        setReturnPhase('title');
+        setPhase('table');
+      },
+    });
+  }
+  if (isUnlocked('playbook', game, career)) {
+    titleExtras.push({
+      emoji: '📓',
+      label: 'Playbook',
+      onClick: () => {
+        setReturnPhase('title');
+        setPhase('playbook');
+      },
+    });
+  }
   if (isUnlocked('challenge', game, career)) {
     titleExtras.push({
       emoji: '⚔️',
@@ -830,6 +897,7 @@ export default function Page() {
               : null
           }
           extras={titleExtras}
+          road={{ stops: road(game), line: roadLine(game, career) }}
         />
       );
 
@@ -879,9 +947,24 @@ export default function Page() {
       return (
         <PlanScreen
           state={game.stand}
-          params={dayParams}
-          business={game.business}
-          dayLabel={game.act === 1 ? undefined : `Day ${game.stand.history.length + 1}`}
+          params={
+            game.weekend
+              ? { ...DEFAULT_DAY_PARAMS, lastDay: null, cashFloor: null }
+              : dayParams
+          }
+          business={game.weekend ? undefined : game.business}
+          dayLabel={
+            game.weekend
+              ? 'Saturday'
+              : game.act === 1
+                ? undefined
+                : `Day ${game.stand.history.length + 1}`
+          }
+          note={
+            game.weekend
+              ? `$${WEEKEND_FLOAT.toFixed(2)} out of your investing money to buy lemons. Everything in the cash box goes back in tonight.`
+              : undefined
+          }
           onInvest={game.act === 2 ? () => setPhase('invest') : undefined}
           onOpen={(cups, price) => {
             setTargetCups(cups);
@@ -934,6 +1017,33 @@ export default function Page() {
           onNext={closeDay}
         />
       ) : null;
+
+    case 'table':
+      return (
+        <TableScreen
+          mine={cardFor(
+            me,
+            standing(career),
+            career.bestWeekProfit,
+            thesisReport.sound,
+            thesisReport.scores.length,
+            game.playbook,
+            game.portfolio
+              ? summarisePortfolio(game.portfolio, game.ownership.buyoutProceeds).gainPercent * 100
+              : 0,
+          )}
+          onBack={() => setPhase(returnPhase)}
+        />
+      );
+
+    case 'playbook':
+      return (
+        <PlaybookScreen
+          playbook={game.playbook}
+          onChange={(playbook) => setGame({ ...game, playbook })}
+          onBack={() => setPhase(returnPhase)}
+        />
+      );
 
     case 'week-end':
       return (
@@ -998,9 +1108,25 @@ export default function Page() {
           portfolio={game.portfolio}
           readiness={readiness(game)}
           knowsPE={knowsPE}
-          onResearch={(ticker) =>
-            setGame({ ...game, portfolio: markResearched(game.portfolio!, ticker) })
+          badges={standing(career)}
+          onPlaybook={
+            isUnlocked('playbook', game, career)
+              ? () => {
+                  setReturnPhase('market');
+                  setPhase('playbook');
+                }
+              : undefined
           }
+          onWeekendStand={() => {
+            setGame(beginWeekend(game));
+            setPhase('plan');
+          }}
+          onResearch={(ticker) => {
+            setGame({ ...game, portfolio: markResearched(game.portfolio!, ticker) });
+            // Kept on the career rather than the run: reading a set of accounts
+            // is something the kid did, and it should still count next season.
+            setCareer((current) => (current ? recordStudied(current, [ticker]) : current));
+          }}
           onStartBuy={(company) => {
             setThesisTarget(company);
             setPhase('thesis');

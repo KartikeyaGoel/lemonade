@@ -130,6 +130,23 @@ export interface PortfolioState {
   trades: Trade[];
   /** Companies whose research card the kid has actually opened. */
   researched: string[];
+  /**
+   * The market week the Saturday stand was last run, or -1 for never.
+   *
+   * One a week. See `WEEKEND_FLOAT` in `progress.ts` for why the stand is still
+   * here at all after it was sold.
+   */
+  standWeek: number;
+  /** Everything the Saturday stand has put into the account, all told. */
+  standEarnings: number;
+  /**
+   * Working capital currently sitting in the cash box rather than the account.
+   *
+   * Persisted rather than held in memory because a kid can close the tab
+   * halfway through a Saturday, and the twenty dollars has to find its way
+   * home when they come back.
+   */
+  standFloat: number;
   seed: number;
   /**
    * Index into the real weekly date axis for week 0 of this run.
@@ -155,6 +172,9 @@ export function createPortfolio(startingCash: number, seed = 4242): PortfolioSta
     priceHistory,
     trades: [],
     researched: [],
+    standWeek: -1,
+    standEarnings: 0,
+    standFloat: 0,
     seed,
     status: 'open',
   };
@@ -177,8 +197,20 @@ export function currentDate(portfolio: PortfolioState): string {
 
 export function currentPrice(portfolio: PortfolioState, ticker: string): number {
   const series = portfolio.priceHistory[ticker];
-  if (!series || series.length === 0) return findCompany(ticker)?.price ?? 0;
-  return series[series.length - 1];
+  if (series && series.length > 0) return series[series.length - 1];
+  /*
+   * The fallback used to be today's price, which is the one price this must
+   * never be. Act 4 replays a week from the past and pairs it with the accounts
+   * that were public *then*; handing it the latest close instead would show a
+   * 2026 share price over 2023 earnings and quote a price-to-earnings ratio
+   * nobody ever paid. Read the real close for the week being replayed.
+   */
+  return realClose(ticker, portfolio.windowStart, portfolio.week);
+}
+
+/** Is there a Saturday left this week? */
+export function canRunStand(portfolio: PortfolioState): boolean {
+  return portfolio.status === 'open' && portfolio.standWeek !== portfolio.week;
 }
 
 export function priceAtWeek(portfolio: PortfolioState, ticker: string, week: number): number {

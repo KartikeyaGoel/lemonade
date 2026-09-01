@@ -6,14 +6,20 @@ import {
   MODELS,
   SNAPSHOT,
   SNAPSHOT_AS_OF,
+  TIERS,
   formatMillions,
+  hasAccountsBy,
   metricsFor,
   standComparison,
+  tierUnlocked,
   type Company,
+  type Tier,
 } from '@/lib/companies';
+import { faceoff } from '@/lib/facedown';
 import {
   MAX_POSITION_FRACTION,
   MARKET_WEEKS,
+  canRunStand,
   currentDate,
   currentPrice,
   holdingGain,
@@ -38,17 +44,22 @@ export function MarketScreen({
   portfolio,
   readiness,
   knowsPE,
+  badges,
   onResearch,
   onStartBuy,
   onSell,
   onAdvanceWeek,
   onOpenGate,
   onClub,
+  onWeekendStand,
+  onPlaybook,
 }: {
   portfolio: PortfolioState;
   readiness: Readiness;
   /** True once the kid has been handed the words "P/E ratio" in Act 3. */
   knowsPE: boolean;
+  /** Standing, which is what opens the later tiers of the collection. */
+  badges: number;
   onResearch: (ticker: string) => void;
   onStartBuy: (company: Company) => void;
   onSell: (ticker: string, fraction: number) => void;
@@ -56,9 +67,27 @@ export function MarketScreen({
   onOpenGate: () => void;
   /** Only passed once a club is a thing that exists for this kid. */
   onClub?: () => void;
+  /** Saturday: run the stand once a week and put the takings in the account. */
+  onWeekendStand?: () => void;
+  /** The rulebook, once there is a trade behind them to make it mean something. */
+  onPlaybook?: () => void;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  /** Two tickers held against each other. The same verb as the Act 1 bench. */
+  const [picked, setPicked] = useState<string[]>([]);
+  const [comparing, setComparing] = useState(false);
+  const asOfDate = (p: PortfolioState) => currentDate(p);
   const company = open ? SNAPSHOT.find((c) => c.ticker === open) ?? null : null;
+
+  if (comparing && picked.length === 2) {
+    const [a, b] = picked.map((t) => SNAPSHOT.find((c) => c.ticker === t)!);
+    return (
+      <FaceoffView
+        result={faceoff(a, b, currentPrice(portfolio, a.ticker), currentPrice(portfolio, b.ticker), asOfDate(portfolio))}
+        onBack={() => setPicked([])}
+      />
+    );
+  }
 
   if (company) {
     return (
@@ -110,6 +139,24 @@ export function MarketScreen({
           </div>
         </div>
 
+        {onPlaybook && (
+          <button
+            type="button"
+            onClick={onPlaybook}
+            className="mt-3 flex w-full items-center gap-2.5 rounded-2xl border-[3px] border-lemon/60 bg-lemon/15 p-3 text-left"
+          >
+            <span aria-hidden className="text-xl">
+              📓
+            </span>
+            <div>
+              <div className="font-body text-sm font-extrabold text-lemon-light">Your playbook</div>
+              <div className="font-body text-[11px] font-bold text-white/65">
+                Four rules, tested against every twelve weeks of real history there is.
+              </div>
+            </div>
+          </button>
+        )}
+
         {onClub && (
           <button
             type="button"
@@ -131,6 +178,43 @@ export function MarketScreen({
           </button>
         )}
 
+        {/* The Saturday stand.
+            Two loops side by side rather than one after the other: a two-minute
+            one that makes money out of unit economics, and a twelve-week one
+            that turns money into ownership. The line underneath is the whole
+            product in one sentence — this is what a Saturday buys you. */}
+        {onWeekendStand && (
+          <button
+            type="button"
+            onClick={onWeekendStand}
+            disabled={!canRunStand(portfolio)}
+            className={`mt-3 flex w-full items-center gap-2.5 rounded-2xl border-[3px] p-3 text-left ${
+              canRunStand(portfolio)
+                ? 'border-lemon bg-lemon/20'
+                : 'border-white/15 bg-white/5 opacity-60'
+            }`}
+          >
+            <span aria-hidden className="text-2xl">
+              🍋
+            </span>
+            <div className="flex-1">
+              <div className="font-body text-sm font-extrabold text-lemon-light">
+                {canRunStand(portfolio) ? 'Saturday stand' : 'Stand done for this week'}
+              </div>
+              <div className="font-body text-[11px] font-bold text-white/65">
+                {canRunStand(portfolio)
+                  ? 'You still make lemonade at weekends. Whatever it makes goes into the account.'
+                  : 'Come back after next week.'}
+              </div>
+            </div>
+            {portfolio.standEarnings !== 0 && (
+              <span className="font-ledger text-xs font-bold tabular-nums text-mint">
+                +{money(portfolio.standEarnings)}
+              </span>
+            )}
+          </button>
+        )}
+
         {!readiness.canTrade && (
           <button
             type="button"
@@ -144,7 +228,8 @@ export function MarketScreen({
               </span>
             </div>
             <div className="mt-0.5 font-body text-[11px] font-bold text-white/70">
-              {readiness.metCount} of {readiness.criteria.length} things shown. Tap to see what is left.
+              You have shown {readiness.metCount} of the {readiness.criteria.length} things you need
+              before real money moves. Tap to see which.
             </div>
           </button>
         )}
@@ -189,53 +274,209 @@ export function MarketScreen({
           </>
         )}
 
-        <div className="mt-5 px-1 font-sign text-xl text-lemon-light">Businesses you could own</div>
+        <div className="mt-5 flex items-baseline justify-between px-1">
+          <span className="font-sign text-xl text-lemon-light">Businesses you could own</span>
+          <button
+            type="button"
+            onClick={() => {
+              setComparing((on) => !on);
+              setPicked([]);
+            }}
+            className={`rounded-full border-2 px-2.5 py-0.5 font-body text-[11px] font-extrabold ${
+              comparing ? 'border-mint bg-mint/25 text-white' : 'border-white/40 text-white/70'
+            }`}
+          >
+            ⚖️ Compare
+          </button>
+        </div>
         <div className="mb-1 px-1 font-body text-[10px] font-bold text-white/50">
-          Real weekly prices · figures from their own filings · data to {SNAPSHOT_AS_OF}
+          {comparing
+            ? 'Pick two. Same idea as trying two prices on your stand.'
+            : `Real weekly prices · figures from their own filings · data to ${SNAPSHOT_AS_OF}`}
         </div>
 
-        {SNAPSHOT.map((c) => {
-          const price = currentPrice(portfolio, c.ticker);
-          const m = metricsFor(c, price, asOf);
+        {([1, 2, 3] as Tier[]).map((tier) => {
+          // Not listed yet in the week being replayed is not the same as
+          // locked: it simply was not a company a kid could have bought.
+          const inTier = SNAPSHOT.filter((c) => c.tier === tier && hasAccountsBy(c, asOf));
+          if (inTier.length === 0) return null;
+          const openTier = tierUnlocked(tier, badges);
+
           return (
-            <button
-              key={c.ticker}
-              type="button"
-              onClick={() => {
-                onResearch(c.ticker);
-                setOpen(c.ticker);
-              }}
-              className="mt-2 flex w-full items-center gap-3 rounded-2xl border-[3px] border-white/20 bg-white/85 px-3 py-2.5 text-left"
-            >
-              <span aria-hidden className="text-2xl">
-                {c.emoji}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="font-body text-sm font-extrabold text-ink">
-                  {c.name}{' '}
-                  <span className="font-ledger text-[11px] text-ink/40">{c.ticker}</span>
-                </div>
-                <div className="font-body text-[11px] font-bold text-ink/55">{c.whatTheySell}</div>
+            <div key={tier} className="mt-3">
+              <div className="flex items-baseline justify-between px-1">
+                <span className="font-body text-[11px] font-extrabold uppercase tracking-[0.14em] text-lemon-light/80">
+                  {TIERS[tier].name}
+                </span>
+                {!openTier && (
+                  <span className="font-body text-[10px] font-extrabold text-white/45">
+                    🔒 {TIERS[tier].badgesNeeded - badges} more to unlock
+                  </span>
+                )}
               </div>
-              <div className="text-right">
-                <div className="font-ledger text-sm font-bold tabular-nums text-ink">
-                  {money(price)}
+
+              {!openTier ? (
+                <div className="mt-1 rounded-2xl border-[3px] border-dashed border-white/20 bg-white/5 px-3 py-2.5">
+                  <p className="font-body text-[11px] font-bold text-white/55">
+                    {TIERS[tier].blurb}
+                  </p>
+                  <div className="mt-1.5 flex gap-1.5 opacity-30">
+                    {inTier.map((c) => (
+                      <span key={c.ticker} aria-hidden className="text-xl grayscale">
+                        {c.emoji}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="font-body text-[10px] font-extrabold text-ink/50">
-                  {m.pe ? `${m.pe.toFixed(0)}x profit` : 'loses money'}
-                </div>
-              </div>
-            </button>
+              ) : (
+                inTier.map((c) => {
+                  const price = currentPrice(portfolio, c.ticker);
+                  const m = metricsFor(c, price, asOf);
+                  const chosen = picked.includes(c.ticker);
+                  return (
+                    <button
+                      key={c.ticker}
+                      type="button"
+                      onClick={() => {
+                        if (comparing) {
+                          setPicked((current) =>
+                            current.includes(c.ticker)
+                              ? current.filter((t) => t !== c.ticker)
+                              : [...current, c.ticker].slice(-2),
+                          );
+                          return;
+                        }
+                        onResearch(c.ticker);
+                        setOpen(c.ticker);
+                      }}
+                      className={`mt-2 flex w-full items-center gap-3 rounded-2xl border-[3px] px-3 py-2.5 text-left ${
+                        chosen ? 'border-mint bg-white' : 'border-white/20 bg-white/85'
+                      }`}
+                    >
+                      <span aria-hidden className="text-2xl">
+                        {c.emoji}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-body text-sm font-extrabold text-ink">
+                          {c.name}{' '}
+                          <span className="font-ledger text-[11px] text-ink/40">{c.ticker}</span>
+                        </div>
+                        <div className="font-body text-[11px] font-bold text-ink/55">
+                          {c.whatTheySell}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-ledger text-sm font-bold tabular-nums text-ink">
+                          {money(price)}
+                        </div>
+                        <div className="font-body text-[10px] font-extrabold text-ink/50">
+                          {m.pe ? `${m.pe.toFixed(0)}x profit` : 'loses money'}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
           );
         })}
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/60 to-transparent pb-5 pt-8">
         <div className="mx-auto w-full max-w-md px-4">
-          <ChunkyButton variant="lemon" full onClick={onAdvanceWeek}>
-            {portfolio.week >= MARKET_WEEKS ? 'See how you did →' : 'Next week →'}
-          </ChunkyButton>
+          {comparing ? (
+            <ChunkyButton variant="mint" full disabled={picked.length < 2} onClick={() => undefined}>
+              {picked.length < 2 ? `Pick ${2 - picked.length} more` : 'Holding them up…'}
+            </ChunkyButton>
+          ) : (
+            <ChunkyButton variant="lemon" full onClick={onAdvanceWeek}>
+              {portfolio.week >= MARKET_WEEKS ? 'See how you did →' : 'Next week →'}
+            </ChunkyButton>
+          )}
         </div>
+      </div>
+    </Sky>
+  );
+}
+
+/**
+ * Two companies, held up against each other.
+ *
+ * Deliberately the same shape as the Act 1 bench: two things side by side and
+ * the differences named. It never picks a winner — see `src/lib/facedown.ts`
+ * for why a game that tells a kid "lower P/E is better" has taught them
+ * something false.
+ */
+function FaceoffView({
+  result,
+  onBack,
+}: {
+  result: ReturnType<typeof faceoff>;
+  onBack: () => void;
+}) {
+  const { a, b, rows, tradeOff } = result;
+  return (
+    <Sky mood="night">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-10 pt-5">
+        <button
+          type="button"
+          onClick={onBack}
+          className="self-start font-body text-sm font-extrabold text-lemon-light"
+        >
+          ← Pick two others
+        </button>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {[a, b].map((c) => (
+            <div key={c.ticker} className="rounded-2xl border-[3px] border-white/25 bg-white/10 p-2.5 text-center">
+              <div aria-hidden className="text-2xl">
+                {c.emoji}
+              </div>
+              <div className="font-body text-sm font-extrabold text-lemon-light">{c.name}</div>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-3 rounded-2xl border-[3px] border-lemon/50 bg-lemon/10 px-3 py-2.5 font-body text-[13px] font-extrabold leading-snug text-white">
+          {tradeOff}
+        </p>
+
+        <div className="mt-3 space-y-1.5">
+          {rows.map((row) => (
+            <div key={row.label} className="rounded-2xl border-[3px] border-white/20 bg-white/90 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span aria-hidden>{row.emoji}</span>
+                <span className="flex-1 font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/50">
+                  {row.label}
+                </span>
+              </div>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <div
+                  className={`rounded-lg px-2 py-1 text-center font-body text-[13px] font-extrabold ${
+                    row.edge === 'a' ? 'bg-mint/25 text-ink' : 'text-ink/65'
+                  }`}
+                >
+                  {row.a}
+                </div>
+                <div
+                  className={`rounded-lg px-2 py-1 text-center font-body text-[13px] font-extrabold ${
+                    row.edge === 'b' ? 'bg-mint/25 text-ink' : 'text-ink/65'
+                  }`}
+                >
+                  {row.b}
+                </div>
+              </div>
+              <p className="mt-1 font-body text-[11px] font-bold leading-snug text-ink/50">
+                {row.meaning}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-3 text-center font-body text-[11px] font-bold text-white/50">
+          Green means <em>more</em>, which is not the same as better. Every one of these is a
+          trade-off somebody is paying for.
+        </p>
       </div>
     </Sky>
   );

@@ -29,6 +29,13 @@ export interface Career {
   /** Every word ever earned. Never removed. */
   words: string[];
   /**
+   * Every company whose accounts the kid has actually opened, ever.
+   *
+   * A collection rather than a counter, so it cannot be farmed by reopening the
+   * same card, and so the trophy screen can show which ones are still unread.
+   */
+  companiesStudied: string[];
+  /**
    * Features whose arrival has been announced.
    *
    * A feature that appears in the interface without a moment attached to it is
@@ -55,6 +62,7 @@ export function createCareer(name = '', avatar = AVATARS[0]): Career {
     avatar,
     badges: [],
     words: [],
+    companiesStudied: [],
     announced: [],
     seasons: 1,
     bestWeekProfit: 0,
@@ -98,6 +106,23 @@ export function recordBadges(career: Career, badgeIds: string[]): Career {
 export function recordWords(career: Career, wordIds: string[]): Career {
   const words = union(career.words, wordIds);
   return words === career.words ? career : { ...career, words };
+}
+
+/** A company whose accounts the kid opened. Kept across seasons. */
+export function recordStudied(career: Career, tickers: string[]): Career {
+  const companiesStudied = union(career.companiesStudied, tickers);
+  return companiesStudied === career.companiesStudied ? career : { ...career, companiesStudied };
+}
+
+/**
+ * The number the ladder runs on.
+ *
+ * Three collections, added. See the note above `LADDER` in `achievements.ts`
+ * for why this is not experience points: nothing here counts time, and every
+ * point is a thing the kid demonstrated once and keeps.
+ */
+export function standing(career: Career): number {
+  return career.badges.length + career.words.length + career.companiesStudied.length;
 }
 
 /** Badges earned this call that the career had not seen before. */
@@ -186,7 +211,7 @@ export interface CareerCard {
 }
 
 export function careerCard(career: Career): CareerCard {
-  const rank = rankFor(career.badges.length);
+  const rank = rankFor(standing(career));
   const nextLine =
     rank.nextAt !== null
       ? `${rank.nextAt - career.badges.length} more ${rank.nextAt - career.badges.length === 1 ? 'badge' : 'badges'} to ${rank.nextName}.`

@@ -2,6 +2,8 @@
 
 import { ChunkyButton, Ground, Sky } from './ui';
 import { Stand } from './Stand';
+import { Road } from './Road';
+import type { Stop } from '@/lib/journey';
 
 /**
  * Cold open. One button, no explanation, no tutorial — the kid should be
@@ -12,12 +14,19 @@ import { Stand } from './Stand';
  * four buttons is a menu — a decision the kid has to make before they have any
  * way of making it. Each one appears only once the thing that gives it meaning
  * has happened; the gates live in `src/lib/unlocks.ts`.
+ *
+ * The road is the exception, and it is there from the first launch. It is not a
+ * menu — nothing on it is somewhere you can go — it is the only thing on this
+ * screen that says a stock market is coming. Without it a kid interested in
+ * finance opens the app, sees a lemonade stand, and closes it. See
+ * `src/lib/journey.ts`.
  */
 export function TitleScreen({
   onStart,
   hasSave,
   onParent,
   extras = [],
+  road,
   rank,
 }: {
   onStart: () => void;
@@ -25,6 +34,8 @@ export function TitleScreen({
   /** Deliberately small and low-contrast: this screen belongs to the kid. */
   onParent?: () => void;
   extras?: Array<{ emoji: string; label: string; onClick: () => void }>;
+  /** The four acts, with the market visible and locked from day one. */
+  road?: { stops: Stop[]; line: string };
   /** Shown only once there is a rank to show. */
   rank?: { avatar: string; name: string; rank: string } | null;
 }) {
@@ -50,13 +61,19 @@ export function TitleScreen({
           </div>
         </div>
 
-        <div className="my-8 animate-bob">
+        <div className="my-6 animate-bob">
           <Stand price={1.5} fill={0.4} />
         </div>
 
         <ChunkyButton variant="mint" full onClick={onStart} className="!text-3xl">
           {hasSave ? 'Keep going' : 'Start selling'}
         </ChunkyButton>
+
+        {road && (
+          <div className="mt-4 w-full">
+            <Road stops={road.stops} line={road.line} />
+          </div>
+        )}
 
         {rank && (
           <div className="mt-3 flex items-center gap-2 rounded-full border-[3px] border-white/60 bg-white/60 px-3 py-1.5">

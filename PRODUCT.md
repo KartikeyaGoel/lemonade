@@ -709,3 +709,130 @@ Concretely, and each of these was a real paragraph that is now not one:
 What is never compressed: the profit and loss. It is a table of the kid's own
 figures that reconcile on paper, and it is the one screen in the game allowed to
 look precise and grown-up. Numbers are not text.
+
+## 28. The shape of the thing: a campaign that stopped being one
+
+A sequence has an end, and an end is a place people leave. Four acts, a finale
+and a reckoning is the right shape for a story and the wrong shape for a
+practice — a kid who finishes reads it as finished, and financial literacy is
+not something you finish.
+
+Clash Royale has no timeline. Clash of Clans *does* — every building is gated
+behind a Town Hall level — but it never presents as one: it presents as a
+village with tabs, where the sequence is invisible scaffolding and the loops sit
+beside each other. That is the model, and three changes bring this product to
+it.
+
+**The road, on the title screen from the first launch.** Four stops with the
+market visible and padlocked at the end. Not navigation — nothing on it is
+somewhere you can go — a *picture*, because the problem it solves is
+motivational, not navigational. A kid interested in finance used to open this,
+see a lemonade stand, and have no way of knowing a stock market was in it. The
+line underneath is the only place the product says out loud what it is for:
+*learn it on lemonade, then do it with real companies.*
+
+**The Saturday stand.** The stand does not die when it is sold. Once a week, in
+Act 4, twenty dollars comes out of the investing account as working capital, the
+kid runs a day, and everything in the cash box goes back in. Two loops side by
+side rather than one after the other: a two-minute one that makes money out of
+unit economics, and a twelve-week one that turns money into ownership. Each week
+the kid sees exactly what a Saturday buys, which is the clearest statement this
+product can make about why any of it matters.
+
+**Collections that grow with the content.** Rank used to run on badges, of which
+there are thirty, with the last rung at twenty-four — a ladder that ends.
+Standing is now badges plus words plus companies whose accounts the kid has
+actually opened, and all three grow when the game does. Still not experience
+points: nothing counts time, sessions or taps, and every point is a thing
+demonstrated once and kept.
+
+## 29. The playbook, which is the deck
+
+Clash Royale is a game about war, which is not a subject an eleven-year-old has
+any business being good at, and they get good at it anyway. The mechanism is not
+the battles. It is the **deck** — eight cards you choose, name, save, copy off
+somebody better, tweak and test. The strategy is an object you own, and owning
+it is what turns "I like this game" into forty minutes of deck guides on
+YouTube. That is self-directed learning, and nobody assigned it.
+
+This game had decisions but no deck. A kid could play Act 4 well and still not
+be able to say what their strategy *was*, because there was nowhere for a
+strategy to live.
+
+A playbook is up to four rule cards with a name: what you will buy, how much
+goes in each, and what you do when it falls. Twelve cards, and **none of them is
+right** — every one is a trade that costs something. Refusing loss-makers means
+never owning a young company. Selling on a 20% fall caps the damage and sells
+the bottom every time. Spreading wide means nothing can ruin you and nothing can
+save you.
+
+Two properties make it teach rather than decorate:
+
+1. **It runs.** The rules are executable and the game plays them out over real
+   history without the kid touching anything.
+2. **It runs everywhere.** Not on one twelve-week stretch — on all 224 of them.
+   So the answer is never "your rules made 8%", it is:
+
+   > Across 224 real twelve-week stretches — **59% of them ended ahead.**
+   > Typical +3%. Best +32%. Worst −27%.
+
+That single change is the difference between a game that teaches investing and a
+game that teaches gambling. It makes the *shape* of a strategy visible instead
+of the result of one roll of it, and a kid who has internalised "one good result
+is not evidence" has learned the most valuable thing in this entire product — by
+tinkering with a deck.
+
+## 30. Competition without a leaderboard
+
+Friendly competition is what keeps a group playing, and the obvious version — a
+leaderboard of returns — is the single most harmful thing this product could
+ship. Over twelve weeks the difference between the best and worst kid in a
+friend group is almost entirely which twelve weeks they got. Ranking them by it
+teaches, with a big number and a gold medal, that the luckiest person is the
+best investor.
+
+So the table has no overall winner. It has five honours:
+
+| Honour | Measures | Skill? |
+| --- | --- | --- |
+| 🍋 Best operator | Biggest week ever run at a stand | Yes — dozens of decisions, noise cancels |
+| 🧠 Best thinking | Buys that were right *for the reason written down* | Yes — scored by the thesis machinery |
+| 📓 Best playbook | Whose rules win most often over the *same* 224 stretches | Yes — identical history for everyone |
+| 🏆 Biggest collection | Badges, words, companies read | Effort, and winnable by carrying on |
+| 🎲 Most money made | Portfolio return | **No. Labelled "mostly luck", and placed last.** |
+
+Tested with three kids: one took the money honour and came last on both thinking
+and playbook; another swept three skill honours while losing money. The table
+says so in a sentence. That is the lesson, delivered by the data rather than by
+a warning.
+
+## 31. The market is a collection now
+
+Eight companies was right for a first visit and wrong for a game somebody keeps
+playing — and a kid who wants to look up a company they care about and cannot
+find it has been told the market is a fixed menu.
+
+Twenty-four companies, in three tiers that open on standing:
+
+1. **Things you use** — Apple, Costco, Chipotle, Nike, Coca-Cola, Roblox,
+   Netflix, Disney. You can form a view by looking round your own house.
+2. **Where the money goes** — McDonald's, Starbucks, Amazon, Walmart, DoorDash,
+   Domino's, Lululemon, Take-Two.
+3. **You have to read about these** — Nvidia, Microsoft, Alphabet, PayPal,
+   Duolingo, Airbnb, Uber, Crocs. Businesses you cannot see from the street,
+   where reading the accounts stops being optional.
+
+Three new business models came with them, and they are the best teaching frames
+in the set: **advertising** ("letting the ice-cream van pin a flyer to your
+table — the person drinking is not the one paying you"), **toll booth** ("two
+cents every time anyone on the street buys anything"), and **picks and shovels**
+("selling lemons and cups to every other stand on the road — you do not have to
+pick the winner").
+
+A company that was not listed yet in the week being replayed is simply absent,
+rather than shown with accounts nobody had seen.
+
+And the same verb as the Act 1 bench: **⚖️ Compare**. Pick two, and the
+differences are named — with an explicit rule that green means *more*, never
+*better*, and a trade-off sentence at the top. A game that teaches a kid "low
+P/E good" has taught them something false.

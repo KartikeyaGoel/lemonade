@@ -69,6 +69,7 @@ export function PlanScreen({
   params = DEFAULT_DAY_PARAMS,
   business,
   dayLabel,
+  note,
   onOpen,
   onInvest,
 }: {
@@ -77,6 +78,8 @@ export function PlanScreen({
   params?: DayParams;
   business?: BusinessState;
   dayLabel?: string;
+  /** One line of context above the stand, when the day is not an ordinary one. */
+  note?: string;
   onOpen: (targetCups: number, price: number) => void;
   /** Act 2 only: jump to the shop. */
   onInvest?: () => void;
@@ -172,6 +175,9 @@ export function PlanScreen({
       <HeaderBar
         day={state.history.length + 1}
         totalDays={dayLabel ? null : ECON.TOTAL_DAYS}
+        // "Day 18" next to a heading that says Saturday reads as a bug. When
+        // the day has its own name, the header uses it.
+        label={note ? dayLabel : undefined}
         cash={state.cash}
       />
 
@@ -183,6 +189,12 @@ export function PlanScreen({
           <SignHeading className="text-3xl">{dayLabel ?? `Day ${state.day}`}</SignHeading>
           <span className="stat-chip !text-xs">{forecast.headline} · a guess</span>
         </div>
+
+        {note && (
+          <p className="mt-1 rounded-2xl border-[3px] border-mint/50 bg-mint/15 px-3 py-1.5 font-body text-[12px] font-extrabold leading-snug text-ink/80">
+            {note}
+          </p>
+        )}
 
         {dayLabel === undefined && (
           <GoalStrip>

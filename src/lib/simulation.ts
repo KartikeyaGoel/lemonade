@@ -536,6 +536,16 @@ export interface DayParams {
    */
   lastDay: number | null;
   /**
+   * The floor under the cash balance, or null for none.
+   *
+   * Act 1 never lets a kid go broke: a bad day is a lesson, and a game-over
+   * screen on day three is not. But the floor quietly creates money, which is
+   * fine when the stand is the whole game and wrong the moment the stand is
+   * feeding a portfolio — a losing Saturday would be topped back up to twenty
+   * dollars and the kid would end the week richer for it.
+   */
+  cashFloor: number | null;
+  /**
    * How many punch-card regulars have a standing cup coming to them today.
    *
    * These people paid up front, so they arrive whatever the sky is doing. They
@@ -556,6 +566,7 @@ export const DEFAULT_DAY_PARAMS: DayParams = {
   marketShare: 1,
   equityShare: 0,
   lastDay: ECON.TOTAL_DAYS,
+  cashFloor: ECON.STARTING_CASH,
   subscribers: 0,
   subscriberDiscount: 0,
 };
@@ -665,7 +676,7 @@ export function runDay(
 
   // Cash is a cash story: money out for shopping and wages, money in from sales.
   const rawCash = round2(state.cash - cost.total - fixedCost + revenue - investorCut);
-  const cashAfter = Math.max(rawCash, ECON.STARTING_CASH);
+  const cashAfter = params.cashFloor === null ? rawCash : Math.max(rawCash, params.cashFloor);
   const cashFloored = cashAfter > rawCash;
 
   const record: DayRecord = {

@@ -77,10 +77,19 @@ function migrate(game: Game): Game {
     // A portfolio saved before Act 4 replayed real history has no window, so it
     // is given one derived from its own seed — the same one it would have got.
     portfolio: game.portfolio
-      ? { ...game.portfolio, windowStart: game.portfolio.windowStart ?? windowStartFor(game.portfolio.seed) }
+      ? {
+          ...game.portfolio,
+          windowStart: game.portfolio.windowStart ?? windowStartFor(game.portfolio.seed),
+          // Saves made before the stand stayed open have no Saturday yet.
+          standWeek: game.portfolio.standWeek ?? -1,
+          standEarnings: game.portfolio.standEarnings ?? 0,
+          standFloat: game.portfolio.standFloat ?? 0,
+        }
       : null,
     learned: game.learned ?? [],
     pendingInsights: Array.isArray(game.pendingInsights) ? game.pendingInsights : [],
+    weekend: game.weekend ?? false,
+    playbook: game.playbook ?? { name: '', ruleIds: [] },
     daysTraded: game.daysTraded ?? game.stand?.history?.length ?? 0,
     season: game.season ?? 1,
     theses: Array.isArray(game.theses) ? game.theses : [],
