@@ -1,0 +1,61 @@
+# Keeps the bundled market data current.
+#
+# The game is a static client-side bundle with no backend, so there is nowhere
+# to put an API key at runtime and nothing on a child's device ever talks to a
+# data provider. The data is fetched here instead, on a schedule, and committed —
+# which means the app stays static, the key stays server-side, and the numbers
+# are never more than a day old.
+#
+# Fundamentals come from SEC EDGAR and need no key at all. Prices use Alpha
+# Vantage when `ALPHAVANTAGE_KEY` is set as a repository secret (free tier is 25
+# requests a day, and this uses eight), and fall back to an unofficial endpoint
+# otherwise. Set the secret before relying on this.
+name: Refresh market data
+
+on:
+  schedule:
+    # 09:30 UTC on weekdays — after the previous US close has settled.
+    - cron: '30 9 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Fetch real fundamentals and weekly closes
+        env:
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: npm run data
+
+      - name: Check what was written
+        run: npm run data:check
+
+      # The tests read the bundled data, so a refresh that would break the game
+      # never gets committed. Every assertion about the numbers is a property
+      # rather than a literal, precisely so this can pass on fresh data.
+      - name: Make sure the game still works on the new numbers
+        run: npm test
+
+      - name: Commit if anything changed
+        run: |
+          if git diff --quiet -- src/lib/market-data.json; then
+            echo "No change."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/market-data.json
+          git commit -m "chore(data): refresh market data"
+          git push

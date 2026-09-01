@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sign: 'Bangers', 'Chalkboard SE', 'Comic Sans MS', system-ui, sans-serif;
+  --font-body: 'Nunito', 'Avenir Next', system-ui, sans-serif;
+}
+
+html,
+body {
+  /* min-height, not height: several screens are taller than the viewport and
+     a fixed height clips them instead of scrolling. */
+  min-height: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+body {
+  font-family: var(--font-body);
+  color: #2b2118;
+}
+
+/* Kids will hold this in one hand. Nothing should be selectable or draggable
+   by accident, and nothing should ever scroll sideways. */
+* {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@layer components {
+  /* Chunky, physical buttons. They depress when pressed, like a real thing. */
+  .btn-chunk {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-4
+           font-sign text-2xl tracking-wide transition-all duration-75 active:translate-y-1;
+    box-shadow: 0 6px 0 0 var(--chunk-shadow);
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+  }
+  .btn-chunk:active {
+    box-shadow: 0 2px 0 0 var(--chunk-shadow);
+  }
+  .btn-chunk:disabled {
+    @apply cursor-not-allowed opacity-50 active:translate-y-0;
+  }
+
+  /* Variants only carry colour. They must NOT @apply .btn-chunk — nesting one
+     component class inside another silently drops the whole rule. */
+  .btn-lemon {
+    --chunk-shadow: #c98f00;
+    background-color: #ffc61a;
+    color: #2b2118;
+  }
+  .btn-mint {
+    --chunk-shadow: #16a37a;
+    background-color: #2ed9a0;
+    color: #2b2118;
+  }
+  .btn-wood {
+    --chunk-shadow: #6e3b18;
+    background-color: #c97b3c;
+    color: #ffffff;
+  }
+  .btn-ghost {
+    --chunk-shadow: rgba(0, 0, 0, 0.22);
+    background-color: rgba(255, 255, 255, 0.88);
+    color: #2b2118;
+  }
+
+  /* Hand-painted signage: slightly off-square, thick outline. */
+  .signboard {
+    @apply relative rounded-[18px] border-[5px] border-wood-dark bg-lemon px-5 py-4;
+    box-shadow: 0 8px 0 0 #9a5526, 0 16px 26px rgba(0, 0, 0, 0.22);
+  }
+
+  .stat-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border-2 border-ink/15 bg-white/85
+           px-3 py-1.5 font-body text-sm font-extrabold text-ink;
+  }
+
+  /* The one place in the game allowed to look grown-up and precise. */
+  .ledger-row {
+    @apply flex items-baseline justify-between gap-3 font-ledger text-[15px] tabular-nums;
+  }
+}
+
+/* Range inputs are the primary control in this game, so they get real work. */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 34px;
+  background: transparent;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 18px;
+  border-radius: 999px;
+  border: 3px solid #6e3b18;
+  background: linear-gradient(
+    to right,
+    #ffc61a 0%,
+    #ffc61a var(--fill, 50%),
+    rgba(255, 255, 255, 0.7) var(--fill, 50%),
+    rgba(255, 255, 255, 0.7) 100%
+  );
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 40px;
+  width: 40px;
+  margin-top: -14px;
+  border-radius: 999px;
+  border: 4px solid #6e3b18;
+  background: #fff8dc;
+  box-shadow: 0 4px 0 0 #9a5526;
+  cursor: grab;
+}
+.slider:active::-webkit-slider-thumb {
+  transform: scale(0.94);
+}
+.slider::-moz-range-track {
+  height: 18px;
+  border-radius: 999px;
+  border: 3px solid #6e3b18;
+  background: rgba(255, 255, 255, 0.7);
+}
+.slider::-moz-range-progress {
+  height: 18px;
+  border-radius: 999px;
+  background: #ffc61a;
+}
+.slider::-moz-range-thumb {
+  height: 36px;
+  width: 36px;
+  border-radius: 999px;
+  border: 4px solid #6e3b18;
+  background: #fff8dc;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- The day running: one keyframe timeline per customer sprite ---- */
+
+/* Walk on from the right, pause in front of the sign, then continue off. */
+@keyframes walkIn {
+  0% {
+    transform: translateX(0);
+  }
+  40% {
+    transform: translateX(calc(-1 * var(--walk-to, 55vw)));
+  }
+  58% {
+    transform: translateX(calc(-1 * var(--walk-to, 55vw)));
+  }
+  100% {
+    transform: translateX(calc(-1 * var(--walk-off, 115vw)));
+  }
+}
+
+@keyframes bubblePop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.6);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.06);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -6px) scale(1);
+  }
+}
+
+@keyframes coinToss {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(28px, -46px) scale(1.15);
+  }
+}
+
+/* Little walk cycle so sprites read as walking rather than sliding. */
+@keyframes waddle {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(2deg);
+  }
+}
