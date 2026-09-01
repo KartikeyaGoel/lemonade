@@ -722,6 +722,21 @@ export default function Page() {
     setGame(newSeason(game));
     setHasSave(false);
     setThesisTarget(null);
+    /*
+     * Everything still queued belongs to the season that just ended.
+     *
+     * Found by playing a finished run through to a new season: a badge earned
+     * on the last screen of season one arrives as a toast over the first
+     * morning of season two, on top of a stand with no history and nothing to
+     * do with it. Worse in the pathological case — a career restored out of
+     * step with its save produced eleven of them in a row over the price dial.
+     *
+     * A reward for something that is over is not a reward, it is an
+     * interruption, so the queues are emptied with the season.
+     */
+    setBadgeQueue([]);
+    setWordQueue([]);
+    setUnlockQueue([]);
     setPhase('morning');
   }, [game, career]);
 

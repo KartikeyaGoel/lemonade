@@ -518,6 +518,12 @@ Honest, after all of this:
   simulation is sound, the data is real, the detectors separate synthetic
   players. Whether a real eleven-year-old learns anything is unmeasured, and no
   amount of further building will change that. The next real step is not code.
+- **The arc does finish.** Played end to end for the first time this session:
+  Act 4 → the twelve-week finale → "Season 2 — new street" → a fresh Day 1 with
+  the career intact. That run turned up one real bug — every badge still queued
+  from the finished season arrived as a toast over the new season's first
+  morning, eleven of them in the pathological case. A reward for something that
+  is over is an interruption, so the queues now empty with the season.
 - **The classroom board has never been in a classroom.** `TEACHING.md` is a
   plausible lesson, not a tested one. The first teacher to run it will find
   three things wrong with it in the first ten minutes.
