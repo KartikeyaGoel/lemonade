@@ -1,6 +1,35 @@
 import type { Metadata, Viewport } from 'next';
+import { Bangers, Nunito } from 'next/font/google';
 import './globals.css';
 import { OfflineReady } from '@/components/OfflineReady';
+
+/*
+ * Self-hosted, and that is the whole point.
+ *
+ * These were two `<link>` tags to fonts.googleapis.com, with a comment saying
+ * they were done that way "so an offline build still works". That was backwards
+ * twice over. `next/font` downloads the files at build time and serves them
+ * from this origin, so it is the version that works offline — and the version
+ * that was supposed to was making three requests to Google on every single page
+ * load, from a child's device, handing over an IP address and a user agent.
+ *
+ * The product tells teachers that nothing leaves the device. That claim is in
+ * PRODUCT.md, in the README and in TEACHING.md, and until now it was not true.
+ * A school that checks would have been right to block it.
+ */
+const sign = Bangers({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-sign-loaded',
+  display: 'swap',
+});
+
+const body = Nunito({
+  weight: ['700', '800', '900'],
+  subsets: ['latin'],
+  variable: '--font-body-loaded',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Lemonade Stand',
@@ -35,17 +64,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        {/* Loaded by link rather than next/font so an offline build still works;
-            the fallback stack in globals.css keeps the look close. */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@700;800;900&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`${sign.variable} ${body.variable}`}>
       <body className="min-h-full antialiased">
         {children}
         <OfflineReady />

@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import { encodeChallenge } from '@/lib/challenge';
 import {
-  BIN_CENTS,
   ENOUGH_FOR_A_CURVE,
   bestOnCurve,
   bins,

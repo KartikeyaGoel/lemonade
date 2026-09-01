@@ -13,6 +13,7 @@ import {
   type ChallengeSpec,
   type Comparison,
   type RunResult,
+  skyOfTheDay,
 } from '@/lib/challenge';
 import type { DayRecord } from '@/lib/simulation';
 import { ChunkyButton, CodeBox, CodeInput, SignHeading, Sky, money } from '../ui';
@@ -41,6 +42,7 @@ export function ChallengeScreen({
   me,
   history,
   badges,
+  today,
   onPlayChallenge,
   onCompared,
   onBack,
@@ -51,6 +53,14 @@ export function ChallengeScreen({
   /** Their days so far. A challenge of N days is the first N of them. */
   history: DayRecord[];
   badges: number;
+  /**
+   * Today's date, as ISO, or null on a server render.
+   *
+   * Passed in rather than read here for the same reason `skyOfTheDay` takes it:
+   * a component that reads the clock renders differently on the server than in
+   * the browser, and React is right to complain about that.
+   */
+  today: string | null;
   onPlayChallenge: (spec: ChallengeSpec) => void;
   /** Fires once, when a friend's score has actually been read in. */
   onCompared: (comparison: Comparison) => void;
@@ -169,6 +179,38 @@ export function ChallengeScreen({
             />
           </div>
         </div>
+
+        {/*
+          * Today's week, the same one for everybody in the world.
+          *
+          * `skyOfTheDay` has existed, been tested and been wired to nothing.
+          * It is the cheapest retention mechanic there is and the only thing in
+          * the game that is the same for two children who have never met: the
+          * date is the seed, so a kid in one school and a kid in another get
+          * the identical seven days and can compare codes without arranging
+          * anything first.
+          */}
+        {today && (
+          <div className="mt-6 rounded-2xl border-[3px] border-lemon-deep bg-lemon-light p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-sign text-xl leading-tight text-ink">Today&apos;s week</span>
+              <span className="font-body text-[10px] font-extrabold uppercase tracking-[0.14em] text-wood-deep">
+                everybody gets this one
+              </span>
+            </div>
+            <p className="mt-0.5 font-body text-[12px] font-bold leading-snug text-ink/65">
+              The same seven days as every other player today. A new one tomorrow.
+            </p>
+            <ChunkyButton
+              variant="lemon"
+              full
+              className="mt-2 !py-2 !text-xl"
+              onClick={() => onPlayChallenge(skyOfTheDay(today))}
+            >
+              Play today&apos;s week
+            </ChunkyButton>
+          </div>
+        )}
 
         <div className="mt-6">
           <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/45">

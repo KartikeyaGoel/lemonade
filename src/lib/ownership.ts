@@ -17,7 +17,7 @@
  * Pure module. No React, no I/O.
  */
 
-import { round2, toCents, type DayRecord } from './simulation';
+import { round2, type DayRecord } from './simulation';
 import { growthRate, regularShareOfSales, trailingWeeklyProfit } from './business';
 
 /* ------------------------------------------------------------------ *

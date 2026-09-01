@@ -774,7 +774,7 @@ async function main() {
   const companies = out.companies.map((company) => {
     const byDate = new Map(company.weeklyCloses.map((row) => [row.date, row.close]));
     const closes = weeks.map((date) => byDate.get(date));
-    const { weeklyCloses, ...rest } = company;
+    const { ...rest } = company;
     return { ...rest, closes, price: closes[closes.length - 1] };
   });
 

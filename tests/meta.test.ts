@@ -44,7 +44,7 @@ import { SNAPSHOT } from '../src/lib/companies';
 import { createBusinessState } from '../src/lib/business';
 import { buyoutOffer, createOwnershipState } from '../src/lib/ownership';
 import { createPortfolio } from '../src/lib/market';
-import { round2, type DayRecord } from '../src/lib/simulation';
+import { type DayRecord } from '../src/lib/simulation';
 
 function day(over: Partial<DayRecord> = {}): DayRecord {
   return {

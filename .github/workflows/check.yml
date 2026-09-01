@@ -1,0 +1,50 @@
+# Everything that has to be true before a change lands.
+#
+# There was no CI at all. Five hundred and seventy-seven tests, a reading-level
+# check, a contrast check and a data-integrity check, and every one of them ran
+# only when somebody remembered to type the command. A check nobody runs is a
+# comment.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # Types first: everything below is slower and most failures show up here.
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Tests
+        run: npx vitest run
+
+      # Not tests, but the two things about this product that a test cannot
+      # see: whether a ten-year-old can read the writing, and whether they can
+      # see the number that says they lost money.
+      - name: Readable by a ten-year-old
+        run: node scripts/check-reading-level.mjs
+
+      - name: Readable at all
+        run: node scripts/check-contrast.mjs
+
+      # The market data ships in the repo, so a bad refresh is a bad release.
+      - name: Market data is sane
+        run: node scripts/check-market-data.mjs
+
+      - name: Build
+        run: npx next build

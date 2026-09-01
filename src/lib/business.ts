@@ -19,10 +19,9 @@ import {
   type DayParams,
   type DayRecord,
   type FixedCostLine,
-  type GameState,
-  type Weather,
   round2,
   toCents,
+  type Forecast,
 } from './simulation';
 
 /* ------------------------------------------------------------------ *
@@ -478,7 +477,7 @@ export interface Act2Progress {
   nextStep: string;
 }
 
-export function act2Progress(business: BusinessState, standDay: number): Act2Progress {
+export function act2Progress(business: BusinessState, _standDay: number): Act2Progress {
   const complete = business.staff.manager && business.handsOffDays >= HANDS_OFF_DAYS_REQUIRED;
   let nextStep: string;
   if (!business.staff.manager) {
@@ -562,12 +561,29 @@ export function managerPrice(history: DayRecord[], fallback = 1.6): number {
   return best.price;
 }
 
-/** Cups the manager will make: enough for a normal day at this capacity. */
-export function managerBatch(business: BusinessState, weather: Weather = 'mild'): number {
+/**
+ * Cups the manager will make.
+ *
+ * The forecast argument was accepted and then ignored, which did not matter
+ * while nothing could actually hand the manager a day. Now that the close
+ * screen can, it matters a great deal: a manager who makes twenty-eight cups
+ * into a cold morning throws most of them away, loses money, and the kid never
+ * earns the hands-off days the act is asking them for. Reading the sky is the
+ * least a person on twenty dollars a day can do.
+ */
+export function managerBatch(business: BusinessState, forecast: Forecast = 'probably-mild'): number {
   const capacity = serviceCapacity(business);
   const rough = Math.round(28 * LOCATIONS[business.location].demandMultiplier);
-  return Math.min(capacity, Math.max(12, rough));
+  const sized = Math.round(rough * MANAGER_SIZING[forecast]);
+  return Math.min(capacity, Math.max(10, sized));
 }
+
+/** How far the manager leans on the forecast. Cautious, deliberately. */
+const MANAGER_SIZING: Record<Forecast, number> = {
+  'probably-hot': 1.3,
+  'probably-mild': 1,
+  'probably-cold': 0.55,
+};
 
 /* ------------------------------------------------------------------ *
  * Act 2 vocabulary

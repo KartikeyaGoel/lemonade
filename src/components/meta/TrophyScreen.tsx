@@ -7,7 +7,7 @@ import { careerCard, standing, type Career } from '@/lib/career';
 import type { Game } from '@/lib/progress';
 import { collectionLine, progress, shelves } from '@/lib/collection';
 import { mastery, masteryLine, reachable, type Level } from '@/lib/mastery';
-import { ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { ChunkyButton, Sky, money } from '../ui';
 
 const TIER_STYLE: Record<BadgeTier, string> = {
   bronze: 'border-[#C08552] bg-[#F6E2CE]',

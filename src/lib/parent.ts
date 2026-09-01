@@ -15,7 +15,6 @@
 import { ECON, weekSummary } from './simulation';
 import { LOCATIONS, UPGRADES, trailingWeeklyProfit, type UpgradeId } from './business';
 import { judgeDealChoice } from './ownership';
-import { metricsFor, findCompany } from './companies';
 import { summarisePortfolio } from './market';
 import { ACT_TITLES, readiness, type Game } from './progress';
 import { BADGE_COUNT, rankFor } from './achievements';

@@ -14,8 +14,6 @@ import {
   type Insight,
 } from '@/lib/simulation';
 import {
-  ACT2_DAYS,
-  act2Progress,
   signUpRegulars,
   advanceRival,
   applyWeeklyChoice,
@@ -25,7 +23,6 @@ import {
   managerBatch,
   managerPrice,
   moveTo,
-  serviceCapacity,
   toggleStaff,
   trailingWeeklyProfit,
   updateHandsOff,
@@ -120,7 +117,7 @@ import type { ChallengeSpec } from '@/lib/challenge';
 import { buildThesis, quantClaim, qualClaim, scoreAll, type Thesis } from '@/lib/thesis';
 import type { ClubState } from '@/lib/club';
 import { STANDS_FOR_SALE } from '@/lib/ownership';
-import { findCompany, type Company } from '@/lib/companies';
+import { type Company } from '@/lib/companies';
 
 import { TitleScreen } from '@/components/TitleScreen';
 import { MorningScreen } from '@/components/MorningScreen';
@@ -202,6 +199,13 @@ export default function Page() {
   const [phase, setPhase] = useState<Phase>('title');
   const [hasSave, setHasSave] = useState(false);
   /**
+   * Today, as ISO, filled in after mount.
+   *
+   * Reading the clock during render makes the server and the first client
+   * render disagree, so this stays null until there is a browser to ask.
+   */
+  const [today, setToday] = useState<string | null>(null);
+  /**
    * The classroom board, on the teacher's device.
    *
    * Kept out of the save and out of the career: it belongs to whoever is
@@ -236,6 +240,7 @@ export default function Page() {
     setCareer(loadCareer() ?? createCareer());
     const savedBoard = loadBoard();
     if (savedBoard) setBoard(savedBoard);
+    setToday(new Date().toISOString().slice(0, 10));
   }, []);
 
   useEffect(() => {
@@ -439,7 +444,11 @@ export default function Page() {
   /** The manager runs a sensible day so the kid can genuinely step away. */
   const letManagerRun = useCallback(() => {
     if (!game) return;
-    openStand(managerPrice(game.stand.history), managerBatch(game.business), true);
+    openStand(
+      managerPrice(game.stand.history),
+      managerBatch(game.business, game.stand.forecast),
+      true,
+    );
   }, [game, openStand]);
 
   const closeDay = useCallback(() => {
@@ -577,7 +586,7 @@ export default function Page() {
       }
       setPhase('plan');
     },
-    [game],
+    [game, queueWords],
   );
 
   const handleDealChoice = useCallback(
@@ -597,7 +606,7 @@ export default function Page() {
       );
       setPhase('buyout');
     },
-    [game],
+    [game, queueWords],
   );
 
   const handleBuyout = useCallback(
@@ -622,7 +631,7 @@ export default function Page() {
       );
       setPhase('act-intro');
     },
-    [game],
+    [game, queueWords],
   );
 
   /* ---------------- Act 4 actions ---------------- */
@@ -1055,6 +1064,7 @@ export default function Page() {
           insights={newInsights}
           planned={planned}
           managerAvailable={game.act === 2 && game.business.staff.manager}
+          onManagerRuns={letManagerRun}
           nextUp={
             isUnlocked('whats-next', settledGame ?? game, career) ? (
               <div className="mt-4">
@@ -1297,6 +1307,7 @@ export default function Page() {
     case 'challenge':
       return (
         <ChallengeScreen
+          today={today}
           seed={game.seed}
           me={me}
           history={game.stand.history}

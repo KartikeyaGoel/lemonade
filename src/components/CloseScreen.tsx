@@ -20,6 +20,7 @@ export function CloseScreen({
   insights,
   planned,
   managerAvailable,
+  onManagerRuns,
   nextUp,
   onNext,
 }: {
@@ -29,6 +30,8 @@ export function CloseScreen({
   planned?: DayProjection | null;
   /** Act 2: a manager is on the payroll, so stepping away is a real option. */
   managerAvailable?: boolean;
+  /** Hands tomorrow to the manager. This is what earns a hands-off day. */
+  onManagerRuns?: () => void;
   /**
    * Three things worth trying next, once there is a day to compare them
    * against. Passed in rather than built here, because it needs the career
@@ -269,10 +272,30 @@ export function CloseScreen({
           <ChunkyButton variant="lemon" full onClick={onNext}>
             {isLastDay ? 'See your week →' : `Start day ${outcome.nextState.day} →`}
           </ChunkyButton>
-          {managerAvailable && (
-            <p className="mt-2 text-center font-body text-[11px] font-bold text-ink/50">
-              Your manager can run tomorrow without you.
-            </p>
+
+          {/*
+            * Stepping away, which is the whole point of Act 2's last stretch.
+            *
+            * This was a sentence — "Your manager can run tomorrow without you"
+            * — and nothing else. The function that does it existed, the counter
+            * it feeds existed, and the goal strip told the kid to go and earn
+            * three manager-run days. There was no button anywhere in the game
+            * that ran one. So the stated goal was unreachable, the badge for it
+            * was unreachable, and an attentive kid was left looking for a
+            * control that did not exist.
+            *
+            * It is deliberately the quieter of the two: handing the stand over
+            * is a real decision with a real cost, not the default.
+            */}
+          {managerAvailable && onManagerRuns && !isLastDay && (
+            <>
+              <ChunkyButton variant="ghost" full onClick={onManagerRuns} className="mt-2 !text-lg">
+                Let your manager run it →
+              </ChunkyButton>
+              <p className="mt-1.5 text-center font-body text-[11px] font-bold text-ink/50">
+                You still get paid. Their wage is owed either way.
+              </p>
+            </>
           )}
         </div>
       </div>

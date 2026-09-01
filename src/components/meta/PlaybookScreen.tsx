@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import {
   DECK_SIZE,
   RULE_CARDS,
-  createPlaybook,
   decodePlaybook,
   encodePlaybook,
   record,

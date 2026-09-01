@@ -3,8 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --font-sign: 'Bangers', 'Chalkboard SE', 'Comic Sans MS', system-ui, sans-serif;
-  --font-body: 'Nunito', 'Avenir Next', system-ui, sans-serif;
+  /* The loaded faces come from next/font and are served from this origin.
+     The fallbacks are what a device sees before they arrive, and on the rare
+     browser that refuses a webfont. */
+  --font-sign: var(--font-sign-loaded), 'Chalkboard SE', 'Comic Sans MS', system-ui, sans-serif;
+  --font-body: var(--font-body-loaded), 'Avenir Next', system-ui, sans-serif;
 }
 
 html,

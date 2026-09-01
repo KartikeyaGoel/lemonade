@@ -1102,3 +1102,74 @@ something *finishing* buzz — the till, a badge, an unlock, the finale, a bad
 day. A buzz on every cup would fire forty times a day, drain a battery, and stop
 meaning anything by the fourth one. Held to that by a test, because it is
 exactly the sort of rule that erodes.
+
+## 40. The audit: what a lint config found that five hundred tests did not
+
+Three lenses, gone over deliberately rather than by feel.
+
+### Game design
+
+One hole, and it was a bad one. Act 2's goal strip says **"three more profitable
+days run by your manager"**. The function that runs a manager day existed. The
+counter it feeds existed. The badge for reaching three existed. Nothing anywhere
+in the game called any of it — the close screen had the sentence *"Your manager
+can run tomorrow without you"* rendered as a **paragraph** instead of a button.
+
+So a kid who hired a manager was told to do something the interface provided no
+way to do, and went looking for a control that was not there. The act still
+ended, on a fourteen-day fallback, which is exactly why it survived: the game
+moved on and only an attentive player would have noticed they had been asked for
+something impossible.
+
+Found by the linter — `letManagerRun` was assigned and never used. Now a real
+button, and the manager reads the forecast when sizing a batch, because a
+manager who makes twenty-eight cups into a cold morning loses money and the
+streak never builds.
+
+`tests/arc.test.ts` now walks the whole thing the way a player does and asserts
+each act ends **the way the game says it will** rather than merely ending —
+including that the hands-off goal is reachable *before* the fallback fires.
+
+The other game-design gap was the daily challenge. `skyOfTheDay` derives a week
+from the date alone, so every player in the world gets the same seven days. It
+was written, tested, and wired to nothing. It is the cheapest retention mechanic
+there is and the only thing in the game two children who have never met can
+compare without arranging anything first.
+
+### Product
+
+- **No licence.** A school that wanted to use this could not know whether they
+  were allowed to. MIT now.
+- **No privacy statement.** The strongest thing about this product is that it
+  collects nothing, and that fact lived only in source comments. `PRIVACY.md`
+  states it in a form a teacher can hand to a school, lists the three
+  `localStorage` keys by name, and ends with three ways to verify it without
+  taking our word for anything.
+
+And the claim turned out not to be true. Every page load made **three requests
+to `fonts.googleapis.com` and `fonts.gstatic.com`**, handing a child's IP
+address and user agent to Google — while the README, PRODUCT.md and TEACHING.md
+all said nothing leaves the device. The comment above those tags claimed they
+were done that way "so an offline build still works", which is backwards:
+`next/font` downloads the files at build time and serves them from this origin.
+Verified after the change — the served HTML contains no external URL at all.
+
+### Code
+
+- **No CI.** Five hundred and seventy-nine tests, a reading-level check, a
+  contrast check and a data-integrity check, all of which ran only when somebody
+  remembered. A check nobody runs is a comment.
+- **No lint config**, so `npm run lint` dropped into an interactive wizard and
+  had never been run. Three rules earn their place: `exhaustive-deps` as an
+  error, `no-unused-vars` as an error (it is what found the manager bug), and
+  `no-explicit-any`. It also caught a local function called `useTry`, which
+  React reads as a hook and which was silently disabling hook checking across
+  the whole planning screen.
+- **No component tests.** All five hundred and seventy-nine were pure-library,
+  and *every defect ever found by playing this game was in a component*: three
+  overlays stacked over the first profit and loss, three vocabulary words on day
+  one, a toast landing on the primary button, eleven badges from a finished
+  season arriving over the next season's first morning. Thirty-five UI tests
+  now cover the reward layer, the place screens and the classroom board.
+- **No error boundary.** A thrown component in production was a blank white
+  page. Now: one sentence, the promise that their save is intact, and a button.

@@ -23,12 +23,10 @@ import {
 } from '../src/lib/business';
 import {
   acceptBuyout,
-  acceptEquity,
   buyoutOffer,
-  equityOffer,
   recordDealChoice,
 } from '../src/lib/ownership';
-import { buy, createPortfolio, maxSpendOn, markResearched } from '../src/lib/market';
+import { buy, maxSpendOn, markResearched } from '../src/lib/market';
 
 function withHistory(profits: number[], prices?: number[]): DayRecord[] {
   return profits.map((profit, i) => ({
@@ -246,7 +244,7 @@ describe('the parent report is evidence, never a score', () => {
   });
 
   it('credits diversification once it is real', () => {
-    let game = beginAct4(playedThrough());
+    const game = beginAct4(playedThrough());
     let portfolio = game.portfolio!;
     for (const ticker of ['AAPL', 'KO', 'CMG']) {
       portfolio = buy(portfolio, ticker, maxSpendOn(portfolio, ticker)).portfolio;
@@ -261,7 +259,7 @@ describe('the parent report is evidence, never a score', () => {
   });
 
   it('reports research actually opened', () => {
-    let game = beginAct4(playedThrough());
+    const game = beginAct4(playedThrough());
     let portfolio = markResearched(game.portfolio!, 'AAPL');
     portfolio = markResearched(portfolio, 'KO');
     const report = parentReport({ ...game, portfolio });

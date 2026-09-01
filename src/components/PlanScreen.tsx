@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import {
   ECON,
   FORECAST_COPY,
@@ -153,7 +153,15 @@ export function PlanScreen({
     else setShown(attempt);
   };
 
-  const useTry = (attempt: Try) => {
+  /**
+   * Puts an old attempt back on the stand.
+   *
+   * Named `useTry` until the linter pointed out that React reads `use…` as a
+   * hook and was refusing to check three callbacks in this file because of it.
+   * A name that makes a tool wrong about your code will eventually make a
+   * person wrong about it too.
+   */
+  const loadTry = (attempt: Try) => {
     setTargetCups(attempt.targetCups);
     setPrice(attempt.price);
     setShown(null);
@@ -587,7 +595,7 @@ export function PlanScreen({
             variant="lemon"
             full
             className="mt-3 !text-base"
-            onClick={() => useTry(shown)}
+            onClick={() => loadTry(shown)}
           >
             Put these numbers back on the stand
           </ChunkyButton>
@@ -655,7 +663,7 @@ export function PlanScreen({
               variant="ghost"
               full
               className="!text-sm"
-              onClick={() => useTry(diff.from)}
+              onClick={() => loadTry(diff.from)}
             >
               Use Try {diff.from.id}
             </ChunkyButton>
@@ -663,7 +671,7 @@ export function PlanScreen({
               variant="lemon"
               full
               className="!text-sm"
-              onClick={() => useTry(diff.to)}
+              onClick={() => loadTry(diff.to)}
             >
               Use Try {diff.to.id}
             </ChunkyButton>

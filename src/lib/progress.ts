@@ -13,7 +13,6 @@
 import {
   ECON,
   createInitialState,
-  weekSummary,
   type DayRecord,
   type GameState,
   type Insight,

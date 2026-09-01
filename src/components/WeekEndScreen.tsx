@@ -1,7 +1,7 @@
 'use client';
 
 import { ECON, closingTakeaway, type GameState, weekSummary } from '@/lib/simulation';
-import { ChunkyButton, SignHeading, Sky, money } from './ui';
+import { ChunkyButton, Sky, money } from './ui';
 
 /**
  * End of the week. The kid gets to see their own learning curve plotted:

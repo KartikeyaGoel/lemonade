@@ -12,8 +12,14 @@ stand.**
 - [`LEARNING.md`](LEARNING.md) — an honest assessment of what a kid actually
   knows at the end, and what they don't.
 
-No real money is ever involved. No accounts, no backend, no analytics: the whole
-game is a static bundle and every save lives in `localStorage` on the device.
+No real money is ever involved. No accounts, no backend, no analytics, and
+nothing loaded from anybody else's domain: the whole game is a static bundle,
+it works with the wifi off, and every save lives in `localStorage` on the
+device. [`PRIVACY.md`](PRIVACY.md) says so in a form you can hand to a school,
+and tells you how to check it yourself.
+
+- [`TEACHING.md`](TEACHING.md) — a 40-minute lesson in which a class measures a
+  demand curve from its own thirty decisions. No accounts, no setup.
 
 ---
 

@@ -343,7 +343,7 @@ describe('Act 2 hangs together over a full run', () => {
   it('never lets the kid end a day below the starting float', () => {
     let state = stateWith({ cash: 60 });
     // A ruinous setup: park rent, two wages, and a price nobody pays.
-    let biz = toggleStaff(toggleStaff(moveTo(business(), 'park'), 'helper'), 'manager');
+    const biz = toggleStaff(toggleStaff(moveTo(business(), 'park'), 'helper'), 'manager');
     for (let day = 1; day <= 10; day++) {
       const params = deriveDayParams(biz, 4);
       const outcome = runDay(state, { ...orderForTargetCups(state, 20), price: 4 }, params);
