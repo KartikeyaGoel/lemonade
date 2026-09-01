@@ -1,5 +1,100 @@
 # Lemonade — the pitch
 
+## The version you say out loud
+
+Four beats. Nothing to explain, no comparison to anything.
+
+> **"Every money app for kids is a quiz.**
+>
+> **But a kid can ace a quiz about saving and still drop $40 on Robux.**
+>
+> **So we don't quiz them. We give them a lemonade stand and let them lose
+> money on it. They charge three dollars, they watch people walk away, they
+> get undercut by the kid down the street. Then they sell the stand — and
+> take that money into the real stock market. Real companies, real prices.
+> And every company looks like their lemonade stand, because it is one.**
+>
+> **You get a page that says what they figured out. Not what they were told."**
+
+Beat two is the whole pitch. Every parent of a ten-to-fourteen-year-old has
+lived that sentence. You are not informing them of a problem — you are naming
+one they already have. Stop talking after it and let them nod.
+
+### The one sentence, if you only get one
+
+> **"Kids don't need to be told what money means. They need to be given some
+> and made to decide."**
+
+### Say the numbers, not the theory
+
+If they want substance, don't reach for a framework. Reach for the screen:
+
+- *"It's real SEC filings. Real prices. Twenty-four companies they've heard
+  of — Costco, Chipotle, Roblox, Crocs."*
+- *"When they finish, the market goes live. Come back in a month and it says:
+  four weeks went by, your money is up twenty-eight dollars, Duolingo's up
+  twenty percent, Crocs is down fifteen."*
+- *"No accounts. No backend. Nothing leaves the phone. It works on a plane."*
+- *"No real money, ever. No leverage, no options, no day trading — those
+  teach gambling."*
+
+---
+
+## Pocket answers
+
+Keep these short. Answer, then stop.
+
+**"So it's Duolingo for finance?"**
+> "Duolingo works because there's a right answer — *perro* means dog. There's
+> no right answer to 'should I charge two dollars or three.' You can quiz a
+> kid on Spanish. You can't quiz them on judgment."
+
+**"Isn't this just Greenlight?"**
+> "Greenlight makes its money on the card. The learning part is advertising
+> for the card. Nobody there gets paid on whether your kid opens it twice."
+>
+> *(If it's the customer who already told you Greenlight is horrendous: don't
+> pitch. Ask her what made it horrendous, and shut up.)*
+
+**"How do I know they're learning anything?"**
+> "There's a page for you. It only says things they actually did — held on
+> through a twelve percent drop instead of panic-selling, spread their money
+> across four companies without being told to. Never a quiz score. We don't
+> have quiz scores on purpose."
+
+**"Won't this teach my kid to gamble?"**
+> "No day trading, no leverage, no shorting, no options — ever. They buy
+> pieces of companies that make things they've eaten or worn, and they have
+> to say why before they can buy."
+
+**"Is it fun, though? My kid plays Roblox."**
+> "That's the actual bar, and it's the one we're least sure of. Want to sit
+> your kid down with it and tell me what happens?"
+>
+> *(Say this honestly. A parent trusts the person who names their own weak
+> spot before being asked.)*
+
+---
+
+## What not to say
+
+- **Don't explain the Duolingo argument unprompted.** It's a defence, not an
+  opening. Leading with it makes you sound like you're pitching a thesis
+  instead of a thing their kid might like.
+- **Don't say "financial literacy."** It's the phrase on every product they've
+  already deleted.
+- **Don't say "gamified."** Same problem.
+- **Don't list the four acts.** Show the screen instead.
+- **Don't claim kids love it.** No kid has played it yet. Saying so out loud
+  is worth more than the claim would be.
+
+---
+
+# The long version
+
+Everything below is for an investor, a school, or anyone who pushes back.
+Do not read it at a parent.
+
 > Everyone building financial education for kids is building Duolingo.
 > Finance is not a language. It is a game.
 
@@ -18,8 +113,9 @@ lemonade stand.**
 
 ## 2. The insight: "Duolingo for finance" is a category error
 
-This is the part of the pitch that does the work. Everything else follows
-from it.
+This is the argument the product rests on. It is **not** the argument you
+open with — see "What not to say" above. It is what you say when somebody
+tells you the category is already solved.
 
 ### Why Duolingo works
 
