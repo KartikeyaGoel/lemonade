@@ -412,6 +412,20 @@ function buildCustomers(
   cupsWanted: number,
   subscriberCups: number,
 ) {
+  /*
+   * How many people walk past, which is not how many want a cup.
+   *
+   * This distinction is load-bearing in a way that is easy to miss. The whole
+   * footfall is generated first and each person then decides, so the *number of
+   * random draws this function makes depends only on the weather and the day's
+   * parameters — never on the price or the batch*. That is what makes the seed
+   * carried into tomorrow independent of today's decisions, and therefore what
+   * makes two kids on the same challenge code genuinely get the same week.
+   *
+   * Every claim the same-sky challenge and the classroom board make rests on
+   * it, so `tests/challenge.test.ts` pins it. Anything added here that draws a
+   * different number of times depending on a decision silently breaks both.
+   */
   const passersby = Math.round(
     params.demandIntercept * WEATHER_MULTIPLIER[weather] * params.demandMultiplier * params.marketShare,
   );

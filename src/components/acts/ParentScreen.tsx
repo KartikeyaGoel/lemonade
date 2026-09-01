@@ -14,9 +14,12 @@ import { ChunkyButton, SignHeading, Sky } from '../ui';
  */
 export function ParentScreen({
   report,
+  onClassroom,
   onBack,
 }: {
   report: ParentReport;
+  /** The teacher's way in. Nothing on the child's side links here. */
+  onClassroom?: () => void;
   onBack: () => void;
 }) {
   return (
@@ -103,6 +106,33 @@ export function ParentScreen({
 
       <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/25 to-transparent pb-5 pt-8">
         <div className="mx-auto w-full max-w-md px-4">
+          {/* One teacher is thirty children, and this is the only door to
+              that. It sits at the bottom of the grown-up view rather than
+              anywhere a child would find it. */}
+          {onClassroom && (
+            <button
+              type="button"
+              onClick={onClassroom}
+              className="mb-3 w-full rounded-2xl border-[3px] border-ink/20 bg-white/85 px-3 py-2.5 text-left"
+            >
+              <div className="flex items-center gap-2.5">
+                <span aria-hidden className="text-2xl">
+                  🧑‍🏫
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-sign text-lg leading-tight text-ink">Teaching a class?</div>
+                  <div className="font-body text-[11px] font-bold leading-tight text-ink/55">
+                    One code, everyone plays the same week, and the class plots its own demand
+                    curve from thirty results.
+                  </div>
+                </div>
+                <span aria-hidden className="font-sign text-xl text-ink/30">
+                  ›
+                </span>
+              </div>
+            </button>
+          )}
+
           <ChunkyButton variant="ghost" full onClick={onBack}>
             Back to the game
           </ChunkyButton>

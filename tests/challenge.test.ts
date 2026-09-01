@@ -13,6 +13,7 @@ import {
   tidyName,
 } from '../src/lib/challenge';
 import {
+  batchPlan,
   createInitialState,
   orderForTargetCups,
   runDay,
@@ -215,5 +216,44 @@ describe('a duel is one day, and behaves like one', () => {
     expect(comparison.sameSky).toBe(true);
     const summed = comparison.lines.reduce((total, line) => total + line.dollars, 0);
     expect(summed).toBeCloseTo(comparison.gap, 1);
+  });
+});
+
+describe('the invariant the whole thing rests on', () => {
+  /**
+   * Two kids, one code, different decisions — and the same week.
+   *
+   * "Same weather, same money, the only difference is what you each decided" is
+   * the sentence the challenge screen, the club and the classroom board are all
+   * built on. It is true because `buildCustomers` generates the whole footfall
+   * and then lets each person decide, so the number of random draws in a day
+   * depends on the weather and nothing else. That is not obvious from reading
+   * the function, and a plausible-looking optimisation — only generate the
+   * people who might buy — would break it silently.
+   */
+  const week = (seed: number, price: number, cups: number) => {
+    let state = createInitialState(seed);
+    const sky: string[] = [];
+    for (let i = 0; i < CHALLENGE_DAYS; i += 1) {
+      const plan = batchPlan(state, cups);
+      const outcome = runDay(state, { ...plan.order, price });
+      sky.push(`${outcome.forecast}/${outcome.weather}`);
+      state = outcome.nextState;
+    }
+    return sky;
+  };
+
+  it('gives the same weather whatever the kid charges', () => {
+    expect(week(2026, 1.0, 30)).toEqual(week(2026, 2.5, 30));
+    expect(week(77, 0.75, 30)).toEqual(week(77, 4.0, 30));
+  });
+
+  it('gives the same weather whatever the kid makes', () => {
+    expect(week(2026, 1.5, 8)).toEqual(week(2026, 1.5, 60));
+  });
+
+  it('gives a different week for a different code', () => {
+    // The other half of the claim: a code has to actually mean something.
+    expect(week(2026, 1.5, 30)).not.toEqual(week(2027, 1.5, 30));
   });
 });

@@ -22,10 +22,19 @@ import { createOwnershipState } from './ownership';
 import { CAREER_VERSION, createCareer, type Career } from './career';
 import { windowStartFor } from './market';
 import type { GameState } from './simulation';
+import type { Entry } from './classroom';
 
 const KEY = 'lemonade.save.v2';
 const LEGACY_KEY = 'lemonade.act1.v1';
 const CAREER_KEY = 'lemonade.career.v1';
+/**
+ * The classroom board.
+ *
+ * Its own slot, because it belongs to the teacher's device rather than to any
+ * child's run — and because a teacher who loses twenty-five typed-in results to
+ * an accidental refresh does not use this a second time.
+ */
+const CLASS_KEY = 'lemonade.class.v1';
 
 export function loadGame(): Game | null {
   if (typeof window === 'undefined') return null;
@@ -164,5 +173,31 @@ export function clearEverything(): void {
     window.localStorage.removeItem(CAREER_KEY);
   } catch {
     /* ignore */
+  }
+}
+
+export interface SavedBoard {
+  seed: number;
+  entries: Entry[];
+}
+
+export function loadBoard(): SavedBoard | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(CLASS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SavedBoard;
+    if (typeof parsed?.seed !== 'number' || !Array.isArray(parsed.entries)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveBoard(board: SavedBoard): void {
+  try {
+    window.localStorage.setItem(CLASS_KEY, JSON.stringify(board));
+  } catch {
+    // Out of quota or private browsing. The lesson still works for this session.
   }
 }

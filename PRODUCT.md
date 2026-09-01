@@ -949,3 +949,125 @@ needed **nine more badges**.
 
 Both now count in one currency, and it has a name and a symbol the kid can see:
 **⭐ — a badge, a word, or a company you have read.**
+
+## 36. Evidence, not exposure
+
+The parent report said "Knows the difference between buying a thing once and
+paying wages every day". The condition for saying it was
+`game.learned.includes('capex-vs-opex')`, which becomes true the moment the game
+has *displayed a card with those words on it*. That is a claim about what the
+software did, presented as a claim about what a child knows — in the one screen
+whose entire job is to be trustworthy.
+
+The honest alternative is not a quiz. A quiz measures whether a kid can
+recognise a definition ten minutes after reading it, and it is the thing this
+product promised never to build. The alternative is **behaviour**: a skill
+counts when the kid did something that only makes sense if they understand it,
+with their own money at stake and nobody asking them to.
+
+`src/lib/mastery.ts` holds ten of them, and three rules:
+
+1. **Every sighting is an action, never an exposure.** Nothing fires because a
+   word was shown, a screen was opened, or a day elapsed.
+2. **Every sighting is citable.** It carries the day and the kid's own figures.
+   *"Day 4: sold all 24 cups with 16 people turned away, then put the price up to
+   $1.75."* A claim nobody can audit is a claim nobody should believe.
+3. **Once is a coincidence.** Most skills need two separate occasions.
+
+### The test that matters
+
+Three synthetic players, each understanding exactly one thing:
+
+| Player | Behaviour | Reads the queue | Reads the sky |
+|---|---|---|---|
+| **Pricer** | Adjusts price on yesterday; fixed batch | held | — |
+| **Forecaster** | Adjusts batch on the forecast; fixed price | — | held |
+| **Oblivious** | $1.50 and 20 cups, every day, 16 days | — | — |
+
+The oblivious player ends sixteen days with a stand full of money and scores
+**nothing at all**. That refusal is the whole point: if a game cannot tell a
+child who is adjusting from a child who is merely busy, it is not teaching
+anything, and no amount of vocabulary on the screen changes that.
+
+The kid sees the same list as the first tab of their own case — not a report
+card, but a list of things nobody has told them to try, each with the receipt
+attached.
+
+Recording `cupsMade` on a day is what makes any of it possible. Without it,
+selling twenty-four cups looks identical whether twenty-four was the demand or
+the supply, and that difference is the whole of the pricing lesson.
+
+## 37. Two things that were never measured
+
+### Reading level
+
+A game pitched at eleven-year-olds whose copy sits at a fifteen-year-old's
+reading level has locked out half its audience before anybody presses a button,
+and it will look exactly like a game that "did not engage them". Nobody had
+checked. `scripts/check-reading-level.mjs` now runs on every test:
+
+- **average grade 4.9** against a target of 6
+- **no sentence over 22 words**
+
+Eight sentences were rewritten. Building the checker was itself instructive:
+the first version scored code as prose and ranked short headlines at grade 21,
+because Flesch–Kincaid is meaningless below about eight words — it would have
+sent me rewriting perfectly readable copy. It now applies the formula only where
+the formula means something, and reports hard vocabulary as a list to read
+rather than a test to pass, because no formula can tell "capacity", which this
+game exists to teach, from a word that slipped in.
+
+The glossary's grown-up gloss is excluded by a naming convention: any field
+called `grownUp…` is adult copy.
+
+### Contrast
+
+Berry is the colour of every loss and every negative figure in the game, which
+makes it the text a kid most needs to be able to read. It was at **3.1:1 on
+white** against a 4.5:1 bar, and **2.75:1 on the lemon sign** — the most
+looked-at number in the product.
+
+The first fix kept the bright pink for large display type on the grounds that
+large text only needs 3:1. It did not survive the check. There is now one pink,
+it passes everywhere at 4.58:1 or better, and green-for-good stays separable
+from pink-for-bad under both common forms of colour blindness.
+`scripts/check-contrast.mjs` runs on every test.
+
+## 38. One teacher is thirty children
+
+Everything above is internal quality, and impact is quality multiplied by reach.
+Reach was one child, on one device, who had to find the game first.
+
+There is no backend and there is not going to be one, so this cannot be a class
+roster with logins. What it can be is what a good lesson actually needs, which
+is smaller:
+
+1. The teacher writes **one code** on the board.
+2. Every child plays the **same week** — same forecasts, same weather, same
+   twenty dollars.
+3. Each child ends with **two numbers**: what they charged and what they made.
+   Two numbers is what a class of thirty can report in the five minutes a lesson
+   has for it.
+4. Those sixty numbers go on one chart.
+
+**And the chart is a demand curve.** Not one drawn by a teacher on a whiteboard,
+and not one revealed by the software — one the class measured, by each doing a
+different experiment on the same world. Twelve children produced a hill peaking
+at exactly the price the simulation says is optimal.
+
+Then, and only when the teacher asks, the real curve goes over the top: the same
+week played at every price from 50c to $4. The order is the lesson. Showing the
+answer before the measurement turns thirty experiments into thirty guesses at
+something the computer already knew.
+
+The board never names a child — same argument as §30. `TEACHING.md` is the
+forty-minute lesson plan, written so a teacher who knows no economics can run it.
+
+### The invariant it all rests on
+
+"Same weather, whatever you decide" is true because `buildCustomers` generates
+the whole footfall first and lets each person decide, so **the number of random
+draws in a day depends on the weather and nothing else**. That is not obvious
+from reading the function, and a plausible optimisation — only generate the
+people who might buy — would break the challenge system, the club and the
+classroom board silently and at once. `tests/challenge.test.ts` now pins it.

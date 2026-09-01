@@ -444,3 +444,85 @@ Honest list, after this pass:
 - **The club still travels by copy-paste.** That is a deliberate consequence of
   having no backend, and it is the single biggest drag on the social loop.
 - **Quarterly fundamentals.** Still 10-K only; see §9.
+
+## 16. The measurement problem, faced properly this time
+
+§10 claimed the counterfactual bench solved the measurement problem. It solved
+half of it: a kid can now tell whether *their own decision* was the thing that
+moved the number. What it did not do is let anybody outside the game tell
+whether the kid had learned anything, and the place that claimed to — the parent
+report — was reading `game.learned`, which records what the software displayed.
+
+Writing `src/lib/mastery.ts` forced a distinction I had been sliding over:
+
+- **Exposure** — the game showed them a card that said "capex".
+- **Recognition** — they could pick the right definition out of four. (A quiz.
+  We do not build these, and it is worth remembering that the reason is not
+  squeamishness: recognition ten minutes later predicts almost nothing.)
+- **Demonstration** — with their own money and nobody prompting, they did the
+  thing. Twice, in different circumstances.
+
+Only the third is worth reporting, and it is the only one this game was ever in
+a position to measure, because unlike a worksheet it watches every decision.
+
+The validation is the part I would keep if I kept nothing else. Three synthetic
+players, each understanding one thing and not the other, and the detectors have
+to separate them: the one who prices on the queue scores for that and not for
+the forecast, the one who batches on the forecast scores the reverse, and the
+one who charges $1.50 and makes twenty cups for sixteen days scores nothing at
+all despite finishing with more money than either. That last row is the one that
+makes the other two mean something. A measure that cannot fail anybody is not a
+measure.
+
+Two detectors were wrong on the first pass and the tests caught both:
+
+- **The forecast detector** compared every hot day against the kid's average
+  cold day. Batches drift upward as a kid gets richer, so a late cold day is
+  routinely bigger than an early hot one — it was measuring *when* a day
+  happened as much as what was decided. Comparing adjacent days is immune to
+  drift and is closer to the skill anyway: you saw the forecast change, and you
+  changed.
+- **The capacity detector** asked "does this add more room than I am already
+  wasting", which meant it went quiet on exactly the biggest and most expensive
+  mistakes. The right question is simply "is the queue longer than the stand".
+
+## 17. Checks that are not tests
+
+Three things shipped for months without anybody being able to say whether they
+were right, because none of them is the kind of thing a unit test naturally
+catches:
+
+- whether a ten-year-old can read the writing
+- whether a child can see the number that says they lost money
+- whether two screens agree about what is unlocked
+
+The first two are now build checks. The third was a plain bug (§35). What they
+have in common is that each was *invisible from inside the code* — the copy
+compiled, the colour rendered, and both screens ran without error. The only way
+to find them was to decide what "good" meant numerically and then go and
+measure.
+
+The reading-level checker is a useful warning about that, too. Its first version
+was confidently wrong: it scored Tailwind class names as English and put a
+four-word headline at the top of the "hardest sentences" list, because
+Flesch–Kincaid divides by sentence length and four is not a sentence length. Had
+I trusted the number instead of reading the output, I would have spent an hour
+rewriting copy that was already fine. A measurement you have not sanity-checked
+against its own worst cases is not evidence.
+
+## 18. What is still not true
+
+Honest, after all of this:
+
+- **Nobody has played it.** Everything claimed here is internal validity — the
+  simulation is sound, the data is real, the detectors separate synthetic
+  players. Whether a real eleven-year-old learns anything is unmeasured, and no
+  amount of further building will change that. The next real step is not code.
+- **The classroom board has never been in a classroom.** `TEACHING.md` is a
+  plausible lesson, not a tested one. The first teacher to run it will find
+  three things wrong with it in the first ten minutes.
+- **The club still travels by copy-paste.** A consequence of having no backend,
+  and the biggest remaining drag on the social loop.
+- **No offline.** There is a manifest and no service worker, so a school with
+  bad wifi loses the lesson.
+- **Quarterly fundamentals.** Still 10-K only; see §9.

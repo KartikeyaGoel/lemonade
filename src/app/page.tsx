@@ -74,7 +74,16 @@ import {
   type Game,
 } from '@/lib/progress';
 import { parentReport } from '@/lib/parent';
-import { clearGame, loadCareer, loadGame, saveCareer, saveGame } from '@/lib/storage';
+import {
+  clearGame,
+  loadBoard,
+  loadCareer,
+  loadGame,
+  saveBoard,
+  saveCareer,
+  saveGame,
+  type SavedBoard,
+} from '@/lib/storage';
 import { badgeById, earnedBadges, rankFor, type Badge } from '@/lib/achievements';
 import {
   businessModelInsight,
@@ -138,6 +147,7 @@ import { PlaybookScreen } from '@/components/meta/PlaybookScreen';
 import { TableScreen } from '@/components/meta/TableScreen';
 import { ClubScreen } from '@/components/meta/ClubScreen';
 import { FriendsScreen } from '@/components/meta/FriendsScreen';
+import { ClassroomScreen } from '@/components/meta/ClassroomScreen';
 import { ThesisScreen } from '@/components/meta/ThesisScreen';
 import { UnlockCard } from '@/components/meta/UnlockCard';
 import { WordCard } from '@/components/meta/WordCard';
@@ -175,6 +185,7 @@ type Phase =
   | 'table'
   | 'club'
   | 'friends'
+  | 'classroom'
   | 'thesis'
   | 'reckoning';
 
@@ -190,6 +201,14 @@ export default function Page() {
   const [career, setCareer] = useState<Career | null>(null);
   const [phase, setPhase] = useState<Phase>('title');
   const [hasSave, setHasSave] = useState(false);
+  /**
+   * The classroom board, on the teacher's device.
+   *
+   * Kept out of the save and out of the career: it belongs to whoever is
+   * running the lesson, not to any child's run, and it has to survive the
+   * accidental refresh that would otherwise cost twenty-five typed-in results.
+   */
+  const [board, setBoard] = useState<SavedBoard>({ seed: 20260901, entries: [] });
 
   // The meta-game arrives in queues rather than all at once, so a kid never
   // gets four cards in a row. Each queue drains one card per tap.
@@ -215,7 +234,13 @@ export default function Page() {
       setGame(createGame());
     }
     setCareer(loadCareer() ?? createCareer());
+    const savedBoard = loadBoard();
+    if (savedBoard) setBoard(savedBoard);
   }, []);
+
+  useEffect(() => {
+    saveBoard(board);
+  }, [board]);
 
   useEffect(() => {
     if (game) saveGame(game);
@@ -1036,6 +1061,19 @@ export default function Page() {
         />
       ) : null;
 
+    case 'classroom':
+      return (
+        <ClassroomScreen
+          seed={board.seed}
+          entries={board.entries}
+          onChange={(entries) => setBoard({ ...board, entries })}
+          onNewCode={() =>
+            setBoard({ seed: Math.floor(Math.random() * 1_000_000), entries: [] })
+          }
+          onBack={() => setPhase('parent')}
+        />
+      );
+
     case 'friends':
       return (
         <FriendsScreen
@@ -1224,6 +1262,7 @@ export default function Page() {
       return (
         <ParentScreen
           report={parentReport(game, career, thesisReport.scores)}
+          onClassroom={() => setPhase('classroom')}
           onBack={() => setPhase(returnPhase)}
         />
       );
