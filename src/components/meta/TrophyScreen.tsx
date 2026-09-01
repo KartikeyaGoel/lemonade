@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { trophyCase, type Badge, type BadgeTier } from '@/lib/achievements';
 import { GLOSSARY, wordProgress } from '@/lib/glossary';
-import { careerCard, type Career } from '@/lib/career';
+import { careerCard, standing, type Career } from '@/lib/career';
+import { collectionLine, progress, shelves } from '@/lib/collection';
 import { ChunkyButton, SignHeading, Sky, money } from '../ui';
 
 const TIER_STYLE: Record<BadgeTier, string> = {
@@ -12,6 +13,10 @@ const TIER_STYLE: Record<BadgeTier, string> = {
   gold: 'border-[#D9A521] bg-[#FBEFC6]',
   legend: 'border-[#8A5BD6] bg-[#EBE0FB]',
 };
+
+type Tab = 'badges' | 'words' | 'read' | 'career';
+
+const TABS: Tab[] = ['badges', 'words', 'read', 'career'];
 
 const ACT_LABEL: Record<string, string> = {
   '1': 'One stand',
@@ -40,10 +45,19 @@ export function TrophyScreen({
   badges: string[];
   onBack: () => void;
 }) {
-  const [tab, setTab] = useState<'badges' | 'words' | 'career'>('badges');
+  const [tab, setTab] = useState<Tab>('badges');
   const card = careerCard({ ...career, badges });
   const held = new Set([...career.words, ...learned]);
   const words = wordProgress([...held]);
+  /*
+   * Standing, not badges.
+   *
+   * The shelves in the market open on standing, and this screen was gating the
+   * same shelves on the raw badge count — so the trophy case showed a padlock on
+   * a shelf the market had already opened. See `TIERS` in `src/lib/companies.ts`.
+   */
+  const stars = standing({ ...career, badges });
+  const read = progress(career.companiesStudied, stars);
 
   return (
     <Sky mood="night">
@@ -60,32 +74,43 @@ export function TrophyScreen({
                 {card.rank.emoji} {card.rank.name}
               </div>
             </div>
+            {/* Standing leads, because standing is what the rank runs on. The
+                badge count is still here, one line down, because it is the
+                thing the case itself is full of. */}
             <div className="ml-auto text-right">
               <div className="font-ledger text-2xl font-bold tabular-nums text-white">
-                {card.badges.held}
-                <span className="text-white/40">/{card.badges.total}</span>
+                ⭐ {card.standing.held}
+                {card.standing.nextAt !== null && (
+                  <span className="text-white/40">/{card.standing.nextAt}</span>
+                )}
               </div>
               <div className="font-body text-[10px] font-extrabold uppercase tracking-wide text-white/50">
-                badges
+                {card.badges.held} badges
               </div>
             </div>
           </div>
           <div className="mt-2 font-body text-[12px] font-bold text-white/70">{card.line}</div>
         </div>
 
-        <div className="mt-4 flex gap-2">
-          {(['badges', 'words', 'career'] as const).map((option) => (
+        {/* Four tabs, each a set with a hole in it. The counts are on the tabs
+            themselves because the gap is the reason to open one. */}
+        <div className="mt-4 grid grid-cols-4 gap-1.5">
+          {TABS.map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => setTab(option)}
-              className={`flex-1 rounded-xl border-[3px] py-2 font-body text-xs font-extrabold uppercase tracking-wide ${
+              className={`rounded-xl border-[3px] px-1 py-1.5 font-body text-[10px] font-extrabold uppercase tracking-wide ${
                 tab === option
                   ? 'border-lemon bg-lemon text-ink'
                   : 'border-white/25 bg-white/10 text-white/70'
               }`}
             >
-              {option === 'words' ? `Words ${words.earned}/${words.total}` : option}
+              {option === 'words'
+                ? `Words ${words.earned}/${words.total}`
+                : option === 'read'
+                  ? `Read ${read.read}/${read.total}`
+                  : option}
             </button>
           ))}
         </div>
@@ -156,6 +181,59 @@ export function TrophyScreen({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/*
+          * The collection.
+          *
+          * `companiesStudied` has driven the kid's rank since the market opened
+          * and has never been shown to them. See `src/lib/collection.ts` — a
+          * set with a hole in it is the oldest reason in games to go and do the
+          * thing again, and here the thing is reading a set of accounts.
+          */}
+        {tab === 'read' && (
+          <div className="mt-4 space-y-5">
+            <p className="px-1 font-body text-[12px] font-bold text-white/60">
+              {collectionLine(career.companiesStudied, stars)}
+            </p>
+            {shelves(career.companiesStudied, stars).map((shelf) => (
+              <div key={shelf.tier}>
+                <div className="flex items-baseline justify-between px-1">
+                  <span className="font-sign text-lg text-lemon-light">
+                    {shelf.open ? shelf.name : '🔒 ' + shelf.name}
+                  </span>
+                  <span className="font-body text-[11px] font-extrabold text-white/45">
+                    {shelf.open ? `${shelf.read}/${shelf.slots.length}` : shelf.opensWhen}
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-4 gap-1.5">
+                  {shelf.slots.map((slot) => (
+                    <div
+                      key={slot.ticker}
+                      className={`flex aspect-square flex-col items-center justify-center rounded-xl border-[3px] px-0.5 ${
+                        slot.read
+                          ? 'border-lemon/70 bg-white'
+                          : slot.reachable
+                            ? 'border-dashed border-white/30 bg-white/5'
+                            : 'border-white/15 bg-white/[0.03]'
+                      }`}
+                    >
+                      <span aria-hidden className={`text-xl ${slot.read ? '' : 'opacity-25 grayscale'}`}>
+                        {slot.company.emoji}
+                      </span>
+                      <span
+                        className={`mt-0.5 font-body text-[9px] font-extrabold leading-none ${
+                          slot.read ? 'text-ink/70' : 'text-white/30'
+                        }`}
+                      >
+                        {slot.reachable ? slot.ticker : '???'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

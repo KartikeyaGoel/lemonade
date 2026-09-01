@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import type { Badge } from '@/lib/achievements';
+import { play } from '@/lib/sound';
 
 /** Long enough to read two lines, short enough not to be in the way. */
 const DISMISS_AFTER_MS = 5000;
@@ -45,6 +46,7 @@ export function BadgeToast({
 
   useEffect(() => {
     if (!badge) return;
+    play('badge');
     const timer = window.setTimeout(onDismiss, DISMISS_AFTER_MS);
     return () => window.clearTimeout(timer);
   }, [badge, onDismiss]);

@@ -136,31 +136,41 @@ export const MODELS: Record<
  */
 export type Tier = 1 | 2 | 3;
 
-export const TIERS: Record<Tier, { name: string; blurb: string; badgesNeeded: number }> = {
+/**
+ * The shelves, and what opens them.
+ *
+ * `opensAt` is measured in *standing* — badges plus words plus companies read,
+ * see `standing()` in `src/lib/career.ts` — and not in badges. It was called
+ * `badgesNeeded` and gated on standing everywhere, which meant the trophy case
+ * and the market disagreed about which shelves were open and the label under a
+ * padlock quoted a number the kid could not find anywhere else.
+ */
+export const TIERS: Record<Tier, { name: string; blurb: string; opensAt: number }> = {
   1: {
     name: 'Things you use',
     blurb: 'Businesses you can form a view about by looking around your own house.',
-    badgesNeeded: 0,
+    opensAt: 0,
   },
   2: {
     name: 'Where the money goes',
     blurb: 'The ones your family actually spends money on.',
-    badgesNeeded: 8,
+    opensAt: 8,
   },
   3: {
     name: 'You have to read about these',
     blurb: 'Businesses you cannot see from the street. This is where reading the accounts stops being optional.',
-    badgesNeeded: 16,
+    opensAt: 16,
   },
 };
 
-export function tierUnlocked(tier: Tier, badges: number): boolean {
-  return badges >= TIERS[tier].badgesNeeded;
+/** `standing`, not badges. See `TIERS`. */
+export function tierUnlocked(tier: Tier, standing: number): boolean {
+  return standing >= TIERS[tier].opensAt;
 }
 
 /** The companies a kid can actually see, in tier order. */
-export function openCompanies(badges: number): Company[] {
-  return SNAPSHOT.filter((company) => tierUnlocked(company.tier, badges));
+export function openCompanies(standing: number): Company[] {
+  return SNAPSHOT.filter((company) => tierUnlocked(company.tier, standing));
 }
 
 /**

@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { play } from '@/lib/sound';
 import { SNAPSHOT, metricsFor } from '@/lib/companies';
 import {
   MARKET_WEEKS,
@@ -44,6 +46,13 @@ export function FinaleScreen({
 }) {
   const up = summary.gainDollars >= 0;
   const held = Object.keys(portfolio.holdings);
+
+  // The one cue in the game allowed to take a whole second. It plays whether
+  // the twelve weeks went well or badly, because what is being celebrated is
+  // finishing, not the return — which is the same argument as the headline.
+  useEffect(() => {
+    play('fanfare');
+  }, []);
 
   return (
     <Sky mood="night">

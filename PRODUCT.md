@@ -836,3 +836,116 @@ And the same verb as the Act 1 bench: **⚖️ Compare**. Pick two, and the
 differences are named — with an explicit rule that green means *more*, never
 *better*, and a trade-off sentence at the top. A game that teaches a kid "low
 P/E good" has taught them something false.
+
+## 32. Sound, and why a coin is curriculum
+
+The most obvious thing missing from a game aimed at eleven-year-olds. Every game
+in the reference set is loud, and not for atmosphere: **the coin sound is the
+reward**. In a game about money the chink of a coin is doing curriculum work,
+because it attaches a feeling to the exact instant a cup sells at a profit,
+forty times a day, which is how a kid comes to *want* the number to go up before
+anybody has explained why it should.
+
+No audio files. Every cue is synthesised from a table of frequencies by the Web
+Audio API, so the entire sound design costs about two kilobytes, works offline,
+and — because the pitches are data — can be unit-tested rather than eyeballed.
+The tests hold four properties that matter: nothing outlasts the tap that caused
+it, nothing sums past full scale at any instant, the sounds that fire dozens of
+times a row are the shortest, and **everything that means good rises through a
+major triad while everything that means no falls**. That last one is the only
+thing about the sound design a kid has to learn, and they learn it without being
+told.
+
+Off is a real option, on the first screen, and it survives a reload — a kid
+playing under a desk in a classroom needs a mute that works before the first
+sound.
+
+The end-of-day profit counts up rather than appearing, capped at three quarters
+of a second so a good day feels bigger without taking longer to read. Only the
+headline moves. The profit and loss underneath is the thing a kid is supposed to
+check on paper, and a ledger whose figures are still settling is a ledger nobody
+trusts.
+
+## 33. Act 2 is a plot of land, not a shop
+
+Act 2's screen was three lists of rows under two headings — "buy once, keep
+forever" against "pay every single day" — and those headings were carrying the
+entire lesson of the act in eleven-pixel type. Nobody reads a heading.
+
+Now it is a place, and **where a thing stands is what kind of spending it is**:
+
+- **Kit sits on the stand.** Bought once, then simply part of the picture. Its
+  badge says `yours` and never mentions money again, because it never costs
+  anything again.
+- **Crew stand beside it wearing a wage**, in red, for as long as they work
+  there. A helper hired three weeks ago still has `$12/day` pinned to them.
+- **The pitch is the ground and the backdrop.** Move to the park and the houses
+  become trees.
+
+Everything unbought is a dashed circle with a price on it, visible every
+morning. That is what makes tomorrow's profit feel like it is *for* something —
+the kid already knows what they are saving up for, because it has been standing
+in their front garden all week.
+
+The sheet behind each plot is where the arithmetic lives, and the arithmetic is
+what turns a purchase into a decision. A helper is not "$12 a day", a helper is
+**"sells 8 cups a day, every day, before it has paid for itself"**. A cooler is
+not "$35", it is **"23 cups once, and then it is free forever"**.
+
+One warning fires before the money moves, never after: *you can already serve 30
+a day and you have been selling about 15 — 15 cups of room going spare*. The
+test is simply "is the queue longer than the stand", not "does this add more room
+than I am already wasting" — getting that backwards means the warning goes quiet
+on exactly the biggest, most expensive mistakes.
+
+## 34. One door for everything with somebody else behind it
+
+Three social systems had grown up independently and each had arrived as its own
+pill on the title screen. By the end that was five buttons under the one that
+starts the game, which is precisely the menu §26 exists to prevent, arrived at by
+accretion rather than by decision.
+
+They also belong together for a better reason than tidiness: they are one loop
+rather than three features. You **race** a friend on the same week, you **argue**
+with them about what to buy, and you **stand next to** them afterwards. Split
+across three entry points, a kid who found one never discovered the other two.
+
+So: 🏆 Your stuff · 🧑‍🤝‍🧑 Friends · 📓 Playbook. Three, and never more.
+
+The friends desk leads with what is *happening* rather than what a thing is,
+because a status is a reason to open something and a description is not — "3
+played · 2 won, 1 lost", "4 members · $612.40 pooled". A club waiting on this
+kid's vote is the only genuinely urgent thing in the game and the only thing
+allowed to shout. Locked desks are shown, greyed, with what opens them, for the
+same reason the road shows a padlocked stock market on the title screen.
+
+## 35. The collection, and the oldest reason in games to do it again
+
+`companiesStudied` had been accumulating since the market opened, feeding the
+kid's standing and therefore their rank, and it had **never once been shown to
+them**. A collection nobody can look at is a counter, and a counter is not a
+reason to go and read another set of accounts.
+
+Every long-lived game the target audience plays has a completion set with a hole
+in it. The mechanic works because it converts "learn more" into "fill that in",
+and the thing it makes a kid do here happens to be exactly the thing this product
+exists to make them do: open a company's accounts and read them.
+
+Twenty-four slots, always all visible, on three shelves. Reading a company's
+accounts is the only way to fill one and there is no way to fill one by accident.
+The line under it names the next thing to do rather than a score — "13 you can
+reach and have not read yet", never "54%". The same strip sits in the market
+itself, next to the companies, because the trophy case was a long way from the
+moment the slot fills.
+
+### The two-currency bug this turned up
+
+The shelves open on **standing** — badges plus words plus companies read — and
+the trophy case was gating the same shelves on the raw badge count. So the case
+showed a padlock on a shelf the market had already opened. The rank card had the
+same fault in a worse place: rank was computed from standing and the line
+underneath quoted badges, so a kid one company short of Operator was told they
+needed **nine more badges**.
+
+Both now count in one currency, and it has a name and a symbol the kid can see:
+**⭐ — a badge, a word, or a company you have read.**

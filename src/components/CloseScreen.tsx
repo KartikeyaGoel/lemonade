@@ -1,8 +1,12 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { ECON, type DayOutcome, type DayProjection, type Insight, weekSummary } from '@/lib/simulation';
-import { ChunkyButton, SignHeading, Sky, money } from './ui';
+import { play } from '@/lib/sound';
+import { ChunkyButton, SignHeading, Sky, money, useCountUp } from './ui';
+
+/** Long enough for the headline to finish arriving before the till rings. */
+const COUNT_SETTLE_MS = 760;
 
 /**
  * End of day. The P&L is the reward for the day's work, so this is the one
@@ -37,6 +41,24 @@ export function CloseScreen({
   const isLastDay = outcome.nextState.status === 'finished';
   const madeMoney = outcome.profit > 0;
 
+  /**
+   * The headline counts up, then the till rings.
+   *
+   * This is the reward for the whole day, and it used to simply be on the
+   * screen when the screen arrived. The count is capped at three quarters of a
+   * second, so a good day feels bigger without taking longer to read.
+   *
+   * Only the headline moves. The profit and loss underneath is the thing a kid
+   * is supposed to check on paper, and a ledger whose figures are still
+   * settling is a ledger nobody trusts.
+   */
+  const counted = useCountUp(outcome.profit);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => play(madeMoney ? 'cash' : 'sad'), COUNT_SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [outcome.day, madeMoney]);
+
   return (
     <Sky mood="dusk">
       <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-5 pb-8 pt-6">
@@ -45,7 +67,7 @@ export function CloseScreen({
             Day {outcome.day} results
           </div>
           <SignHeading className="mt-1 text-5xl">
-            {madeMoney ? `You made ${money(outcome.profit)}` : `You lost ${money(Math.abs(outcome.profit))}`}
+            {madeMoney ? `You made ${money(counted)}` : `You lost ${money(Math.abs(counted))}`}
           </SignHeading>
         </div>
 

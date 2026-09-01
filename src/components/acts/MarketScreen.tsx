@@ -15,6 +15,7 @@ import {
   type Company,
   type Tier,
 } from '@/lib/companies';
+import { collectionLine, progress } from '@/lib/collection';
 import { faceoff } from '@/lib/facedown';
 import {
   MAX_POSITION_FRACTION,
@@ -45,6 +46,7 @@ export function MarketScreen({
   readiness,
   knowsPE,
   badges,
+  studied,
   onResearch,
   onStartBuy,
   onSell,
@@ -60,6 +62,8 @@ export function MarketScreen({
   knowsPE: boolean;
   /** Standing, which is what opens the later tiers of the collection. */
   badges: number;
+  /** Every company whose accounts this kid has ever opened. */
+  studied: string[];
   onResearch: (ticker: string) => void;
   onStartBuy: (company: Company) => void;
   onSell: (ticker: string, fraction: number) => void;
@@ -76,6 +80,8 @@ export function MarketScreen({
   /** Two tickers held against each other. The same verb as the Act 1 bench. */
   const [picked, setPicked] = useState<string[]>([]);
   const [comparing, setComparing] = useState(false);
+  const hasRead = new Set(studied);
+  const read = progress(studied, badges);
   const asOfDate = (p: PortfolioState) => currentDate(p);
   const company = open ? SNAPSHOT.find((c) => c.ticker === open) ?? null : null;
 
@@ -295,6 +301,23 @@ export function MarketScreen({
             : `Real weekly prices · figures from their own filings · data to ${SNAPSHOT_AS_OF}`}
         </div>
 
+        {/* The collection, where the collecting happens. Opening a company's
+            accounts fills a slot, and the only place that was visible was a tab
+            in the trophy case — a long way from the moment it happens. */}
+        {!comparing && (
+          <div className="mb-1 flex items-center gap-2 rounded-xl border-[3px] border-white/20 bg-white/5 px-2.5 py-1.5">
+            <span aria-hidden className="text-sm">
+              📖
+            </span>
+            <span className="font-ledger text-xs font-bold tabular-nums text-lemon-light">
+              {read.read}/{read.total}
+            </span>
+            <span className="flex-1 font-body text-[10px] font-extrabold leading-tight text-white/55">
+              {collectionLine(studied, badges)}
+            </span>
+          </div>
+        )}
+
         {([1, 2, 3] as Tier[]).map((tier) => {
           // Not listed yet in the week being replayed is not the same as
           // locked: it simply was not a company a kid could have bought.
@@ -310,7 +333,7 @@ export function MarketScreen({
                 </span>
                 {!openTier && (
                   <span className="font-body text-[10px] font-extrabold text-white/45">
-                    🔒 {TIERS[tier].badgesNeeded - badges} more to unlock
+                    🔒 {TIERS[tier].opensAt - badges} more ⭐ to unlock
                   </span>
                 )}
               </div>
@@ -360,6 +383,13 @@ export function MarketScreen({
                         <div className="font-body text-sm font-extrabold text-ink">
                           {c.name}{' '}
                           <span className="font-ledger text-[11px] text-ink/40">{c.ticker}</span>
+                          {/* A slot filled. Small, because reading a company is
+                              worth noting and not worth congratulating. */}
+                          {hasRead.has(c.ticker) && (
+                            <span aria-label="You have read these accounts" className="ml-1 text-[11px]">
+                              📖
+                            </span>
+                          )}
                         </div>
                         <div className="font-body text-[11px] font-bold text-ink/55">
                           {c.whatTheySell}

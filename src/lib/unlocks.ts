@@ -89,14 +89,16 @@ export const UNLOCK_COPY: Record<Feature, Unlock> = {
   },
   challenge: {
     feature: 'challenge',
-    title: 'Challenge a friend',
-    because: 'Send somebody a day you have played. Same weather, same money — the only difference is what you each decide.',
-    emoji: '⚔️',
+    title: 'Friends',
+    because:
+      'Send somebody a day you have played. Same weather, same money — the only difference is what you each decide. It lives behind the Friends button, along with everything else that involves somebody else.',
+    emoji: '🧑‍🤝‍🧑',
   },
   club: {
     feature: 'club',
     title: 'Investment club',
-    because: 'You have your own money in the market. Pooling it with friends is the next thing.',
+    because:
+      'You have your own money in the market. Pooling it with friends is the next thing — it is waiting at the Friends desk.',
     emoji: '🧑‍🤝‍🧑',
   },
   playbook: {

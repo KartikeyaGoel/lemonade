@@ -205,17 +205,28 @@ export interface CareerCard {
   rank: Rank;
   badges: { held: number; total: number };
   words: { held: number; total: number };
+  /**
+   * Standing, and what it is made of.
+   *
+   * Rank has been computed from standing since the ladder was respaced, but the
+   * card went on quoting badges — so a kid one company away from Operator was
+   * told they needed nine more badges. Two currencies on one card is a bug even
+   * when both numbers are right.
+   */
+  standing: { held: number; nextAt: number | null };
   seasons: number;
   /** One line for the top of the screen. */
   line: string;
 }
 
 export function careerCard(career: Career): CareerCard {
-  const rank = rankFor(standing(career));
+  const here = standing(career);
+  const rank = rankFor(here);
+  const short = rank.nextAt === null ? 0 : rank.nextAt - here;
   const nextLine =
     rank.nextAt !== null
-      ? `${rank.nextAt - career.badges.length} more ${rank.nextAt - career.badges.length === 1 ? 'badge' : 'badges'} to ${rank.nextName}.`
-      : 'Top of the ladder. There is nothing above analyst.';
+      ? `${short} more ⭐ to ${rank.nextName}. A badge, a word, or a company you have read.`
+      : `Top of the ladder. Nothing above ${rank.name.toLowerCase()}.`;
 
   return {
     name: career.name || 'You',
@@ -223,6 +234,7 @@ export function careerCard(career: Career): CareerCard {
     rank,
     badges: { held: career.badges.length, total: BADGE_COUNT },
     words: { held: career.words.length, total: GLOSSARY.length },
+    standing: { held: here, nextAt: rank.nextAt },
     seasons: career.seasons,
     line: nextLine,
   };

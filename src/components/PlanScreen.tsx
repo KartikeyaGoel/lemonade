@@ -34,6 +34,7 @@ import {
   Coach,
   GoalStrip,
   HeaderBar,
+  Sheet,
   SignHeading,
   Sky,
   WeatherArt,
@@ -690,48 +691,6 @@ function describeKit(business: BusinessState): string {
   if (owned.length === 0) return 'plain';
   if (owned.length === 1) return owned[0];
   return `${owned.length} things`;
-}
-
-/**
- * Inside an object.
- *
- * A sheet rather than a screen, because the stand stays visible behind it. The
- * kid never loses the place they are standing in, which is the whole difference
- * between poking at a stand and navigating a menu.
- */
-function Sheet({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-40 flex flex-col justify-end">
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/35"
-      />
-      <div className="relative z-10 max-h-[82dvh] overflow-y-auto rounded-t-[26px] border-t-[4px] border-ink/20 bg-[#FFF8E4] px-4 pb-8 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.25)] animate-riseFade">
-        <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-ink/20" />
-        <div className="mb-3 flex items-baseline justify-between gap-2">
-          <span className="font-sign text-2xl leading-tight text-ink">{title}</span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-full border-2 border-ink/25 px-2.5 py-0.5 font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/60"
-          >
-            Done
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
 }
 
 function Row({

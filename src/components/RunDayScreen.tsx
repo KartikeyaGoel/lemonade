@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WEATHER_COPY, round2, type DayOutcome } from '@/lib/simulation';
+import { play } from '@/lib/sound';
 import { ChunkyButton, Ground, SignHeading, Sky, WeatherArt, money } from './ui';
 import { Stand } from './Stand';
 import { CustomerSprite } from './Customer';
@@ -14,6 +15,9 @@ const DAY_MS = 12000;
 
 /** Never draw more than this many sprites at once, however busy the day. */
 const MAX_ON_SCREEN = 6;
+
+/** Closest together two customer sounds are allowed to be. */
+const MIN_SOUND_GAP_MS = 90;
 
 /**
  * The day running. This is the signature moment of the product, so it gets
@@ -88,6 +92,35 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
   const decided = outcome.customers.slice(0, settled);
   const sold = decided.filter((c) => c.outcome === 'bought').length;
   const walked = decided.length - sold;
+
+  /**
+   * A coin for every cup, and a shrug for everyone who walks.
+   *
+   * This is the single most valuable sound in the game: it attaches a feeling
+   * to the exact instant a cup sells, forty times a day, which is how a kid
+   * comes to *want* the number to go up before anybody explains why it should.
+   *
+   * Throttled, because the hurry button runs the crowd at one customer every
+   * 24ms and forty overlapping coins is a buzz, not a reward. The throttle
+   * drops sounds rather than queueing them, so the audio never runs on after
+   * the day has finished.
+   */
+  const heard = useRef({ sold: 0, walked: 0, at: 0 });
+  useEffect(() => {
+    const last = heard.current;
+    const gainedSale = sold > last.sold;
+    const gainedWalk = walked > last.walked;
+    last.sold = sold;
+    last.walked = walked;
+    if (!gainedSale && !gainedWalk) return;
+
+    const now = performance.now();
+    if (now - last.at < MIN_SOUND_GAP_MS) return;
+    last.at = now;
+    // A sale outranks a walk-off when both land in the same tick: the money is
+    // the thing being taught.
+    play(gainedSale ? 'coin' : 'sad');
+  }, [sold, walked]);
   const taken = round2(sold * outcome.price);
 
   const finished = drained;

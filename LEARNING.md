@@ -396,3 +396,51 @@ The stop-loss deck has the *worst* typical return and one of the lowest hit
 rates, because it sells the bottom every time — and a kid finds that out by
 building it and pressing test, not by being told. That is the self-directed
 learning the whole design is aiming at, and it took a deck to make it possible.
+
+## 14. Two numbers that disagreed, and why nobody noticed
+
+Building the company collection turned up a bug that had been shipping for a
+while and would have been almost impossible to find by playing: the trophy case
+and the market disagreed about which shelves of companies were open.
+
+The cause is worth writing down because it is a category of mistake rather than
+a slip. When the rank ladder was rebuilt on **standing** — badges plus words plus
+companies read — the constant that gates the company tiers kept its old name,
+`badgesNeeded`, and every call site kept passing whatever number was nearest to
+hand. The market passed `standing(career)`. The trophy case passed
+`career.badges.length`. Both compiled, both looked reasonable in review, and both
+produced a plausible screen.
+
+The rank card had the same fault somewhere more damaging. Rank came from
+standing; the line underneath it subtracted the badge count from the next rank's
+threshold. A kid with 23 standing and 15 badges, one company away from Operator,
+was told **"9 more badges to Operator"** — a target four times further away than
+the real one, in a currency the game no longer used.
+
+Three things fixed it, and only one of them was the arithmetic:
+
+1. The constant is called `opensAt` and its doc comment says what unit it is in.
+2. The card returns `standing: { held, nextAt }`, so a screen cannot pick the
+   wrong number by accident.
+3. The unit got a **name and a symbol the kid can see** — ⭐, defined once on the
+   card as "a badge, a word, or a company you have read".
+
+The third is the one that stops it coming back. An internal quantity with no
+user-facing name is a quantity every screen is free to reinvent, and the two
+places that reinvented it both chose badges, because badges were the thing that
+used to be true.
+
+## 15. What is still worth doing
+
+Honest list, after this pass:
+
+- **Act 3 is a set of choice moments, and that is fine.** The deal board is a
+  real three-way comparison with a reveal; the weekly fork is a genuine binary.
+  Neither is a form pretending to be a game, so neither got the treatment Act 2
+  got. Converting them into places would be decoration.
+- **No haptics.** On a phone, a short vibration on a sale would do as much as the
+  coin sound does, for two lines of code. It was left out only because it cannot
+  be verified in this environment.
+- **The club still travels by copy-paste.** That is a deliberate consequence of
+  having no backend, and it is the single biggest drag on the social loop.
+- **Quarterly fundamentals.** Still 10-K only; see §9.

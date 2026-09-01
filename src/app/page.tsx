@@ -104,6 +104,7 @@ import {
 } from '@/lib/career';
 import { announceable, isFirstRun, isUnlocked, newlyUnlocked, type Unlock } from '@/lib/unlocks';
 import { road, roadLine } from '@/lib/journey';
+import { desks } from '@/lib/friends';
 import { cardFor } from '@/lib/table';
 import { createPlaybook } from '@/lib/playbook';
 import type { ChallengeSpec } from '@/lib/challenge';
@@ -136,6 +137,7 @@ import { ChallengeScreen } from '@/components/meta/ChallengeScreen';
 import { PlaybookScreen } from '@/components/meta/PlaybookScreen';
 import { TableScreen } from '@/components/meta/TableScreen';
 import { ClubScreen } from '@/components/meta/ClubScreen';
+import { FriendsScreen } from '@/components/meta/FriendsScreen';
 import { ThesisScreen } from '@/components/meta/ThesisScreen';
 import { UnlockCard } from '@/components/meta/UnlockCard';
 import { WordCard } from '@/components/meta/WordCard';
@@ -172,6 +174,7 @@ type Phase =
   | 'playbook'
   | 'table'
   | 'club'
+  | 'friends'
   | 'thesis'
   | 'reckoning';
 
@@ -806,9 +809,47 @@ export default function Page() {
     }
   }
 
+  /**
+   * What the last few days actually looked like, for the Act 2 shop.
+   *
+   * Every price in that act is really a number of cups, and turning it into
+   * cups needs two facts from the recent past: what the kid keeps on a cup at
+   * the price they have settled on, and how many cups a normal day sells. Both
+   * are read from history rather than from a projection, because a purchase is
+   * judged against days that happened, not against a plan.
+   */
+  const recentDays = game.stand.history.slice(-3);
+  const typicalCupsSold =
+    recentDays.length > 0
+      ? recentDays.reduce((sum, day) => sum + day.cupsSold, 0) / recentDays.length
+      : 0;
+  const recentMargin = (() => {
+    const lastPrice = game.stand.history[game.stand.history.length - 1]?.price ?? 1.6;
+    return projectDay(game.stand, 40, lastPrice, dayParams).marginPerCup;
+  })();
+
   const thesisReport = game.portfolio
     ? scoreAll(game.theses, (ticker) => currentPrice(game.portfolio!, ticker))
     : scoreAll([], () => 0);
+
+  /**
+   * The kid's own card at the table.
+   *
+   * Built once here rather than inside the table screen, because the friends
+   * desk needs it too — the status line on that card is "you lead on thinking",
+   * which cannot be worked out without the card itself.
+   */
+  const myCard = cardFor(
+    me,
+    standing(career),
+    career.bestWeekProfit,
+    thesisReport.sound,
+    thesisReport.scores.length,
+    game.playbook,
+    game.portfolio
+      ? summarisePortfolio(game.portfolio, game.ownership.buyoutProceeds).gainPercent * 100
+      : 0,
+  );
 
   /**
    * Closes out the twelve weeks.
@@ -832,55 +873,30 @@ export default function Page() {
    * that makes each entry mean something.
    */
   const titleExtras: Array<{ emoji: string; label: string; onClick: () => void }> = [];
+  const openFrom = (from: Phase, to: Phase) => () => {
+    setReturnPhase(from);
+    setPhase(to);
+  };
   if (isUnlocked('trophies', game, career)) {
-    titleExtras.push({
-      emoji: '🏆',
-      label: 'Trophies',
-      onClick: () => {
-        setReturnPhase('title');
-        setPhase('trophies');
-      },
-    });
+    titleExtras.push({ emoji: '🏆', label: 'Your stuff', onClick: openFrom('title', 'trophies') });
   }
-  if (isUnlocked('playbook', game, career)) {
-    titleExtras.push({
-      emoji: '📊',
-      label: 'Table',
-      onClick: () => {
-        setReturnPhase('title');
-        setPhase('table');
-      },
-    });
-  }
-  if (isUnlocked('playbook', game, career)) {
-    titleExtras.push({
-      emoji: '📓',
-      label: 'Playbook',
-      onClick: () => {
-        setReturnPhase('title');
-        setPhase('playbook');
-      },
-    });
-  }
+  /*
+   * One door for everything with somebody else behind it.
+   *
+   * This used to be three pills — Table, Challenge, Club — which by the end was
+   * five buttons under the one that starts the game, and five buttons is the
+   * menu that `src/lib/unlocks.ts` exists to prevent. They are also one loop
+   * rather than three features; see `src/lib/friends.ts`.
+   */
   if (isUnlocked('challenge', game, career)) {
     titleExtras.push({
-      emoji: '⚔️',
-      label: 'Challenge',
-      onClick: () => {
-        setReturnPhase('title');
-        setPhase('challenge');
-      },
+      emoji: '🧑‍🤝‍🧑',
+      label: 'Friends',
+      onClick: openFrom('title', 'friends'),
     });
   }
-  if (isUnlocked('club', game, career)) {
-    titleExtras.push({
-      emoji: '🧑‍🤝‍🧑',
-      label: 'Club',
-      onClick: () => {
-        setReturnPhase('title');
-        setPhase('club');
-      },
-    });
+  if (isUnlocked('playbook', game, career)) {
+    titleExtras.push({ emoji: '📓', label: 'Playbook', onClick: openFrom('title', 'playbook') });
   }
 
   const screen = (() => {
@@ -978,6 +994,8 @@ export default function Page() {
         <InvestScreen
           cash={game.stand.cash}
           business={game.business}
+          marginPerCup={recentMargin}
+          typicalCupsSold={typicalCupsSold}
           onBuyUpgrade={handleBuyUpgrade}
           onToggleStaff={handleToggleStaff}
           onMove={handleMove}
@@ -1018,23 +1036,30 @@ export default function Page() {
         />
       ) : null;
 
-    case 'table':
+    case 'friends':
       return (
-        <TableScreen
-          mine={cardFor(
+        <FriendsScreen
+          desks={desks({
+            career,
+            club: game.club,
             me,
-            standing(career),
-            career.bestWeekProfit,
-            thesisReport.sound,
-            thesisReport.scores.length,
-            game.playbook,
-            game.portfolio
-              ? summarisePortfolio(game.portfolio, game.ownership.buyoutProceeds).gainPercent * 100
-              : 0,
-          )}
-          onBack={() => setPhase(returnPhase)}
+            cards: [myCard],
+            unlocked: {
+              challenge: isUnlocked('challenge', game, career),
+              club: isUnlocked('club', game, career),
+              table: isUnlocked('playbook', game, career),
+            },
+          })}
+          onOpen={(id) => {
+            setReturnPhase('friends');
+            setPhase(id === 'challenge' ? 'challenge' : id === 'club' ? 'club' : 'table');
+          }}
+          onBack={() => setPhase(returnPhase === 'friends' ? 'title' : returnPhase)}
         />
       );
+
+    case 'table':
+      return <TableScreen mine={myCard} onBack={() => setPhase(returnPhase)} />;
 
     case 'playbook':
       return (
@@ -1121,6 +1146,7 @@ export default function Page() {
             setGame(beginWeekend(game));
             setPhase('plan');
           }}
+          studied={career.companiesStudied}
           onResearch={(ticker) => {
             setGame({ ...game, portfolio: markResearched(game.portfolio!, ticker) });
             // Kept on the career rather than the run: reading a set of accounts

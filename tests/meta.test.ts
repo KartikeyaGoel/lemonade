@@ -29,6 +29,7 @@ import {
   recordDay,
   recordSeason,
   recordWords,
+  recordStudied,
   tidyPlayerName,
 } from '../src/lib/career';
 import {
@@ -406,11 +407,29 @@ describe('the career record', () => {
     expect(AVATARS).toContain(createCareer().avatar);
   });
 
-  it('shows the rank and how far the next one is', () => {
+  it('shows the rank and how far the next one is, in the currency the rank runs on', () => {
     const card = careerCard(recordBadges(createCareer('Ada'), ['open-for-business']));
     expect(card.rank.name).toBe('Kid with a jug');
-    expect(card.line).toContain('5 more badges');
+    expect(card.standing).toEqual({ held: 1, nextAt: 6 });
+    expect(card.line).toContain('5 more ⭐');
     expect(card.badges).toEqual({ held: 1, total: BADGE_COUNT });
+  });
+
+  it('counts a word and a company read towards the next rank, same as a badge', () => {
+    // The card used to say "9 more badges" to a kid whose rank was already
+    // computed from badges plus words plus companies read, so a kid one company
+    // short of Operator was told they needed nine badges.
+    const mixed = recordStudied(
+      recordWords(recordBadges(createCareer('Ada'), ['open-for-business', 'first-profit']), [
+        'revenue',
+        'profit',
+      ]),
+      ['AAPL'],
+    );
+    const card = careerCard(mixed);
+    expect(card.standing.held).toBe(5);
+    expect(card.badges.held).toBe(2);
+    expect(card.line).toContain('1 more ⭐');
   });
 
   it('counts seasons up', () => {

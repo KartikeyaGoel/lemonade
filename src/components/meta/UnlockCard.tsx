@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AVATARS, tidyPlayerName } from '@/lib/career';
+import { play } from '@/lib/sound';
 import type { Unlock } from '@/lib/unlocks';
 import { ChunkyButton, SignHeading, Sky } from '../ui';
 
@@ -30,6 +31,10 @@ export function UnlockCard({
   onDone: () => void;
   onSetIdentity?: (name: string, avatar: string) => void;
 }) {
+  useEffect(() => {
+    play('unlock');
+  }, [unlock.feature]);
+
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState(AVATARS[0]);
   const isIdentity = Boolean(askIdentity) || unlock.feature === 'identity';

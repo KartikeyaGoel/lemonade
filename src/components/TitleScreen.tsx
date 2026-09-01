@@ -1,6 +1,6 @@
 'use client';
 
-import { ChunkyButton, Ground, Sky } from './ui';
+import { ChunkyButton, Ground, Sky, SoundToggle } from './ui';
 import { Stand } from './Stand';
 import { Road } from './Road';
 import type { Stop } from '@/lib/journey';
@@ -41,6 +41,9 @@ export function TitleScreen({
 }) {
   return (
     <Sky mood="probably-hot">
+      {/* The only setting in the game, and it lives where a setting lives. */}
+      <SoundToggle className="absolute right-4 top-4 z-20" />
+
       <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col items-center justify-center px-6">
         <div className="rotate-[-3deg] text-center">
           {/* One word, one line. It was split across two out of a vague idea

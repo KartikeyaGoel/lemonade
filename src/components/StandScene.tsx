@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { play } from '@/lib/sound';
 import { money } from './ui';
 
 /**
@@ -62,6 +63,13 @@ export function StandScene({
   active: SpotId | null;
   onSelect: (spot: SpotId) => void;
 }) {
+  // Wrapped once here rather than on each of the six hotspots, so a spot added
+  // later cannot be the silent one.
+  const select = (spot: SpotId) => {
+    play(spot === active ? 'close' : 'open');
+    onSelect(spot);
+  };
+
   return (
     <div className={`relative w-full select-none ${className}`}>
       {/* Pavement and grass, so the objects are standing on something. The
@@ -79,7 +87,7 @@ export function StandScene({
         <Spot
           id="rival"
           active={active}
-          onSelect={onSelect}
+          onSelect={select}
           className="left-[1%] top-[1%] origin-top-left scale-[0.78]"
           label="The other stand"
           badge={money(rivalPrice)}
@@ -93,7 +101,7 @@ export function StandScene({
       <Spot
         id="batch"
         active={active}
-        onSelect={onSelect}
+        onSelect={select}
         className="bottom-[6%] left-[1%]"
         label="How much to make"
         badge={`${cupsReady} cups`}
@@ -109,7 +117,7 @@ export function StandScene({
         <Spot
           id="regulars"
           active={active}
-          onSelect={onSelect}
+          onSelect={select}
           className="right-[1%] top-[1%]"
           label="Your regulars"
           badge={`${regulars}`}
@@ -127,7 +135,7 @@ export function StandScene({
         <Spot
           id="kit"
           active={active}
-          onSelect={onSelect}
+          onSelect={select}
           className="bottom-[6%] right-[1%]"
           label="Your stand"
           badge={kitLabel}
@@ -142,7 +150,7 @@ export function StandScene({
       <div className="absolute bottom-[9%] left-1/2 w-[56%] max-w-[250px] -translate-x-1/2">
         <button
           type="button"
-          onClick={() => onSelect('price')}
+          onClick={() => select('price')}
           aria-label="What to charge per cup"
           className={`relative z-10 mx-auto -mb-1 block w-[96%] rotate-[-1.5deg] rounded-[14px] border-[5px] bg-lemon-light px-2 py-2 text-center shadow-[0_5px_0_0_#9A5526] transition-transform active:translate-y-[2px] ${
             active === 'price' ? 'border-mint ring-4 ring-mint/40' : 'border-wood-dark'
@@ -172,7 +180,7 @@ export function StandScene({
           {/* The cash box: the margin, the fixed costs, the break-even. */}
           <button
             type="button"
-            onClick={() => onSelect('money')}
+            onClick={() => select('money')}
             aria-label="The money, per cup and per day"
             className={`absolute bottom-2 right-2.5 flex h-12 w-12 flex-col items-center justify-center rounded-lg border-[3px] bg-white/80 transition-transform active:translate-y-[2px] ${
               active === 'money' ? 'border-mint ring-4 ring-mint/40' : 'border-ink/35'

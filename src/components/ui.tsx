@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Forecast, Weather } from '@/lib/simulation';
+import { isMuted, onMuteChange, play, setMuted, type Cue } from '@/lib/sound';
 
 export function money(n: number): string {
   const sign = n < 0 ? '-' : '';
@@ -98,6 +99,7 @@ export function ChunkyButton({
   disabled,
   className = '',
   full,
+  cue = 'tap',
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -105,11 +107,22 @@ export function ChunkyButton({
   disabled?: boolean;
   className?: string;
   full?: boolean;
+  /** Buttons that commit something can say so. Defaults to a plain blip. */
+  cue?: Cue;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={
+        onClick &&
+        (() => {
+          // Every button in the game is this button, so this one line is the
+          // whole app's tap feedback. A disabled button stays silent, which is
+          // itself information.
+          play(cue);
+          onClick();
+        })
+      }
       disabled={disabled}
       className={`${BUTTON_VARIANTS[variant]} ${full ? 'w-full' : ''} ${className}`}
     >
@@ -330,3 +343,139 @@ export function GoalStrip({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+/**
+ * Whether sound is off, kept in sync across every copy of the button.
+ *
+ * Reads inside an effect rather than in the initial state so the server and the
+ * first client render agree — `localStorage` does not exist during the former.
+ */
+export function useMuted(): [boolean, (next: boolean) => void] {
+  const [off, setOff] = useState(false);
+  useEffect(() => {
+    setOff(isMuted());
+    return onMuteChange(setOff);
+  }, []);
+  return [off, setMuted];
+}
+
+/**
+ * The mute button.
+ *
+ * Small, and in the corner, because it is a setting rather than a feature. It
+ * plays a sound when it turns sound *on*, which is the only way to know it
+ * worked, and is also the gesture that unlocks the audio context on iOS.
+ */
+export function SoundToggle({ className = '' }: { className?: string }) {
+  const [off, set] = useMuted();
+  return (
+    <button
+      type="button"
+      aria-label={off ? 'Turn sound on' : 'Turn sound off'}
+      aria-pressed={!off}
+      onClick={() => {
+        set(!off);
+        if (off) play('coin');
+      }}
+      className={`flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-white/60 bg-white/60 text-base leading-none ${className}`}
+    >
+      <span aria-hidden>{off ? '🔇' : '🔊'}</span>
+    </button>
+  );
+}
+
+/**
+ * Inside an object.
+ *
+ * A sheet rather than a screen, because the stand stays visible behind it. The
+ * kid never loses the place they are standing in, which is the whole difference
+ * between poking at a stand and navigating a menu.
+ */
+export function Sheet({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col justify-end">
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/35"
+      />
+      <div className="relative z-10 max-h-[82dvh] overflow-y-auto rounded-t-[26px] border-t-[4px] border-ink/20 bg-[#FFF8E4] px-4 pb-8 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.25)] animate-riseFade">
+        <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-ink/20" />
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <span className="font-sign text-2xl leading-tight text-ink">{title}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-full border-2 border-ink/25 px-2.5 py-0.5 font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/60"
+          >
+            Done
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A number arriving rather than appearing.
+ *
+ * The end-of-day profit is the reward for everything the kid did that day, and
+ * it used to simply be *there* when the screen loaded. Counting it up is the
+ * oldest trick in games for the same reason it still works: it makes the size
+ * of the number legible as an experience rather than as a fact, and a big day
+ * takes visibly longer to arrive than a small one.
+ *
+ * It is deliberately capped: past about a second this stops being a reward and
+ * starts being a wait, so a huge number counts faster rather than for longer.
+ *
+ * Honest about motion. A kid who has asked their phone to stop animating things
+ * gets the final number immediately, with no sound.
+ */
+export function useCountUp(target: number, { sound = true }: { sound?: boolean } = {}): number {
+  const [shown, setShown] = useState(target);
+
+  useEffect(() => {
+    const still =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (still || target === 0) {
+      setShown(target);
+      return;
+    }
+
+    const steps = Math.min(COUNT_STEPS, Math.max(6, Math.round(Math.abs(target) * 2)));
+    const gap = COUNT_MS / steps;
+    let step = 0;
+    setShown(0);
+
+    const timer = window.setInterval(() => {
+      step += 1;
+      if (step >= steps) {
+        window.clearInterval(timer);
+        setShown(target);
+        return;
+      }
+      setShown((target * step) / steps);
+      // Every other step, so a long count does not become a machine gun.
+      if (sound && step % 2 === 0) play('tick');
+    }, gap);
+
+    return () => window.clearInterval(timer);
+  }, [target, sound]);
+
+  return shown;
+}
+
+/** How long a count-up may take, and the most steps it may take to get there. */
+const COUNT_MS = 750;
+const COUNT_STEPS = 28;
