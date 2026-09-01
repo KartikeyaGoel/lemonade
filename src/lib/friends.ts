@@ -80,7 +80,7 @@ export function desks({
       id: 'club',
       name: 'Investment club',
       emoji: '🧑‍🤝‍🧑',
-      what: 'Pool your money with friends. Nobody buys anything without convincing everybody else.',
+      what: 'Put your money in together. Nothing gets bought unless the others say yes.',
       status: unlocked.club ? clubStatus(club) : null,
       // The only genuinely time-sensitive thing in the game: somebody else is
       // stuck until this kid votes.

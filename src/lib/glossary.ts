@@ -342,7 +342,7 @@ export function diversificationInsight(tickers: string[]): Insight {
     term: 'Diversification',
     evidence: `You own ${tickers.length} companies: ${tickers.join(', ')}. No single one of them can take all your money.`,
     carriesForward:
-      'This does not make you more money on average. It stops one bad call ending the game, which is what lets you stay in long enough for the good calls to matter.',
+      'This does not make you more money on average. One bad call cannot end the game. That is what keeps you in long enough for the good ones to count.',
   };
 }
 
@@ -364,7 +364,7 @@ export function thesisInsight(ticker: string, quantLine: string, qualLine: strin
     term: 'Thesis',
     evidence: `Before you bought ${ticker} you wrote: ${quantLine} And: ${qualLine}`,
     carriesForward:
-      'That sentence is the difference between investing and guessing. In twelve weeks you will find out whether the reason was right, which is a separate question from whether you made money.',
+      'That sentence is the difference between investing and guessing. In twelve weeks you find out if the reason was right. That is not the same question as whether you made money.',
   };
 }
 

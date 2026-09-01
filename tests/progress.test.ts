@@ -241,7 +241,7 @@ describe('the parent report is evidence, never a score', () => {
     game = { ...game, portfolio: buy(game.portfolio!, 'AAPL', maxSpendOn(game.portfolio!, 'AAPL')).portfolio };
     const report = parentReport(game);
     // One holding is not diversification, and we say so rather than implying it.
-    expect(report.understanding.some((l) => l.topic === 'Diversification')).toBe(false);
+    expect(report.understanding.some((l) => l.topic.includes('Spreads money'))).toBe(false);
     expect(report.notYet.some((n) => n.toLowerCase().includes('concentrated'))).toBe(true);
   });
 
@@ -252,7 +252,12 @@ describe('the parent report is evidence, never a score', () => {
       portfolio = buy(portfolio, ticker, maxSpendOn(portfolio, ticker)).portfolio;
     }
     const report = parentReport({ ...game, portfolio });
-    expect(report.understanding.some((l) => l.topic === 'Diversification')).toBe(true);
+    const line = report.understanding.find((l) => l.topic.includes('Spreads money'));
+    expect(line).toBeDefined();
+    // And it cites the actual position, so a parent can check it rather than
+    // taking the word for it. See `src/lib/mastery.ts`.
+    expect(line?.evidence).toMatch(/3 companies/);
+    expect(line?.evidence).toMatch(/\d+%/);
   });
 
   it('reports research actually opened', () => {

@@ -20,7 +20,9 @@ import { summarisePortfolio } from './market';
 import { ACT_TITLES, readiness, type Game } from './progress';
 import { BADGE_COUNT, rankFor } from './achievements';
 import { GLOSSARY, wordsEarned } from './glossary';
-import type { Career } from './career';
+import { standing, type Career } from './career';
+import { mastery, reachable } from './mastery';
+import type { ThesisScore } from './thesis';
 
 export interface ParentLine {
   /** Short label, e.g. "Pricing". */
@@ -73,7 +75,12 @@ function money(n: number): string {
  * softened into a claim. A parent who is told their kid understands
  * diversification when they do not will stop trusting every other line.
  */
-export function parentReport(game: Game, career?: Career | null): ParentReport {
+export function parentReport(
+  game: Game,
+  career?: Career | null,
+  /** Scored buys, so a reason that held up can be cited as evidence. */
+  theses: ThesisScore[] = [],
+): ParentReport {
   const history = game.stand.history;
   const summary = weekSummary(history);
   const gate = readiness(game);
@@ -150,35 +157,36 @@ export function parentReport(game: Game, career?: Career | null): ParentReport {
     notYet.push('Still hunting for the best price. They have the method, not the answer yet.');
   }
 
-  if (game.learned.includes('margin')) {
-    understanding.push({
-      topic: 'Margin',
-      evidence: 'Can say what they keep from each cup, not just what they charge for it.',
-    });
-  }
-  if (game.learned.includes('signal-vs-noise')) {
-    understanding.push({
-      topic: 'Luck vs skill',
-      evidence: 'Learned to judge the business on a seven-day average rather than one lucky or unlucky day.',
-    });
-  }
-  if (game.learned.includes('demand-bet')) {
-    understanding.push({
-      topic: 'Forecasting',
-      evidence: 'Commits money to a view about tomorrow, then checks whether the view was right.',
-    });
-  }
-  if (game.learned.includes('capex-vs-opex')) {
-    understanding.push({
-      topic: 'Costs',
-      evidence: 'Knows the difference between buying a thing once and paying wages every day.',
-    });
-  }
-  if (game.learned.includes('competition')) {
-    understanding.push({
-      topic: 'Competition',
-      evidence: 'Was undercut by a rival and answered with something other than a lower price.',
-    });
+  /*
+   * What they demonstrated, and what they were merely shown.
+   *
+   * These five lines used to read `game.learned.includes('capex-vs-opex')` and
+   * then tell a parent their child understood capital versus running costs.
+   * `learned` is true the moment the game has *displayed a card with those
+   * words on it* — so this section was reporting what the software did and
+   * calling it what the child knew. It is the one screen in the product whose
+   * entire job is to be trustworthy, and it was the least trustworthy thing in
+   * it.
+   *
+   * `src/lib/mastery.ts` replaces the claim with the evidence: a skill appears
+   * here only after the kid did something, on separate occasions, that only
+   * makes sense if they understand it — cited with the day and their own
+   * figures so a parent can go and check.
+   */
+  const skills = reachable(mastery(game, theses), game.act);
+  for (const skill of skills) {
+    if (skill.level === 'held') {
+      understanding.push({
+        topic: skill.grownUpName,
+        evidence: `${skill.sightings[skill.sightings.length - 1].when}: ${
+          skill.sightings[skill.sightings.length - 1].what
+        }${skill.sightings.length > 1 ? ` And ${skill.sightings.length - 1} other ${skill.sightings.length === 2 ? 'time' : 'times'}.` : ''}`,
+      });
+    } else if (skill.level === 'emerging') {
+      notYet.push(
+        `${skill.grownUpName} — done once (${skill.sightings[0].when.toLowerCase()}), not yet twice.`,
+      );
+    }
   }
 
   const choice = game.ownership.comparisonChoiceId;
@@ -205,12 +213,9 @@ export function parentReport(game: Game, career?: Career | null): ParentReport {
 
   if (game.portfolio) {
     const p = summarisePortfolio(game.portfolio, game.ownership.buyoutProceeds || 1);
-    if (p.diversified) {
-      understanding.push({
-        topic: 'Diversification',
-        evidence: `Spread money across ${p.holdingsCount} companies, with no single one above ${Math.round(p.largestPositionFraction * 100)}% of the pot.`,
-      });
-    } else if (p.holdingsCount > 0) {
+    // Diversification is now reported from `mastery`, which measures the same
+    // thing against the same portfolio. Only the shortfall is added here.
+    if (!p.diversified && p.holdingsCount > 0) {
       notYet.push('Money is still concentrated in one or two companies.');
     }
     if (p.heldThroughDrawdown) {
@@ -246,7 +251,9 @@ export function parentReport(game: Game, career?: Career | null): ParentReport {
     career: career
       ? {
           name: career.name || 'Your kid',
-          rank: rankFor(career.badges.length).name,
+          // Standing, not badges: the ladder runs on badges plus words plus
+          // companies read, and quoting the wrong one here understates the kid.
+          rank: rankFor(standing(career)).name,
           seasons: career.seasons,
           // Not plus this run's history: days are banked as they are played.
           lifetimeDays: career.lifetimeDays,

@@ -1223,7 +1223,7 @@ export default function Page() {
     case 'parent':
       return (
         <ParentScreen
-          report={parentReport(game, career)}
+          report={parentReport(game, career, thesisReport.scores)}
           onBack={() => setPhase(returnPhase)}
         />
       );
@@ -1232,6 +1232,7 @@ export default function Page() {
     case 'trophies':
       return (
         <TrophyScreen
+          game={game}
           career={career}
           learned={game.learned}
           badges={held}

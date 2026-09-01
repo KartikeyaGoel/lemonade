@@ -7,10 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run",
+    "test": "vitest run && node scripts/check-reading-level.mjs && node scripts/check-contrast.mjs",
     "test:watch": "vitest",
     "data": "node scripts/fetch-market-data.mjs",
-    "data:check": "node scripts/check-market-data.mjs"
+    "data:check": "node scripts/check-market-data.mjs",
+    "test:unit": "vitest run",
+    "reading": "node scripts/check-reading-level.mjs --worst --words",
+    "a11y": "node scripts/check-contrast.mjs"
   },
   "dependencies": {
     "next": "15.1.11",

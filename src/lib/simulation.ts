@@ -148,6 +148,16 @@ export interface DayRecord {
   revenue: number;
   profit: number;
   cashAfter: number;
+  /**
+   * How many cups they actually made that morning.
+   *
+   * Added for the evidence layer in `src/lib/mastery.ts`, which cannot tell the
+   * difference between "sold 24 because that is all anybody wanted" and "sold 24
+   * because that is all there was" without it — and that difference is the whole
+   * of the pricing lesson. Optional, because a save from before this existed
+   * simply produces no sighting rather than a wrong one.
+   */
+  cupsMade?: number;
   /** Cups sold to punch-card regulars, who come whatever the weather. */
   subscriberCups?: number;
   /** Share of the street that came to them, after competition. 1 means alone. */
@@ -684,6 +694,7 @@ export function runDay(
     weather,
     price,
     cupsSold,
+    cupsMade: cupsMakeable,
     cupsWanted: Math.round(cupsWanted),
     revenue,
     profit,
@@ -1042,7 +1053,7 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
       id: 'fixed-cost',
       term: 'Fixed cost',
       evidence: `The ${money(outcome.standFee)} stand fee was the same today as on any day, whether you sold ${outcome.cupsSold} cups or a hundred.`,
-      carriesForward: 'Costs that do not move with sales are why a slow month hurts so much, and why a busy one is so profitable.',
+      carriesForward: 'Costs that do not move with sales are why a slow month hurts. They are also why a busy one pays so well.',
     });
   }
 
@@ -1158,7 +1169,7 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
         id: 'return-on-cash',
         term: 'Return on money put in',
         evidence: `Today you put ${money(spent)} into the stand and got ${money(outcome.revenue)} back.`,
-        carriesForward: 'This is the only question an investor ever asks: if I put money in here, how much comes back, and how sure am I?',
+        carriesForward: 'One question sits under every investment. If I put money in here, how much comes back? And how sure am I?',
       });
     }
   }

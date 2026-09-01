@@ -422,7 +422,7 @@ export const BADGES: BadgeDef[] = [
     id: 'same-sky',
     name: 'Same sky',
     emoji: '⚔️',
-    proves: 'Identical weather, different decisions. The gap was all you.',
+    proves: 'Same sky. Different choices. The gap was all you.',
     how: 'Finish a challenge against a friend on the same seed.',
     tier: 'silver',
     act: 'social',

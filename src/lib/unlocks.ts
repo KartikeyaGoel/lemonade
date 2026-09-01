@@ -91,7 +91,7 @@ export const UNLOCK_COPY: Record<Feature, Unlock> = {
     feature: 'challenge',
     title: 'Friends',
     because:
-      'Send somebody a day you have played. Same weather, same money — the only difference is what you each decide. It lives behind the Friends button, along with everything else that involves somebody else.',
+      'Send somebody a day you have played. Same weather, same money — the only difference is what you each decide. You will find it under Friends, with everything else you do with other people.',
     emoji: '🧑‍🤝‍🧑',
   },
   club: {

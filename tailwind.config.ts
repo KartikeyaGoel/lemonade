@@ -15,7 +15,22 @@ export default {
         grass: { DEFAULT: '#5FBF5F', deep: '#3D9440' },
         wood: { DEFAULT: '#C97B3C', deep: '#9A5526', dark: '#6E3B18' },
         ink: { DEFAULT: '#2B2118', soft: '#5A4A38' },
-        berry: '#FF5470',
+        /*
+         * Two pinks, and the readable one is the default.
+         *
+         * `berry` is the colour of every loss and every negative figure in the
+         * game, which makes it the text a kid most needs to be able to read —
+         * and at #FF5470 it sat at 3.1:1 on white, well under the 4.5:1 that
+         * body text needs. Measured by `scripts/check-contrast.mjs`.
+         *
+         * The first attempt kept the bright pink for the four hand-painted
+         * prices, on the grounds that large type only needs 3:1. It does not
+         * survive contact with the check: bright pink on the lemon sign is
+         * 2.75:1, and that sign carries the single most-looked-at number in the
+         * game. So there is one pink, it passes everywhere, and nobody has to
+         * remember which to reach for.
+         */
+        berry: '#BF3F54',
         mint: '#2ED9A0',
       },
       boxShadow: {

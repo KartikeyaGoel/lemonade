@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { trophyCase, type Badge, type BadgeTier } from '@/lib/achievements';
 import { GLOSSARY, wordProgress } from '@/lib/glossary';
 import { careerCard, standing, type Career } from '@/lib/career';
+import type { Game } from '@/lib/progress';
 import { collectionLine, progress, shelves } from '@/lib/collection';
+import { mastery, masteryLine, reachable, type Level } from '@/lib/mastery';
 import { ChunkyButton, SignHeading, Sky, money } from '../ui';
 
 const TIER_STYLE: Record<BadgeTier, string> = {
@@ -14,9 +16,15 @@ const TIER_STYLE: Record<BadgeTier, string> = {
   legend: 'border-[#8A5BD6] bg-[#EBE0FB]',
 };
 
-type Tab = 'badges' | 'words' | 'read' | 'career';
+type Tab = 'can do' | 'badges' | 'words' | 'read' | 'record';
 
-const TABS: Tab[] = ['badges', 'words', 'read', 'career'];
+const TABS: Tab[] = ['can do', 'badges', 'words', 'read', 'record'];
+
+const SKILL_STYLE: Record<Level, string> = {
+  held: 'border-mint/70 bg-white',
+  emerging: 'border-lemon/60 bg-white/90',
+  unseen: 'border-dashed border-white/25 bg-white/5',
+};
 
 const ACT_LABEL: Record<string, string> = {
   '1': 'One stand',
@@ -35,17 +43,20 @@ const ACT_LABEL: Record<string, string> = {
  * you can go and do on purpose.
  */
 export function TrophyScreen({
+  game,
   career,
   learned,
   badges,
   onBack,
 }: {
+  /** Read only for the evidence layer, which is derived from play. */
+  game: Game;
   career: Career;
   learned: string[];
   badges: string[];
   onBack: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>('badges');
+  const [tab, setTab] = useState<Tab>('can do');
   const card = careerCard({ ...career, badges });
   const held = new Set([...career.words, ...learned]);
   const words = wordProgress([...held]);
@@ -58,6 +69,7 @@ export function TrophyScreen({
    */
   const stars = standing({ ...career, badges });
   const read = progress(career.companiesStudied, stars);
+  const skills = reachable(mastery(game), game.act);
 
   return (
     <Sky mood="night">
@@ -94,26 +106,90 @@ export function TrophyScreen({
 
         {/* Four tabs, each a set with a hole in it. The counts are on the tabs
             themselves because the gap is the reason to open one. */}
-        <div className="mt-4 grid grid-cols-4 gap-1.5">
+        <div className="mt-4 grid grid-cols-5 gap-1">
           {TABS.map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => setTab(option)}
-              className={`rounded-xl border-[3px] px-1 py-1.5 font-body text-[10px] font-extrabold uppercase tracking-wide ${
+              className={`rounded-xl border-[3px] px-0.5 py-1.5 font-body text-[9px] font-extrabold uppercase leading-tight tracking-tight ${
                 tab === option
                   ? 'border-lemon bg-lemon text-ink'
                   : 'border-white/25 bg-white/10 text-white/70'
               }`}
             >
               {option === 'words'
-                ? `Words ${words.earned}/${words.total}`
+                ? `Words ${words.earned}`
                 : option === 'read'
-                  ? `Read ${read.read}/${read.total}`
+                  ? `Read ${read.read}`
                   : option}
             </button>
           ))}
         </div>
+
+        {/*
+          * What you can do.
+          *
+          * The first tab, because it is the only one that answers "am I getting
+          * better at this" rather than "how much have I collected". Everything
+          * here was earned by doing, never by being told — see
+          * `src/lib/mastery.ts`.
+          *
+          * The unseen ones are the point of showing it to the kid at all. They
+          * are not a report card; they are a list of things nobody has told them
+          * to try, which is the only kind of learning that sticks.
+          */}
+        {tab === 'can do' && (
+          <div className="mt-4 space-y-2">
+            <p className="px-1 font-body text-[12px] font-bold text-white/60">
+              {masteryLine(mastery(game), game.act)}
+            </p>
+            {skills.map((skill) => (
+              <div
+                key={skill.id}
+                className={`rounded-2xl border-[3px] p-3 ${SKILL_STYLE[skill.level]}`}
+              >
+                <div className="flex items-baseline gap-2">
+                  <span aria-hidden>
+                    {skill.level === 'held' ? '✅' : skill.level === 'emerging' ? '🌱' : '⬜'}
+                  </span>
+                  <span
+                    className={`flex-1 font-sign text-lg leading-tight ${
+                      skill.level === 'unseen' ? 'text-white/40' : 'text-ink'
+                    }`}
+                  >
+                    {skill.plain}
+                  </span>
+                  {skill.level === 'held' && skill.sightings.length > 1 && (
+                    <span className="shrink-0 font-body text-[10px] font-extrabold uppercase tracking-wide text-ink/40">
+                      ×{skill.sightings.length}
+                    </span>
+                  )}
+                </div>
+
+                {/* The receipt. A kid who is told they did something well and
+                    cannot see when will not believe it either. */}
+                {skill.sightings.length > 0 ? (
+                  <div className="mt-1.5 border-t-2 border-dashed border-ink/12 pt-1.5 font-body text-[11px] font-bold leading-snug text-ink/60">
+                    <span className="font-extrabold text-ink/75">
+                      {skill.sightings[skill.sightings.length - 1].when}:
+                    </span>{' '}
+                    {skill.sightings[skill.sightings.length - 1].what}
+                    {skill.level === 'emerging' && (
+                      <span className="mt-1 block font-extrabold text-wood-deep">
+                        Do it once more and it counts.
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-1 font-body text-[11px] font-bold text-white/35">
+                    Nobody is going to tell you when. You will know.
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {tab === 'badges' && (
           <div className="mt-4 space-y-5">
@@ -237,7 +313,7 @@ export function TrophyScreen({
           </div>
         )}
 
-        {tab === 'career' && (
+        {tab === 'record' && (
           <div className="mt-4 space-y-2">
             <Stat label="Seasons played" value={String(career.seasons)} />
             <Stat label="Days of business" value={String(career.lifetimeDays)} />
