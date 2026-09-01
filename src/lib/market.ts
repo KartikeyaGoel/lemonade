@@ -156,6 +156,27 @@ export interface PortfolioState {
    */
   windowStart: number;
   status: 'open' | 'closed';
+  /**
+   * A live account rather than a replayed one.
+   *
+   * Everything else about the machinery is identical — same holdings, same
+   * drawdown tracking, same real closes — so live mode is not a second market
+   * implementation. The only two differences are that `windowStart` is
+   * anchored to the newest week in the dataset instead of a random one, and
+   * that a live account never closes. See `src/lib/live.ts`.
+   */
+  live?: boolean;
+  /**
+   * The date this live account was opened, as published.
+   *
+   * Live accounts anchor to a *date*, never to `windowStart` alone. The price
+   * file is a rolling five-year window: every refresh appends a week and
+   * eventually drops the oldest one, at which point every index in the array
+   * shifts by one and a saved `windowStart` quietly starts pointing at the
+   * wrong week — forever, and worse each time. A date survives that. See
+   * `rehydrate` in `src/lib/live.ts`.
+   */
+  anchorDate?: string;
 }
 
 export function createPortfolio(startingCash: number, seed = 4242): PortfolioState {
@@ -450,7 +471,10 @@ export function advanceWeek(portfolio: PortfolioState): { portfolio: PortfolioSt
     };
   }
 
-  const finished = week >= MARKET_WEEKS;
+  // A live account has no last week. The twelve-week cap is what turns Act 4
+  // into a story with an ending, and the whole point of the live market is that
+  // it is a practice rather than a story.
+  const finished = !portfolio.live && week >= MARKET_WEEKS;
   const settled: PortfolioState = {
     ...nextPortfolio,
     holdings,

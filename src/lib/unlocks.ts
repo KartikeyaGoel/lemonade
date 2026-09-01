@@ -33,7 +33,8 @@ export type Feature =
   | 'challenge'
   | 'club'
   | 'playbook'
-  | 'seasons';
+  | 'seasons'
+  | 'live-market';
 
 export interface Unlock {
   feature: Feature;
@@ -107,6 +108,13 @@ export const UNLOCK_COPY: Record<Feature, Unlock> = {
     because:
       'Four rules, decided in advance, tested against every twelve weeks of real history there is. This is where you find out whether you have a strategy or a hunch.',
     emoji: '📓',
+  },
+  'live-market': {
+    feature: 'live-market',
+    title: 'The real market, live',
+    because:
+      'You have traded twelve weeks that already happened. Now trade the ones that have not: real prices, this week, and nobody knows what Monday does.',
+    emoji: '\ud83d\udcc8',
   },
   seasons: {
     feature: 'seasons',
@@ -189,6 +197,20 @@ export function isUnlocked(feature: Feature, game: Game, career: Career): boolea
 
     // Offered when there is a finished run to start again from.
     case 'seasons':
+      return game.portfolio?.status === 'closed' || career.seasons > 1;
+
+    /*
+     * The same moment, and deliberately so.
+     *
+     * Both doors open when the twelve weeks finish, and they are the two honest
+     * answers to "now what": go round again on a different street, or stop
+     * replaying and trade the weeks nobody has seen yet. Gating the live market
+     * any later would be pretending a kid who has read eight sets of accounts
+     * and held through a real fall is not ready for prices that have not
+     * happened. Gating it any earlier would hand them the real thing before the
+     * readiness gate has ever been passed.
+     */
+    case 'live-market':
       return game.portfolio?.status === 'closed' || career.seasons > 1;
   }
 }

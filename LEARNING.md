@@ -560,3 +560,53 @@ The wider lesson is about the shape of the bug rather than the bug. Every check
 in this repo passed while the thing on the screen was wrong, because every
 check reads the source and the browser was not reading the source. A test suite
 cannot tell you that the artefact under test is not the artefact being served.
+
+## 20. Two clocks, and a rolling window that eats indices
+
+Building the live market surfaced two bugs of the same family: **an index is
+not a fact about the world, and a row is not a week.**
+
+### The week in progress
+
+The newest row in `market-data.json` is the week that has not finished. Its
+date is *today*, so the last two entries were `2026-08-31` and `2026-09-01` —
+one day apart, not seven.
+
+Everything about a live account was originally derived by index arithmetic.
+The consequences, all real and all found on screen rather than in a test:
+
+- *"What the market did last week"* compared the newest row to the one before
+  it and rendered a **one-day** move labelled as a week, with the numbers a
+  seventh of their true size.
+- The catch-up screen said **"4 weeks went by"** while the market screen one
+  tap later said **"5 weeks in."** Two clocks, disagreeing in front of a child.
+
+Both are fixed the same way: prices catch up by **row**, because rows are where
+prices live; everything a kid is *told* is derived from **dates**. `stepsBehind`
+and `daysAway` are now separate functions, and the phrasing falls back to days
+when a week has not actually passed.
+
+### The rolling window
+
+Worse, and it would have shipped silently. A live account stored its position
+as `windowStart`, an index into the weekly array. But the fetch pulls a rolling
+five-year window: every refresh appends a week and eventually drops the oldest,
+at which point **every index shifts by one**. A saved account would then be
+standing on a different week than the one it was saved on, permanently, and
+drift further every time the window rolled. Nothing throws. Nothing logs.
+
+Live accounts now store `anchorDate` and re-find their row on load.
+
+And the first version of that fix was itself wrong: it re-derived `week` from
+`dateOfWeek(windowStart + week)` — reading the date off the stale index it
+existed to correct — and landed the account two weeks late. The offset is
+actually preserved under a roll, because every row moves by the same amount, so
+only the anchor needs re-seating. Caught by a test that *simulated* the roll
+rather than by reasoning about it, which is the only way this class of bug is
+ever caught.
+
+### The pattern
+
+Three defects, one shape: a number that is true about the current file was
+treated as though it were true about the world. The file is the thing that
+changes.

@@ -49,6 +49,8 @@ import {
   maxSpendOn,
   sell as sellStock,
   summarisePortfolio,
+  totalValue,
+  type PortfolioState,
   type WeekReport,
 } from '@/lib/market';
 import {
@@ -71,12 +73,16 @@ import {
   type Game,
 } from '@/lib/progress';
 import { parentReport } from '@/lib/parent';
+import { catchUp, createLivePortfolio, type CatchUp } from '@/lib/live';
+import { LiveOpenScreen } from '@/components/acts/LiveOpenScreen';
 import {
   clearGame,
   loadBoard,
   loadCareer,
   loadGame,
+  loadLive,
   saveBoard,
+  saveLive,
   saveCareer,
   saveGame,
   type SavedBoard,
@@ -183,6 +189,8 @@ type Phase =
   | 'club'
   | 'friends'
   | 'classroom'
+  | 'live-open'
+  | 'live'
   | 'thesis'
   | 'reckoning';
 
@@ -239,6 +247,24 @@ export default function Page() {
   const [weekReport, setWeekReport] = useState<WeekReport | null>(null);
   const [returnPhase, setReturnPhase] = useState<Phase>('market');
 
+  /**
+   * The live account.
+   *
+   * Its own slot, outside the run and outside the career. A kid who starts a
+   * new street does not liquidate what they hold in the real market, and a
+   * season that ends does not end this. `catchUpReport` is what the world did
+   * while they were away — computed once on open, then shown once.
+   */
+  const [live, setLive] = useState<PortfolioState | null>(null);
+  const [catchUpReport, setCatchUpReport] = useState<CatchUp | null>(null);
+  /**
+   * Which account the trade being set up belongs to.
+   *
+   * The thesis screen navigates away from whichever market opened it, so the
+   * answer cannot be read from `phase` by the time the buy is confirmed.
+   */
+  const [tradingLive, setTradingLive] = useState(false);
+
   useEffect(() => {
     const saved = loadGame();
     if (saved) {
@@ -250,6 +276,7 @@ export default function Page() {
     setCareer(loadCareer() ?? createCareer());
     const savedBoard = loadBoard();
     if (savedBoard) setBoard(savedBoard);
+    setLive(loadLive());
     setToday(new Date().toISOString().slice(0, 10));
   }, []);
 
@@ -260,6 +287,10 @@ export default function Page() {
   useEffect(() => {
     if (game) saveGame(game);
   }, [game]);
+
+  useEffect(() => {
+    if (live) saveLive(live);
+  }, [live]);
 
   useEffect(() => {
     if (career) saveCareer(career);
@@ -707,6 +738,34 @@ export default function Page() {
     [game],
   );
 
+  /**
+   * Buying and selling in the live account.
+   *
+   * Deliberately the same rules: the same position cap, the same thesis
+   * required before a buy, the same drawdown bookkeeping. The only thing that
+   * changes between the two markets is which weeks they are.
+   */
+  const handleLiveBuy = useCallback(
+    (company: Company, quantId: string, qualId: string, dollars: number) => {
+      if (!live) return;
+      const result = buyStock(live, company.ticker, dollars);
+      if (result.ok) setLive(result.portfolio);
+      setThesisTarget(null);
+      setTradingLive(false);
+      setPhase('live');
+    },
+    [live],
+  );
+
+  const handleLiveSell = useCallback(
+    (ticker: string, fraction: number) => {
+      if (!live) return;
+      const result = sellStock(live, ticker, fraction);
+      if (result.ok) setLive(result.portfolio);
+    },
+    [live],
+  );
+
   const handleAdvanceWeek = useCallback(() => {
     if (!game?.portfolio) return;
     if (game.portfolio.status === 'closed') {
@@ -726,7 +785,21 @@ export default function Page() {
     setGame(queueWords({ ...game, portfolio }, words));
     setWeekReport(report);
     setPhase('week-report');
-  }, [game, queueWords]);
+
+    /*
+     * The live account is opened here, at the moment the twelve weeks close,
+     * and never again.
+     *
+     * It has to happen while `game.portfolio` still exists, because the stake
+     * is whatever they walked out with — cashed out at that final week's real
+     * prices. Do it lazily instead and a kid who starts a new season first
+     * arrives at the real market with nothing, and we would have to invent
+     * money for them, which is the one thing this product does not do.
+     */
+    if (portfolio.status === 'closed' && !live) {
+      setLive(createLivePortfolio(totalValue(portfolio)));
+    }
+  }, [game, live, queueWords]);
 
   /**
    * A new season: a genuinely new stand, and every badge and word kept.
@@ -820,6 +893,28 @@ export default function Page() {
   /* ---------------- Render ---------------- */
 
   if (!game || !career) return <div className="min-h-[100dvh] bg-[#8ED6F6]" />;
+
+  /**
+   * Opening the live account.
+   *
+   * Creating it is a one-off: the money is whatever they walked out of the
+   * twelve weeks with, cashed out at the prices of that final week. Same
+   * principle as Act 4 being seeded from the sale — it is their money the
+   * whole way, and a kid who sold badly starts with less.
+   *
+   * After that, every open is a catch-up. The weeks that passed are run
+   * through the ordinary `advanceWeek`, so holding through a fall counts
+   * exactly as much as it would have done had they sat and watched it.
+   */
+  const openLive = () => {
+    const existing =
+      live ?? createLivePortfolio(game.portfolio ? totalValue(game.portfolio) : 0);
+    const stepped = catchUp(existing);
+    setLive(stepped.portfolio);
+    setCatchUpReport(stepped.report);
+    setReturnPhase('title');
+    setPhase('live-open');
+  };
 
   const openParent = () => {
     setReturnPhase(phase);
@@ -956,6 +1051,14 @@ export default function Page() {
   }
   if (isUnlocked('playbook', game, career)) {
     titleExtras.push({ emoji: '📓', label: 'Playbook', onClick: openFrom('title', 'playbook') });
+  }
+  /*
+   * The live market is the only extra that is not a place to look at things
+   * they already did. It is the reason to be here on a Tuesday, so it goes
+   * last, where the eye finishes.
+   */
+  if (isUnlocked('live-market', game, career)) {
+    titleExtras.push({ emoji: '📈', label: 'Real market', onClick: openLive });
   }
 
   const screen = (() => {
@@ -1272,6 +1375,51 @@ export default function Page() {
     case 'gate':
       return <GateScreen readiness={readiness(game)} onBack={() => setPhase('market')} />;
 
+    case 'live-open':
+      return live ? (
+        <LiveOpenScreen
+          portfolio={live}
+          report={catchUpReport}
+          onEnter={() => setPhase('live')}
+          onBack={() => setPhase('title')}
+        />
+      ) : null;
+
+    case 'live':
+      return live ? (
+        <MarketScreen
+          portfolio={live}
+          /* The gate was passed to get here. Act 4 does not close until the
+             twelve weeks are done, and the twelve weeks cannot be traded
+             without it, so re-testing at the live door would be asking a kid
+             to prove the same thing twice. */
+          readiness={{ criteria: [], metCount: 0, canTrade: true }}
+          knowsPE={knowsPE}
+          badges={standing(career)}
+          studied={career.companiesStudied}
+          onResearch={(ticker) => {
+            setLive((current) => (current ? markResearched(current, ticker) : current));
+            setCareer((current) => (current ? recordStudied(current, [ticker]) : current));
+          }}
+          onStartBuy={(company) => {
+            setThesisTarget(company);
+            setTradingLive(true);
+            setPhase('thesis');
+          }}
+          onSell={handleLiveSell}
+          onOpenGate={() => setPhase('live')}
+          onLeave={() => setPhase('title')}
+          onPlaybook={
+            isUnlocked('playbook', game, career)
+              ? () => {
+                  setReturnPhase('live');
+                  setPhase('playbook');
+                }
+              : undefined
+          }
+        />
+      ) : null;
+
     case 'reckoning':
       return game.portfolio ? (
         <ReckoningScreen
@@ -1358,23 +1506,28 @@ export default function Page() {
         />
       );
 
-    case 'thesis':
-      return thesisTarget && game.portfolio ? (
+    case 'thesis': {
+      const account = tradingLive ? live : game.portfolio;
+      return thesisTarget && account ? (
         <ThesisScreen
           company={thesisTarget}
-          price={currentPrice(game.portfolio, thesisTarget.ticker)}
-          asOf={currentDate(game.portfolio)}
-          maxDollars={Math.max(1, maxSpendOn(game.portfolio, thesisTarget.ticker))}
+          price={currentPrice(account, thesisTarget.ticker)}
+          asOf={currentDate(account)}
+          maxDollars={Math.max(1, maxSpendOn(account, thesisTarget.ticker))}
           actionLabel="Buy"
           onCancel={() => {
             setThesisTarget(null);
-            setPhase('market');
+            setTradingLive(false);
+            setPhase(tradingLive ? 'live' : 'market');
           }}
           onConfirm={(quantId, qualId, dollars) =>
-            handleThesisBuy(thesisTarget, quantId, qualId, dollars)
+            tradingLive
+              ? handleLiveBuy(thesisTarget, quantId, qualId, dollars)
+              : handleThesisBuy(thesisTarget, quantId, qualId, dollars)
           }
         />
       ) : null;
+    }
     }
   })();
 

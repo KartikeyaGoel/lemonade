@@ -8,6 +8,11 @@ their own stand.
 The thesis the whole thing hangs on: **every stock is somebody else's lemonade
 stand.**
 
+The arc is twelve weeks of real market history, replayed at speed, and it
+finishes in a sitting. Finishing it opens the same market **live** — anchored to
+this week's closes, marked to whatever happened while they were away, with no
+last week and no button that makes time pass.
+
 - [`PRODUCT.md`](PRODUCT.md) — what we are building and why. Read it first.
 - [`LEARNING.md`](LEARNING.md) — an honest assessment of what a kid actually
   knows at the end, and what they don't.

@@ -20,7 +20,7 @@ import { SAVE_VERSION, createGame, type Game } from './progress';
 import { createBusinessState } from './business';
 import { createOwnershipState } from './ownership';
 import { CAREER_VERSION, createCareer, type Career } from './career';
-import { windowStartFor } from './market';
+import { windowStartFor, type PortfolioState } from './market';
 import type { GameState } from './simulation';
 import type { Entry } from './classroom';
 
@@ -35,6 +35,15 @@ const CAREER_KEY = 'lemonade.career.v1';
  * an accidental refresh does not use this a second time.
  */
 const CLASS_KEY = 'lemonade.class.v1';
+/**
+ * The live account.
+ *
+ * Kept apart from the run for the same reason the career is: it outlives every
+ * season. A kid who starts a new street does not liquidate the money they have
+ * in the real market, and a kid who clears their run should not lose four
+ * months of holdings by accident.
+ */
+const LIVE_KEY = 'lemonade.live.v1';
 
 export function loadGame(): Game | null {
   if (typeof window === 'undefined') return null;
@@ -199,5 +208,42 @@ export function saveBoard(board: SavedBoard): void {
     window.localStorage.setItem(CLASS_KEY, JSON.stringify(board));
   } catch {
     // Out of quota or private browsing. The lesson still works for this session.
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * The live account
+ * ------------------------------------------------------------------ */
+
+export function loadLive(): PortfolioState | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(LIVE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PortfolioState;
+    // A saved account whose shape does not match is dropped rather than
+    // patched. There is no real money here, and a half-restored portfolio
+    // would report numbers that are not true.
+    if (typeof parsed?.cash !== 'number' || typeof parsed?.windowStart !== 'number') return null;
+    if (!parsed.live) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLive(portfolio: PortfolioState): void {
+  try {
+    window.localStorage.setItem(LIVE_KEY, JSON.stringify(portfolio));
+  } catch {
+    // Out of quota or private browsing.
+  }
+}
+
+export function clearLive(): void {
+  try {
+    window.localStorage.removeItem(LIVE_KEY);
+  } catch {
+    // Nothing to do.
   }
 }

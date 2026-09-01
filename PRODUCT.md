@@ -1261,3 +1261,79 @@ Her other three points stand, and two of them are not code. Nobody has still
 played this. `TEACHING.md` has still never been run in a classroom. And the
 falsifiable part of the reframe above is simple: if she reads the ladder and
 still says *slow it down*, then she meant the clock and this was the wrong fix.
+
+## 42. The market they were promised
+
+The original pitch was that a child learns business on a lemonade stand and
+then trades **the real market**. What shipped was subtly less than that, and it
+took a customer conversation to see it.
+
+`windowStartFor(seed)` picks a start point uniformly across 263 weeks of real
+history and Act 4 runs twelve weeks forward from there. Real prices, real 10-K
+filings, genuinely honest data — **and it already happened.** A child was
+replaying a recording at high speed.
+
+That single fact is why the product had no reason to be opened on a Tuesday.
+You cannot be surprised by a Tuesday that is already in the file.
+
+### Two modes, because one thing cannot be both
+
+The twelve-week replay is not a mistake and is not going away. It is
+deterministic, which is what makes challenge codes, the club and the classroom
+demand curve work at all; and it finishes in a sitting, which is what lets the
+arc have an ending you can demonstrate.
+
+So the arc stays exactly as it is, and a second door opens beside it:
+
+| | The arc | The live market |
+| --- | --- | --- |
+| Weeks | Twelve, then a finale | No last week |
+| Clock | A button | The calendar |
+| Window | A random twelve from five years | Anchored to the newest close |
+| Ends | Yes — it is a story | No — it is a practice |
+
+The machinery is shared. `advanceWeek` does the marking in both, so drawdown,
+"held through it" and every other behavioural fact are recorded identically.
+The only two differences in the whole implementation are that a live account
+anchors to the newest week and that it never closes.
+
+### The stake is still their own money
+
+A live account is opened once, at the moment the twelve weeks close, with
+whatever the kid walked out with at that final week's real prices. Sell the
+lemonade stand badly and you arrive in the real market with less. That is the
+same rule as Act 4 being seeded from the buyout, carried one step further, and
+it is the reason the account is created at the close rather than lazily — do it
+later and a kid who starts a new season first arrives with nothing, and we
+would have to invent money for them.
+
+### Weekly is the right cadence, not a limitation
+
+The obvious objection is that a week is a slow heartbeat for a habit loop. Two
+answers. The daily reason to return is the stand — `skyOfTheDay` gives every
+child on Earth the same three minutes of weather, one screen away. And a market
+a child is invited to check hourly teaches the single most expensive habit
+there is. Once a week is what we would pick with unlimited data.
+
+### It has to be real on the first visit
+
+A live account opened today has done nothing, and a customer being shown this
+cannot wait until Monday. The screen says **"Nothing has happened yet"** and
+then shows what the market actually did last week — real closes, nothing held,
+no invented number. Manufacturing a gain there would undo everything the
+mastery layer is for.
+
+### What this is not
+
+Not "all the tickers". Twenty-four recognisable operating companies, and that
+is a deliberate safety rail as much as a data limit: an open universe hands a
+ten-year-old leveraged products and meme microcaps, reopening through the back
+door exactly what "no leverage, no shorting, no options, ever" closes at the
+front. Widening to a few hundred consumer-facing companies is a data-pipeline
+job and needs the Alpha Vantage key; the shape of the code does not change.
+
+Nor is the data feed what a phone app would ship. `market-data.json` is
+refreshed by a weekday cron and committed, so nothing on a child's device calls
+a data provider and there is no key in the browser. A phone app would put a
+server behind this. **The experience it produces is identical**, which is the
+whole job of a prototype.

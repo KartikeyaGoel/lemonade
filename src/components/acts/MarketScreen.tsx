@@ -31,6 +31,7 @@ import {
   totalValue,
   type PortfolioState,
 } from '@/lib/market';
+import { runningFor } from '@/lib/live';
 import type { Readiness } from '@/lib/progress';
 import { ChunkyButton, SignHeading, Sky, money } from '../ui';
 
@@ -51,6 +52,7 @@ export function MarketScreen({
   onStartBuy,
   onSell,
   onAdvanceWeek,
+  onLeave,
   onOpenGate,
   onClub,
   onWeekendStand,
@@ -67,7 +69,15 @@ export function MarketScreen({
   onResearch: (ticker: string) => void;
   onStartBuy: (company: Company) => void;
   onSell: (ticker: string, fraction: number) => void;
-  onAdvanceWeek: () => void;
+  /**
+   * Absent in the live market, where a week arrives because a week has passed.
+   *
+   * The button is the difference between replaying history and living in it,
+   * so it is the one control that must not exist on a live account.
+   */
+  onAdvanceWeek?: () => void;
+  /** Live only: there is no end to walk towards, so there is a way out. */
+  onLeave?: () => void;
   onOpenGate: () => void;
   /** Only passed once a club is a thing that exists for this kid. */
   onClub?: () => void;
@@ -126,7 +136,7 @@ export function MarketScreen({
               because no time has passed yet, and "Week 0 / 12" read like a
               bug. */}
           <span className="stat-chip !text-xs">
-            {portfolio.week} of {MARKET_WEEKS} weeks done
+            {portfolio.live ? runningFor(portfolio) : `${portfolio.week} of ${MARKET_WEEKS} weeks done`}
           </span>
         </div>
 
@@ -419,8 +429,16 @@ export function MarketScreen({
               {picked.length < 2 ? `Pick ${2 - picked.length} more` : 'Holding them up…'}
             </ChunkyButton>
           ) : (
-            <ChunkyButton variant="lemon" full onClick={onAdvanceWeek}>
-              {portfolio.week >= MARKET_WEEKS ? 'See how you did →' : 'Next week →'}
+            <ChunkyButton
+              variant="lemon"
+              full
+              onClick={portfolio.live ? onLeave : onAdvanceWeek}
+            >
+              {portfolio.live
+                ? 'Done for now →'
+                : portfolio.week >= MARKET_WEEKS
+                  ? 'See how you did →'
+                  : 'Next week →'}
             </ChunkyButton>
           )}
         </div>
