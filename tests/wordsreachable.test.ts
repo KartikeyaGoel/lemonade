@@ -23,7 +23,13 @@
  * state that produces it, built from the real constructors.
  */
 import { describe, it, expect } from 'vitest';
-import { GLOSSARY, recurringRevenueInsight, unrecorded } from '../src/lib/glossary';
+import {
+  GLOSSARY,
+  equityInsight,
+  recurringRevenueInsight,
+  unrecorded,
+} from '../src/lib/glossary';
+import { createOwnershipState, equityOffer } from '../src/lib/ownership';
 import {
   buyUpgrade,
   createBusinessState,
@@ -197,6 +203,22 @@ function everyWordTheGameCanHandOver(): Set<string> {
       if (state.status === 'finished') state = { ...state, status: 'playing' };
     }
   }
+
+  /*
+   * Phase three: the decision, rather than the day.
+   *
+   * `equity` is an Act 3 word — the shop's three-way funding screen, where the
+   * kid can sell the investor a slice instead of paying cash or borrowing —
+   * and it is awarded by `equityInsight` from `page.tsx`, not by any deriver.
+   * So no number of simulated days produces it, which is why it arrives here
+   * the same way `recurring-revenue` does: through its real producer, with an
+   * offer priced off a real week.
+   *
+   * It used to be tagged `act: 4` and so fell outside this file's remit
+   * entirely. See PRODUCT.md and FRAMEWORK.md §12.
+   */
+  const slice = equityOffer(seedWeek().history, 0.2);
+  found.add(equityInsight(slice.slice, slice.cash).id);
 
   return found;
 }

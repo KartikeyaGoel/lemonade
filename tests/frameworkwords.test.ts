@@ -24,7 +24,6 @@ import {
   businessModelInsight,
   diversificationInsight,
   drawdownInsight,
-  equityInsight,
   luckInsight,
   multipleInsight,
   peRatioInsight,
@@ -119,7 +118,6 @@ describe('the words the rest of Acts 4 and 5 hand over', () => {
    * exactly how `unit-cost` went unnoticed.
    */
   const produced: Record<string, () => { id: string }> = {
-    equity: () => equityInsight(0.2, 36.35),
     multiple: () => multipleInsight('Ada’s Lemonade', 11, 6),
     'pe-ratio': () => peRatioInsight(buyoutOffer(tradedHistory(), createOwnershipState())),
     'business-model': () => businessModelInsight(0.35, 3),
@@ -152,6 +150,48 @@ describe('the words the rest of Acts 4 and 5 hand over', () => {
     const orphaned = owed.filter((id) => !covered.has(id));
 
     expect(orphaned, `Act 4/5 words with no producer: ${orphaned.join(', ')}`).toEqual([]);
+  });
+});
+
+describe('the stage a word says it belongs to', () => {
+  it('files the funding screen’s two words under the same stage', () => {
+    /*
+     * `FundingScreen` is one decision with three branches: pay cash, borrow,
+     * or sell the investor a slice. Borrowing teaches `interest`; the slice
+     * teaches `equity`. Same screen, same choice, same stage — so they cannot
+     * disagree about which stage that is.
+     *
+     * They did. `interest` said 3 and `equity` said 4, and because the trophy
+     * case prints `Act {word.act}` against every word, a child who funded
+     * their shop with a slice saw it filed under a stage they had not reached.
+     * FRAMEWORK.md §10 had described it correctly in prose the whole time —
+     * "the investor's slice in Act 3 and the float in Act 4" — which is the
+     * point of this test: the document made a checkable claim and nothing
+     * checked it. See PRODUCT.md §56.
+     */
+    const words = GLOSSARY.filter((word) => word.id === 'equity' || word.id === 'interest');
+    expect(words, 'the funding screen’s words are no longer both in the glossary').toHaveLength(2);
+
+    const [first, second] = words;
+    expect(
+      first.act,
+      `${first.id} is act ${first.act} and ${second.id} is act ${second.act}, ` +
+        'but they are taught by the same decision',
+    ).toBe(second.act);
+    expect(first.act, 'the shop, and its funding, is Act 3').toBe(3);
+  });
+
+  it('keeps the listing’s four words in Act 4, where the float happens', () => {
+    /*
+     * The other half of §10's sentence. The investor's slice is Act 3 and the
+     * float is Act 4, so retagging `equity` must not have dragged the listing
+     * words down with it.
+     */
+    for (const id of ['shares', 'share-price', 'market-cap', 'going-public']) {
+      const word = GLOSSARY.find((entry) => entry.id === id);
+      expect(word, `${id} left the glossary`).toBeDefined();
+      expect(word?.act, `${id} should be taught at the listing`).toBe(4);
+    }
   });
 });
 

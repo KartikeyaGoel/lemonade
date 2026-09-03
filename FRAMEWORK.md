@@ -18,7 +18,9 @@ deliver** and marks, concept by concept, whether the code delivers it.
 > the change, and rewriting them into the past tense would destroy the only
 > record of why.
 
-Read §2 for the original verdict, §10 for what happened.
+Read §2 for the original verdict, §10 for what happened, §11 for a later audit
+of whether §10's claims are still true, and §12 for the game measured against
+the refined two-loop / four-stage framework in §1.
 
 ---
 
@@ -72,6 +74,34 @@ profit · competition · growth · stock price
 ### The core loop, shortened
 
 > Make product → set price → sell it → decide what to do next.
+
+### The refinement (given later)
+
+Added after §10 shipped. It does not replace anything above; it sharpens the
+loop into two, and gives each stage an identity, a question and an unlock.
+
+**The player-facing loop** — what the kid repeatedly does:
+
+> Make → Price → Sell → Decide → **Grow**
+
+**The progression loop** — what makes Level 1 progress:
+
+> Run business → Make decisions → See consequences → Improve → **Unlock
+> greater complexity**
+
+The first is the turn. The second is the arc. The four-beat loop above is the
+first one with its fifth beat left off, and the fifth beat is the one that
+moves a kid between stages.
+
+### The four stages, refined
+
+| | Stage 1: Single Stand | Stage 2: Multiple Stands | Stage 3: Retail Company | Stage 4: IPO / Public Company |
+|---|---|---|---|---|
+| **Player identity** | Owner/operator | Business builder | Founder/CEO | CEO + shareholder |
+| **Core concepts** | Revenue, costs, profit | Margin, marketing, competition, reinvestment | Growth, capital, ownership/equity | Company value, public shares, IPO, stock price |
+| **Central question** | Can I make money? | Can I grow profitably? | How do I finance and manage growth? | What is my company worth, and what does ownership mean in a public company? |
+| **New complexity** | Basic economics | Scale | Capital + ownership | Market valuation |
+| **Natural unlock** | Build another stand | Become a larger company | Raise capital / establish ownership | Enter investing world |
 
 ---
 
@@ -663,3 +693,133 @@ that produced them, because no automated check can hold them:
   **fun** is not the kind of thing a test knows, and §41 records that the one
   piece of real pacing feedback the project has came from a parent, not a
   spreadsheet.
+
+---
+
+## 12. The shipped game against the refinement
+
+§1's refinement arrived after §10 shipped, so it is a second, sharper ruler
+held against the same build. It mostly matches, and where it does not it is
+worth being precise about which one is wrong.
+
+### The two loops
+
+Both are in the game, and the second one is the reason the first has a fifth
+beat.
+
+| Beat | Where it lives |
+|---|---|
+| **Make** | `batchPlan` and the shopping list — a batch size the kid slides, with the receipt itemised |
+| **Price** | `PriceScreen`, where the dial and the consequence share a screen (`PRODUCT.md §4`) |
+| **Sell** | `runDay`, watched rather than skipped, one passer-by at a time |
+| **Decide** | `CloseScreen` — what happened, why, and what it means for tomorrow |
+| **Grow** | `InvestScreen` — the yard. Kit, crew, pitches, another stand, a shop |
+
+The progression loop is the ladder itself: `act1Complete` → `act2Complete` →
+`act3Complete` → `act4Complete`, each with a real condition and a clock behind
+it. **Improve → Unlock greater complexity** is not a metaphor here — it is the
+readiness gate, four demonstrated behaviours (`progress.ts`), and the market
+stays read-only research until all four are met.
+
+One honest note on **Grow**: it is the fifth beat of the loop but not of every
+turn. Act 1 has no yard, deliberately — a kid who can buy a cooler on day two
+has not yet had to find a price. Growth arrives as the beat that opens Stage 2,
+which is exactly what the refinement's "natural unlock" column says should
+happen.
+
+### Player identity
+
+Not a mechanic, so not testable, but it is *stated* rather than implied —
+`ACT_TITLES` carries a name and a promise per stage, and the arc gives the kid
+a different thing to be at each rung:
+
+| Refinement | Shipped as |
+|---|---|
+| Owner/operator | **One stand** — "Find the price that actually makes money." |
+| Business builder | **More stands** — "Spend money to make money. Then be in two places at once." |
+| Founder/CEO | **The shop** — a fit-out, a rent, staff at a wage |
+| CEO + shareholder | **Go public**, then **Markets** — the float carries into the market, so a kid who stayed a founder invests *as* one |
+
+That last one is the refinement's sharpest observation and the game already
+turns on it: `beginAct5` carries the float across, so an Act 5 kid holds
+shares in their own company while buying shares in Apple. §10 records the same
+thing from the other direction — the parent report and the market seed both
+support either ending.
+
+### Central question
+
+The game asks a question per stage already, in `ACT_TITLES[act].question`, and
+it is kid-facing rather than a design note:
+
+| Refinement asks | The game asks a child |
+|---|---|
+| Can I make money? | *What is a cup worth to them?* |
+| Can I grow profitably? | *How do I sell more than my own two hands can?* |
+| How do I finance and manage growth? | *What do I owe on a day nobody comes?* |
+| What is my company worth, and what does ownership mean in a public company? | *What is one piece of my company worth?* |
+
+Three of four are the same question in a nine-year-old's words. **Stage 3 is
+not.** The refinement leads with financing; the game leads with fixed costs.
+
+Both are in the stage — Act 3's `grownUpConcept` is "Fixed costs, operating
+leverage, debt against equity", and the shop's funding screen is a real
+three-way decision between cash, a loan and an investor's slice. So nothing is
+missing. But the *headline* differs, and the game's choice is deliberate and
+worth defending: a rent owed on a day nobody comes is the thing that makes
+financing matter. Ask a child how to finance growth before they have felt a
+fixed cost and the question has no weight behind it. Financing is the second
+beat of Stage 3 because the first beat is what creates the need for it.
+
+Flagged rather than changed, because it is a judgement call the customer may
+want to overrule.
+
+### Core concepts, stage by stage
+
+All twelve concepts exist (§11 proves each has a reachable word). Where the
+refinement and the build disagree is on *which stage* teaches two of them:
+
+| Concept | Refinement puts it | Game teaches it |
+|---|---|---|
+| **margin** | Stage 2 | Act 1 |
+| **growth** (`compounding`) | Stage 3 | Act 2 |
+
+Both are taught **earlier** than the refinement asks, and neither looks like a
+mistake. Margin is the number a price is chosen against, so a kid who sets a
+price on day one has already met it — deferring the word by a whole stage would
+mean withholding the name of something they had been doing all week.
+`compounding` needs eight days of history and a business that reinvested, which
+is Act 2's shape, not Act 3's.
+
+No concept is taught later than the refinement asks, which is the direction
+that would actually cost something.
+
+### What the refinement found
+
+Holding the new ruler against the build turned up one real, child-visible
+defect, in the row where the refinement is most emphatic — **ownership/equity
+belongs to Stage 3**.
+
+The game agreed in its gameplay and disagreed in its data. `equity` is awarded
+by `equityInsight` from the shop's funding screen, which is Act 3. The glossary
+entry was tagged `act: 4`. The trophy case prints `Act {word.act}` against
+every word, so a child who had just sold a slice to fund their shop saw the
+word they had earned **filed under a stage they had not reached** — and
+`wordsByAct` counted it against Act 4, leaving Act 3 reading two words when it
+teaches three.
+
+`interest` — taught by the *borrow* option on that same screen, in the same
+decision — was already tagged 3. Only `equity` said 4. And §10 of this document
+had said the right thing in prose all along: "the investor's slice in Act 3 and
+the float in Act 4". The document was right and the data was wrong.
+
+Retagged to 3. The fix moved the word into `wordsreachable.test.ts`'s remit —
+Acts 1 to 3 — where it promptly failed, correctly, because `equity` comes from
+a named producer rather than a day deriver. It is now collected there the same
+way `recurring-revenue` is, so the word is proven earnable at the stage it is
+now labelled.
+
+Worth naming the shape: this is the third instance of a **claim living in prose
+and contradicted by data**, after §11's stale day count and the concept mapping
+that existed only in this document until `frameworkwords.test.ts` asserted it.
+A document that describes the build is only as good as the checks that keep it
+honest.

@@ -2759,3 +2759,55 @@ belongs in a report a human reads. If it exits non-zero, it has to encode the
 actual rule.** The way to tell which you have is to ask what the fault does
 that the legitimate case does not, and assert *that*: not the share count, but
 the revenue standing still beside it.
+
+## 56. A word filed under a stage the child had not reached
+
+The customer sent a refinement of the Level 1 framework — the player loop
+sharpened to five beats, and a table giving each stage an identity, a central
+question and an unlock. One row of that table was emphatic in a way the build
+could be checked against: **ownership/equity belongs to Stage 3.**
+
+The game agreed in its gameplay and disagreed in its data.
+
+`equity` is awarded by `equityInsight`, called from the shop's three-way
+funding screen — pay cash, borrow, or sell the investor a slice — which is
+Act 3. The glossary entry said `act: 4`.
+
+`TrophyScreen` prints `Act {word.act}` against every word, so a child who had
+just funded their shop by selling a slice saw the word they had earned filed
+under a stage they had not reached. `wordsByAct` counted it there too, leaving
+Act 3's tally reading two words when it teaches three.
+
+The same screen's *other* branch was already right: `interest`, taught by the
+borrow option, in the same decision, on the same screen, was tagged 3. Only
+`equity` said 4. And FRAMEWORK.md §10 had described it correctly in prose since
+the day it shipped — "the investor's slice in Act 3 and the float in Act 4".
+The document was right; the data disagreed with it.
+
+### The fix, and the test that objected
+
+Retagging to 3 moved the word into `wordsreachable.test.ts`'s remit, which
+covers Acts 1 to 3 — and it failed immediately, correctly. That file collects
+words by running real days through the derivers, and `equity` does not come
+from a deriver; it comes from a named producer invoked by a decision. Exactly
+like `recurring-revenue`, which that file already handled as a special case for
+the same reason. It is now collected the same way, from an offer priced off a
+real week, so the word is proven earnable at the stage it is now labelled.
+
+### The shape worth naming
+
+Three defects in two sessions have now had the same signature: **a claim living
+in prose, contradicted by data, with no check between them.**
+
+- FRAMEWORK.md §10 said Act 3 runs to 12 days. It runs to 6 (§11).
+- The mapping from the framework's twelve concepts to the glossary ids that
+  teach them existed *only* in FRAMEWORK.md's prose until
+  `tests/frameworkwords.test.ts` asserted it.
+- §10 said the investor's slice is Act 3. The glossary said 4.
+
+None was a crash and none would ever fail a test suite, because in each case
+nothing was asserting the sentence. The lesson is narrower than "documents go
+stale": **a document that makes a checkable claim about the build should have a
+test that fails when the claim stops being true.** Where that is cheap — a day
+count, an id mapping, an act tag — it is close to free, and it is the only
+thing that stops the write-up quietly becoming fiction.

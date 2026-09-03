@@ -202,7 +202,21 @@ export const GLOSSARY: GlossaryWord[] = [
     word: 'Equity',
     kidLine: 'A slice of your stand that somebody else owns, forever, along with a slice of the profit.',
     grownUpLine: 'A share is exactly this. Buying one makes you a part-owner of a business, not a bettor on a squiggly line.',
-    act: 4,
+    /*
+     * Three, not four. This word is awarded from the shop's three-way funding
+     * screen — pay cash, borrow, or sell the investor a slice — which is Act 3.
+     * `interest`, taught by the *borrow* option on that same screen, was
+     * already tagged 3. Only this one said 4.
+     *
+     * The trophy case prints `Act {word.act}` against every word, so a child
+     * who had just funded their shop saw the word they had earned filed under
+     * a stage they had not reached, and `wordsByAct` counted it against Act 4's
+     * total — leaving Act 3 reading two words when it teaches three.
+     *
+     * FRAMEWORK.md §10 always said so in prose ("the investor's slice in Act 3
+     * and the float in Act 4"); the data disagreed with the document. See §12.
+     */
+    act: 3,
   },
   {
     id: 'multiple',
