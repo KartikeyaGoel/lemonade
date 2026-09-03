@@ -1,5 +1,6 @@
 'use client';
 
+import { PipSays } from './Pip';
 import { ChunkyButton, Ground, Sky, SoundToggle } from './ui';
 import { Stand } from './Stand';
 import { Road } from './Road';
@@ -29,6 +30,7 @@ export function TitleScreen({
   extras = [],
   road,
   rank,
+  guide,
 }: {
   onStart: () => void;
   hasSave: boolean;
@@ -47,6 +49,15 @@ export function TitleScreen({
   road?: { stops: Stop[]; line: string };
   /** Shown only once there is a rank to show. */
   rank?: { avatar: string; name: string; rank: string } | null;
+  /**
+   * Pip's opening line, on a first launch only.
+   *
+   * This is the screen the parent's complaint was about: a kid opens the app,
+   * sees a lemonade stand, and nothing says the stock market is in it. The
+   * road below answers that as a picture; this answers it in words, once. It
+   * does not block the button — the five-second cold open still holds.
+   */
+  guide?: { lines: readonly string[]; onDismiss: () => void } | null;
 }) {
   return (
     <Sky mood="probably-hot">
@@ -76,6 +87,10 @@ export function TitleScreen({
         <div className="my-6 animate-bob">
           <Stand price={1.5} fill={0.4} />
         </div>
+
+        {guide && (
+          <PipSays className="mb-4 w-full" lines={guide.lines} onDismiss={guide.onDismiss} />
+        )}
 
         <ChunkyButton variant="mint" full onClick={onStart} className="!text-3xl">
           {hasSave ? 'Keep going' : 'Start selling'}

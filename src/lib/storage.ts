@@ -44,6 +44,15 @@ const CLASS_KEY = 'lemonade.class.v1';
  * months of holdings by accident.
  */
 const LIVE_KEY = 'lemonade.live.v1';
+/**
+ * Which of Pip's lines have been said.
+ *
+ * Career-scoped rather than run-scoped, and on its own key rather than inside
+ * the save, for one reason: a kid starting a second season has already been
+ * told where this goes. Re-explaining the arc to somebody on their third run
+ * is exactly how a guide becomes wallpaper.
+ */
+const GUIDE_KEY = 'lemonade.guide.v1';
 
 export function loadGame(): Game | null {
   if (typeof window === 'undefined') return null;
@@ -243,6 +252,40 @@ export function saveLive(portfolio: PortfolioState): void {
 export function clearLive(): void {
   try {
     window.localStorage.removeItem(LIVE_KEY);
+  } catch {
+    // Nothing to do.
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * What Pip has already said
+ * ------------------------------------------------------------------ */
+
+export function loadGuideSeen(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(GUIDE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((beat): beat is string => typeof beat === 'string');
+  } catch {
+    return [];
+  }
+}
+
+export function saveGuideSeen(seen: readonly string[]): void {
+  try {
+    window.localStorage.setItem(GUIDE_KEY, JSON.stringify([...seen]));
+  } catch {
+    // Out of quota or private browsing. Pip repeats himself this session; the
+    // alternative is a crash, and a repeated line is not worth one.
+  }
+}
+
+export function clearGuideSeen(): void {
+  try {
+    window.localStorage.removeItem(GUIDE_KEY);
   } catch {
     // Nothing to do.
   }

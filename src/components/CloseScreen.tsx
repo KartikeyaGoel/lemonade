@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ECON, type DayOutcome, type DayProjection, type Insight, weekSummary } from '@/lib/simulation';
+import { closingLine, ledgerNoveltyOf, ledgerStartsOpen } from '@/lib/guide';
 import { play } from '@/lib/sound';
+import { PipSays } from './Pip';
 import { ChunkyButton, SignHeading, Sky, money, useCountUp } from './ui';
 
 /** Long enough for the headline to finish arriving before the till rings. */
@@ -14,6 +16,30 @@ const COUNT_SETTLE_MS = 760;
  * items, tabular figures, arithmetic the kid can redo on paper.
  *
  * Every number here is the kid's own. Nothing is illustrative.
+ *
+ * ## Why the statement folds, and what stops that being a downgrade
+ *
+ * A real middle schooler called this screen so much text that he stopped
+ * reading it — and he is the only person who has played the game. A dozen rows
+ * rendered twenty-one times were not twenty-one readings; they were three
+ * readings and eighteen skips, so the exposure we thought we were buying was
+ * already worth nothing by about day four.
+ *
+ * So from day four it folds, and Pip carries one line of it out front. The
+ * obvious risk is that a good enough summary means the ledger is never opened
+ * again, which would be worse than the wall — it swaps a fact the kid can
+ * check for an adult telling him he did well. Three things prevent that, and
+ * they live in `guide.ts`:
+ *
+ *  - Pip names a *line* of the statement and its real number, never the profit
+ *    on its own, so the sentence is one number short and the missing number is
+ *    in the ledger.
+ *  - The line rotates with what actually decided the day, so across the arc a
+ *    kid who only reads Pip still meets revenue, ingredients, the costs owed
+ *    anyway, spoilage and capacity.
+ *  - `ledgerStartsOpen` overrides the fold on any day carrying a row he has
+ *    never seen. He can never miss a new line item; he only ever gets the
+ *    folded version of a statement he has already read three times.
  */
 export function CloseScreen({
   outcome,
@@ -57,6 +83,16 @@ export function CloseScreen({
    */
   const counted = useCountUp(outcome.profit);
 
+  /**
+   * A day that is structurally new shows everything, whatever day number it is.
+   * `novelty` is also worth naming on screen: "something new today" is the
+   * honest reason the statement came back, and it is the same rule the rest of
+   * the game follows — no concept before the wall that motivates it.
+   */
+  const history = outcome.nextState.history;
+  const novelty = ledgerNoveltyOf(outcome, history);
+  const [ledgerOpen, setLedgerOpen] = useState(() => ledgerStartsOpen(outcome, history));
+
   useEffect(() => {
     const timer = window.setTimeout(() => play(madeMoney ? 'cash' : 'sad'), COUNT_SETTLE_MS);
     return () => window.clearTimeout(timer);
@@ -74,8 +110,13 @@ export function CloseScreen({
           </SignHeading>
         </div>
 
+        {/* What happened, in one line, from the only character in the game.
+            Observation with a number in it — never a suggestion for tomorrow.
+            See the rule at the top of `guide.ts`. */}
+        <PipSays className="mt-4" lines={[closingLine(outcome)]} point="up" />
+
         {/* The statement. Deliberately plain and exact. */}
-        <div className="mt-5 rounded-2xl border-[3px] border-ink/25 bg-white p-4 shadow-xl">
+        <div className="mt-4 rounded-2xl border-[3px] border-ink/25 bg-white p-4 shadow-xl">
           <div className="mb-3 flex items-baseline justify-between">
             <span className="font-body text-xs font-extrabold uppercase tracking-[0.18em] text-ink/50">
               Profit and loss
@@ -84,6 +125,26 @@ export function CloseScreen({
               {outcome.cupsSold} of {outcome.cupsMakeable} cups sold
             </span>
           </div>
+
+          {novelty && ledgerOpen && (
+            <p className="mb-2 rounded-xl border-2 border-mint/60 bg-mint/15 px-2.5 py-1 font-body text-[11px] font-extrabold text-ink/75">
+              Something new today: {novelty}.
+            </p>
+          )}
+
+          {!ledgerOpen && (
+            <button
+              type="button"
+              onClick={() => setLedgerOpen(true)}
+              className="flex w-full items-center justify-between rounded-xl border-2 border-ink/15 bg-ink/[0.04] px-3 py-2 font-body text-xs font-extrabold uppercase tracking-widest text-ink/60"
+            >
+              <span>See every number</span>
+              <span aria-hidden>+</span>
+            </button>
+          )}
+
+          {ledgerOpen && (
+          <>
 
           {/* With a round running there are two prices in the day, so revenue
               is shown as the two lines that add up to it. One number covering
@@ -191,6 +252,8 @@ export function CloseScreen({
               </p>
             )}
           </div>
+          </>
+          )}
         </div>
 
         {/* Plan against reality. This is what closes the feedback loop: they

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { ECON, ingredientCostOf, type GameState } from '@/lib/simulation';
-import { ChunkyButton, Coach, HeaderBar, SignHeading, Sky, money } from './ui';
+import { PipBubble } from './Pip';
+import { ChunkyButton, HeaderBar, SignHeading, Sky, money } from './ui';
 import { Stand } from './Stand';
 
 /**
@@ -49,9 +50,9 @@ export function PriceScreen({
         </div>
 
         {firstEver && (
-          <Coach point="up" className="mt-1">
+          <PipBubble point="up" className="mt-1">
             A cup costs you {money(perCup)} to make. Charge more than that.
-          </Coach>
+          </PipBubble>
         )}
 
         {/* Big physical stepper: the primary control. */}

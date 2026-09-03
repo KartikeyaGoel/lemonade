@@ -82,13 +82,16 @@ import {
   loadBoard,
   loadCareer,
   loadGame,
+  loadGuideSeen,
   loadLive,
   saveBoard,
+  saveGuideSeen,
   saveLive,
   saveCareer,
   saveGame,
   type SavedBoard,
 } from '@/lib/storage';
+import { nextBeat, type Beat, type GuideLine } from '@/lib/guide';
 import { badgeById, earnedBadges, rankFor, type Badge } from '@/lib/achievements';
 import {
   businessModelInsight,
@@ -267,6 +270,15 @@ export default function Page() {
    */
   const [tradingLive, setTradingLive] = useState(false);
 
+  /**
+   * Which of Pip's lines have already been said.
+   *
+   * Career-scoped: a kid on their third season has been told where this goes.
+   * `null` until it has been read from the device, so nothing is spoken during
+   * the first render and then un-spoken a tick later.
+   */
+  const [guideSeen, setGuideSeen] = useState<string[] | null>(null);
+
   useEffect(() => {
     const saved = loadGame();
     if (saved) {
@@ -279,6 +291,7 @@ export default function Page() {
     const savedBoard = loadBoard();
     if (savedBoard) setBoard(savedBoard);
     setLive(loadLive());
+    setGuideSeen(loadGuideSeen());
     setToday(new Date().toISOString().slice(0, 10));
   }, []);
 
@@ -297,6 +310,10 @@ export default function Page() {
   useEffect(() => {
     if (career) saveCareer(career);
   }, [career]);
+
+  useEffect(() => {
+    if (guideSeen) saveGuideSeen(guideSeen);
+  }, [guideSeen]);
 
   /**
    * The game including the day being read on the close screen.
@@ -926,6 +943,39 @@ export default function Page() {
   const held = badgesHeld(game, career);
   const me = career.name || 'You';
   const firstRun = isFirstRun(game, career);
+
+  /**
+   * What Pip has to say right now, if anything.
+   *
+   * The beat is chosen from the run rather than from the screen, and then each
+   * screen opts in to the beats that belong on it via `guideOn`. Choosing
+   * centrally is what keeps Pip to one line at a time; opting in per screen is
+   * what keeps the act handoff from turning up on the stand.
+   */
+  const guideLine: GuideLine | null =
+    guideSeen === null
+      ? null
+      : nextBeat(
+          {
+            act: game.act,
+            daysPlayed: game.stand.history.length,
+            act2Day,
+            hasManager: game.business.staff.manager,
+            inMarket: phase === 'market',
+          },
+          guideSeen,
+        );
+
+  const guideOn = (...ids: Beat[]) =>
+    guideLine && ids.includes(guideLine.id)
+      ? {
+          lines: guideLine.says,
+          onDismiss: () => {
+            const id = guideLine.id;
+            setGuideSeen((seen) => (seen?.includes(id) ? seen : [...(seen ?? []), id]));
+          },
+        }
+      : null;
   const knowsPE = game.learned.includes('pe-ratio') || career.words.includes('pe-ratio');
 
   /**
@@ -1068,6 +1118,7 @@ export default function Page() {
     case 'title':
       return (
         <TitleScreen
+          guide={guideOn('welcome')}
           onStart={start}
           hasSave={hasSave && (game.stand.history.length > 0 || game.act > 1)}
           /* Never gated on having played.
@@ -1093,6 +1144,7 @@ export default function Page() {
       return (
         <ActIntroScreen
           act={game.act}
+          guide={guideOn('act2-open', 'act3-open', 'act4-open')}
           wall={ACT_WALLS[game.act] ?? ''}
           cash={game.act === 4 ? (game.portfolio?.cash ?? 0) : game.stand.cash}
           onBegin={() => {
@@ -1153,6 +1205,7 @@ export default function Page() {
              a real kid ground to day eighteen and quit three days short. Act
              2's line is the same string the shop has always shown — it was
              just only on the shop. */
+          guide={guideOn('act2-stall')}
           stage={
             game.weekend
               ? undefined
@@ -1335,6 +1388,7 @@ export default function Page() {
       return game.portfolio ? (
         <MarketScreen
           portfolio={game.portfolio}
+          guide={guideOn('market')}
           readiness={readiness(game)}
           knowsPE={knowsPE}
           badges={standing(career)}

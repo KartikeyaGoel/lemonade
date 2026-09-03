@@ -1,6 +1,7 @@
 'use client';
 
 import { ACT_TITLES, type Act } from '@/lib/progress';
+import { PipSays } from '../Pip';
 import { ChunkyButton, SignHeading, Sky, money } from '../ui';
 
 /**
@@ -14,12 +15,21 @@ export function ActIntroScreen({
   wall,
   cash,
   onBegin,
+  guide,
 }: {
   act: Act;
   /** The problem the kid is about to run into, in one line. */
   wall: string;
   cash: number;
   onBegin: () => void;
+  /**
+   * Pip's handoff for this act: what they just did, then the new problem.
+   *
+   * The act intro already names the wall. What it never did was connect the
+   * wall to the thing the kid had just spent a week doing, and that connection
+   * is the whole of the "continuous thread" a parent asked for.
+   */
+  guide?: { lines: readonly string[]; onDismiss: () => void } | null;
 }) {
   const title = ACT_TITLES[act];
 
@@ -76,6 +86,10 @@ export function ActIntroScreen({
             {wall}
           </p>
         </div>
+
+        {guide && (
+          <PipSays className="mt-5 w-full" lines={guide.lines} onDismiss={guide.onDismiss} />
+        )}
 
         <div className="mt-6 flex gap-2">
           <span className="stat-chip">💵 {money(cash)}</span>

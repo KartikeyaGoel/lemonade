@@ -33,6 +33,7 @@ import {
 } from '@/lib/market';
 import { runningFor } from '@/lib/live';
 import type { Readiness } from '@/lib/progress';
+import { PipSays } from '../Pip';
 import { ChunkyButton, SignHeading, Sky, money } from '../ui';
 
 /**
@@ -54,6 +55,7 @@ export function MarketScreen({
   onAdvanceWeek,
   onLeave,
   onOpenGate,
+  guide,
   onClub,
   onWeekendStand,
   onPlaybook,
@@ -79,6 +81,14 @@ export function MarketScreen({
   /** Live only: there is no end to walk towards, so there is a way out. */
   onLeave?: () => void;
   onOpenGate: () => void;
+  /**
+   * Pip's payoff line, once.
+   *
+   * "Every one of these is somebody's lemonade stand" is the thesis the whole
+   * product rests on. It is the first line of the README and the spine of the
+   * pitch, and until Pip existed it was never once said to the child playing.
+   */
+  guide?: { lines: readonly string[]; onDismiss: () => void } | null;
   /** Only passed once a club is a thing that exists for this kid. */
   onClub?: () => void;
   /** Saturday: run the stand once a week and put the takings in the account. */
@@ -139,6 +149,10 @@ export function MarketScreen({
             {portfolio.live ? runningFor(portfolio) : `${portfolio.week} of ${MARKET_WEEKS} weeks done`}
           </span>
         </div>
+
+        {guide && (
+          <PipSays className="mt-4" lines={guide.lines} onDismiss={guide.onDismiss} />
+        )}
 
         {/* The pot */}
         <div className="mt-3 rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">

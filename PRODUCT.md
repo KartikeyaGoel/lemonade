@@ -1337,3 +1337,62 @@ refreshed by a weekday cron and committed, so nothing on a child's device calls
 a data provider and there is no key in the browser. A phone app would put a
 server behind this. **The experience it produces is identical**, which is the
 whole job of a prototype.
+
+---
+
+## 43. Pip, and the two things a real kid told us
+
+The first middle schooler to play this quit on day eighteen, bored, and
+described the end-of-day statement as so much text that he skipped it. Both
+complaints turned out to be the same problem, and neither was a shortage of
+things to do.
+
+**He had no goal and no finish line.** The goal strip on the stand was wrapped
+in `dayLabel === undefined` — true in Act 1, false in every act after it — so
+the objective vanished on day eight and never came back, and the header dropped
+its `/ 14` at the same moment. Day eighteen is Act 2, day eleven of fourteen:
+three days from the sale the whole arc is built towards. Act 2's aim existed as
+a finished string on the one screen he had no reason to open.
+
+**He had nobody to talk to.** `grep -rn "<Coach"` found five speech bubbles, all
+five in Act 1's first day, all five interface instruction. The game has a voice
+for one day out of twenty-one.
+
+So: Pip. Six moments, every one on a screen that already existed, no screen
+added and nothing gated.
+
+**The rule Pip exists under, which is not a style preference.** Pip may name
+what happened. Pip may never say what to do next. *"You sold every cup. Sixty
+people wanted one and you had thirty-two"* is observation, and it leaves the
+decision where it belongs. *"Make more cups tomorrow"* is the game playing the
+game: it destroys the demand curve the kid is here to discover, and it turns
+every claim in the grown-up report into a measure of how well a child follows
+instructions. A kid who did what the duck said has taught us nothing we can
+honestly report to his mother. Stating the *objective* is not advice; naming a
+cost line is not advice; suggesting a price, a batch or a purchase is.
+
+**Why Pip makes the ledger collapsible, and the risk in that.** From day four
+the statement folds and Pip carries one line of it out front. Twenty-one
+renders of a dozen rows were never twenty-one readings — they were three
+readings and eighteen skips, so the exposure was already worth nothing. The
+real risk is the opposite one: a summary good enough that the ledger is never
+opened again would swap a fact the kid can check for an adult telling him he
+did well, which is worse than the wall. Three things prevent it:
+
+- Pip names a *line* of the statement and its real number, never the profit on
+  its own, so the sentence is one number short and the missing number is in the
+  ledger.
+- The line follows whatever actually decided the day, so across the arc a kid
+  who only reads Pip still meets revenue, ingredients, the costs owed anyway,
+  spoilage and capacity — one at a time, which is the same decision this spec
+  already made about vocabulary.
+- `ledgerStartsOpen` overrides the fold on any day carrying a row he has never
+  seen, and says so: *"Something new today: first losing day."* He can never
+  miss a new line item. He only ever gets the folded version of a statement he
+  has already read three times.
+
+**The line nobody was saying.** *Every stock is somebody else's lemonade
+stand* is the first line of this spec, the first line of the README and the
+spine of the pitch — and until Pip it was never once said to the child playing.
+It is now the payoff beat on the market screen, and the opening beat on the
+title screen is its other half.

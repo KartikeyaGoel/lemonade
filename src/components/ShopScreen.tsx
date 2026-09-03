@@ -8,7 +8,8 @@ import {
   type GameState,
   totalLemons,
 } from '@/lib/simulation';
-import { ChunkyButton, Coach, HeaderBar, SignHeading, Sky, money } from './ui';
+import { PipBubble } from './Pip';
+import { ChunkyButton, HeaderBar, SignHeading, Sky, money } from './ui';
 
 /**
  * Shopping, as one decision.
@@ -70,7 +71,7 @@ export function ShopScreen({
         </div>
 
         {firstEver && !touched && (
-          <Coach className="mt-3">Slide it. Watch the shopping list change.</Coach>
+          <PipBubble className="mt-3">Slide it. Watch the shopping list change.</PipBubble>
         )}
 
         <input

@@ -31,7 +31,6 @@ import {
 import { STAFF, UPGRADES, type BusinessState } from '@/lib/business';
 import {
   ChunkyButton,
-  Coach,
   GoalStrip,
   HeaderBar,
   Sheet,
@@ -40,6 +39,7 @@ import {
   WeatherArt,
   money,
 } from './ui';
+import { PipBubble, PipSays } from './Pip';
 import { StandScene, type SpotId } from './StandScene';
 
 /**
@@ -71,6 +71,7 @@ export function PlanScreen({
   business,
   dayLabel,
   stage,
+  guide,
   note,
   onOpen,
   onInvest,
@@ -97,6 +98,15 @@ export function PlanScreen({
    * arithmetic on the starting cash. Every later act has to be told.
    */
   stage?: { goal: string; day?: number; total?: number };
+  /**
+   * Pip, on the stand.
+   *
+   * Two beats land here and both are about a kid who has stopped knowing why
+   * he is pressing the button: the bench, which is the only planning tool in
+   * the game, and Act 2's stall — past halfway with no manager hired, which is
+   * the exact state the one playtester quit in.
+   */
+  guide?: { lines: readonly string[]; onDismiss: () => void } | null;
   /** One line of context above the stand, when the day is not an ordinary one. */
   note?: string;
   onOpen: (targetCups: number, price: number) => void;
@@ -223,6 +233,10 @@ export function PlanScreen({
           </p>
         )}
 
+        {guide && (
+          <PipSays className="mt-2" lines={guide.lines} onDismiss={guide.onDismiss} />
+        )}
+
         {stage ? (
           <GoalStrip>{stage.goal}</GoalStrip>
         ) : (
@@ -260,9 +274,9 @@ export function PlanScreen({
             as a picture and go looking for the sliders that are no longer
             there. */}
         {!poked && (
-          <Coach point="up" className="-mt-1">
+          <PipBubble point="up" className="-mt-1">
             Tap the sign to change your price. Tap the lemons to make more.
-          </Coach>
+          </PipBubble>
         )}
 
         {/* The lab book. Reads like the row of saved attempts down the side of a
@@ -313,9 +327,9 @@ export function PlanScreen({
         ) : (
           rehearsable &&
           poked && (
-            <Coach className="mt-2">
+            <PipBubble className="mt-2">
               Now try it on yesterday&apos;s crowd. Being wrong here is free.
-            </Coach>
+            </PipBubble>
           )
         )}
       </div>

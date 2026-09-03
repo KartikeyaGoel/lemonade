@@ -1,9 +1,9 @@
 'use client';
 
 import { FORECAST_COPY, type GameState, ECON, weekSummary } from '@/lib/simulation';
+import { PipBubble } from './Pip';
 import {
   ChunkyButton,
-  Coach,
   GoalStrip,
   Ground,
   HeaderBar,
@@ -74,7 +74,7 @@ export function MorningScreen({ state, onContinue }: { state: GameState; onConti
         </div>
 
         {firstEver && (
-          <Coach className="relative z-10 mb-1">Buy lemons first. Then pick a price.</Coach>
+          <PipBubble className="relative z-10 mb-1">Buy lemons first. Then pick a price.</PipBubble>
         )}
 
         <ChunkyButton variant="lemon" full onClick={onContinue} className="relative z-10">
