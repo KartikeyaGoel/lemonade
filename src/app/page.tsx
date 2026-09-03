@@ -14,6 +14,8 @@ import {
   type Insight,
 } from '@/lib/simulation';
 import {
+  ACT2_DAYS,
+  act2Progress,
   signUpRegulars,
   advanceRival,
   applyWeeklyChoice,
@@ -1145,6 +1147,24 @@ export default function Page() {
               : game.act === 1
                 ? undefined
                 : `Day ${game.stand.history.length + 1}`
+          }
+          /* The goal, on the screen the kid actually lives on.
+             Act 1 derives its own; Acts 2 and 3 had none at all, which is why
+             a real kid ground to day eighteen and quit three days short. Act
+             2's line is the same string the shop has always shown — it was
+             just only on the shop. */
+          stage={
+            game.weekend
+              ? undefined
+              : game.act === 2
+                ? {
+                    goal: act2Progress(game.business, act2Day).nextStep,
+                    day: act2Day,
+                    total: ACT2_DAYS,
+                  }
+                : game.act === 3
+                  ? { goal: 'Find out what the whole stand is worth.' }
+                  : undefined
           }
           note={
             game.weekend

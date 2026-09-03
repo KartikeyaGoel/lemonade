@@ -70,6 +70,7 @@ export function PlanScreen({
   params = DEFAULT_DAY_PARAMS,
   business,
   dayLabel,
+  stage,
   note,
   onOpen,
   onInvest,
@@ -79,6 +80,23 @@ export function PlanScreen({
   params?: DayParams;
   business?: BusinessState;
   dayLabel?: string;
+  /**
+   * The act's own goal and its own clock, for every act that is not Act 1.
+   *
+   * This exists because of the sharpest piece of playtest evidence we have. A
+   * kid played eighteen days and quit bored — and day eighteen is Act 2, day
+   * eleven of fourteen, three days from the end. The cause is visible right
+   * here: the goal strip below used to be wrapped in `dayLabel === undefined`,
+   * which is true in Act 1 and false in every act after it. So the objective
+   * vanished on day eight and never came back, and the header dropped its
+   * `/ 14` at the same moment. He was grinding an unbounded day loop with no
+   * stated aim and no finish line, and the one screen that did name the aim
+   * was the shop, which he had no reason to open.
+   *
+   * Act 1 still derives both from `ECON`, because its goal really is
+   * arithmetic on the starting cash. Every later act has to be told.
+   */
+  stage?: { goal: string; day?: number; total?: number };
   /** One line of context above the stand, when the day is not an ordinary one. */
   note?: string;
   onOpen: (targetCups: number, price: number) => void;
@@ -182,8 +200,8 @@ export function PlanScreen({
     <Sky mood={state.forecast}>
       <WeatherArt mood={state.forecast} />
       <HeaderBar
-        day={state.history.length + 1}
-        totalDays={dayLabel ? null : ECON.TOTAL_DAYS}
+        day={stage?.day ?? state.history.length + 1}
+        totalDays={stage?.total ?? (dayLabel ? null : ECON.TOTAL_DAYS)}
         // "Day 18" next to a heading that says Saturday reads as a bug. When
         // the day has its own name, the header uses it.
         label={note ? dayLabel : undefined}
@@ -205,11 +223,15 @@ export function PlanScreen({
           </p>
         )}
 
-        {dayLabel === undefined && (
-          <GoalStrip>
-            {ECON.TOTAL_DAYS - state.history.length} days left · {money(state.cash)} of{' '}
-            {money(ECON.STARTING_CASH)} start
-          </GoalStrip>
+        {stage ? (
+          <GoalStrip>{stage.goal}</GoalStrip>
+        ) : (
+          dayLabel === undefined && (
+            <GoalStrip>
+              {ECON.TOTAL_DAYS - state.history.length} days left · {money(state.cash)} of{' '}
+              {money(ECON.STARTING_CASH)} start
+            </GoalStrip>
+          )
         )}
 
         <StandScene

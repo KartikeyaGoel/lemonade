@@ -18,6 +18,21 @@ import { ChunkyButton, Coach, HeaderBar, SignHeading, Sky, money } from './ui';
  * then shown to them, which is where unit cost is actually taught: they see
  * that 28 cups costs $5.60, that it works out at about 20c a cup, and that
  * supplies come in lumps.
+ *
+ * The receipt's hierarchy is inverted from where it started, and the reason
+ * is a playtest note worth writing down: a real kid described this screen as
+ * so much text that he skipped it. He was right to. Three itemised lines, a
+ * total, a unit cost and two explanatory paragraphs is six things to read, and
+ * only one of them changes the decision he is about to make on the very next
+ * screen — what a cup costs him, which is the floor his price has to clear.
+ * That line was the smallest and faintest thing on the card, under the total.
+ *
+ * So it leads now. The itemisation stays open, because this screen is only
+ * ever reached on a run's first day — `morning → shop → price` runs at the
+ * start of a run and every later day goes straight to the stand — and on day
+ * one the receipt *is* the unit-cost lesson. The screen he was actually
+ * describing is the daily profit and loss, which is where the disclosure
+ * belongs, because that one fires twenty-one times.
  */
 export function ShopScreen({
   state,
@@ -77,55 +92,76 @@ export function ShopScreen({
           <span>as much as you can afford</span>
         </div>
 
-        {/* The receipt. This is the unit-cost lesson, shown not told. */}
+        {/* The receipt. This is the unit-cost lesson, shown not told — with the
+            one line that feeds the next decision on top. */}
         <div className="mt-5 rounded-2xl border-[3px] border-ink/15 bg-white/85 p-4">
-          <div className="mb-2 font-body text-xs font-extrabold uppercase tracking-widest text-ink/50">
-            Shopping list
-          </div>
-
-          <ReceiptLine
-            emoji="🍋"
-            label={`Lemons x${plan.order.buyLemons}`}
-            note={`${ECON.CUPS_PER_LEMON} cups each`}
-            amount={plan.cost.lemons}
-          />
-          <ReceiptLine
-            emoji="🥄"
-            label={`Sugar x${plan.order.buySugarPacks}`}
-            note={`${ECON.SUGAR_SERVINGS_PER_PACK} cups each`}
-            amount={plan.cost.sugar}
-          />
-          <ReceiptLine
-            emoji="🥤"
-            label={`Cups x${plan.order.buyCupPacks}`}
-            note={`${ECON.CUPS_PER_CUP_PACK} per pack`}
-            amount={plan.cost.cups}
-          />
-
-          <div className="mt-2 border-t-2 border-dashed border-ink/20 pt-2">
+          {/* Two numbers, and they are genuinely different quantities rather
+              than two views of one. What a cup costs to make is the floor the
+              price has to clear. What leaves the cash box today is bigger,
+              because lemons come whole and packs come in tens. Labelling them
+              precisely is what stops them reading as a contradiction. */}
+          {plan.cupsMakeable > 0 && (
+            <div className="flex items-end justify-between">
+              <div>
+                <div className="font-body text-xs font-extrabold uppercase tracking-widest text-ink/50">
+                  Each cup costs you
+                </div>
+                <div className="font-sign text-4xl leading-none text-wood-deep">
+                  {money(plan.costPerCup)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-body text-xs font-extrabold uppercase tracking-widest text-ink/50">
+                  Out of the box
+                </div>
+                <div className="font-ledger text-xl font-extrabold tabular-nums text-ink">
+                  {money(plan.cost.total)}
+                </div>
+              </div>
+            </div>
+          )}
+          {plan.cupsMakeable === 0 && (
             <div className="ledger-row font-extrabold">
               <span>Total to spend</span>
               <span>{money(plan.cost.total)}</span>
             </div>
-            {plan.cupsMakeable > 0 && (
-              <div className="ledger-row mt-1 text-ink/60">
-                <span>Cost per cup</span>
-                <span>{money(plan.costPerCup)}</span>
-              </div>
-            )}
-          </div>
+          )}
 
-          {hasPantry && (
-            <p className="mt-3 font-body text-xs font-bold text-ink/60">
-              Using what you already have first: {pantryLemons} lemons, {state.sugarServings} sugar,{' '}
-              {state.cupsInStock} cups.
-            </p>
-          )}
-          {plan.cupsMakeable > plan.targetCups && plan.targetCups > 0 && (
-            <p className="mt-2 font-body text-xs font-bold text-ink/60">
-              Lemons come whole and packs come in tens, so you get {plan.cupsMakeable} cups.
-            </p>
-          )}
+          <div className="mt-3 border-t-2 border-dashed border-ink/20 pt-2">
+            <div className="mb-1 font-body text-xs font-extrabold uppercase tracking-widest text-ink/50">
+              What you are buying
+            </div>
+              <ReceiptLine
+                emoji="🍋"
+                label={`Lemons x${plan.order.buyLemons}`}
+                note={`${ECON.CUPS_PER_LEMON} cups each`}
+                amount={plan.cost.lemons}
+              />
+              <ReceiptLine
+                emoji="🥄"
+                label={`Sugar x${plan.order.buySugarPacks}`}
+                note={`${ECON.SUGAR_SERVINGS_PER_PACK} cups each`}
+                amount={plan.cost.sugar}
+              />
+              <ReceiptLine
+                emoji="🥤"
+                label={`Cups x${plan.order.buyCupPacks}`}
+                note={`${ECON.CUPS_PER_CUP_PACK} per pack`}
+                amount={plan.cost.cups}
+              />
+
+              {hasPantry && (
+                <p className="mt-3 font-body text-xs font-bold text-ink/60">
+                  Using what you already have first: {pantryLemons} lemons,{' '}
+                  {state.sugarServings} sugar, {state.cupsInStock} cups.
+                </p>
+              )}
+              {plan.cupsMakeable > plan.targetCups && plan.targetCups > 0 && (
+                <p className="mt-2 font-body text-xs font-bold text-ink/60">
+                  Lemons come whole and packs come in tens, so you get {plan.cupsMakeable} cups.
+                </p>
+              )}
+          </div>
         </div>
 
         <div className="mt-auto flex gap-3 pt-6">
