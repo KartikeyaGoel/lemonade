@@ -10,7 +10,7 @@
  * Clash Royale is a live service. It has no ending, its content is a repeatable
  * three-minute match, and its systems sit beside each other — Battle, Cards,
  * Shop, Clan — so a hub with spokes is the honest shape of it. This game is a
- * campaign: four acts, in order, with a finish. Its systems sit *after* each
+ * campaign: five stages, in order, with a finish. Its systems sit *after* each
  * other. A tab bar would misrepresent the product, and a tab bar on a screen
  * whose first-run job is "one thing to tap" would undo the entry.
  *
@@ -26,7 +26,7 @@
  * map. Duolingo shows the path. You do not need a way to *go* there; you need
  * to *see* it.
  *
- * So: a road with four stops, one line, always on the title screen including
+ * So: a road with five stops, one line, always on the title screen including
  * the first run. It is a picture, not a menu. Nothing on it is a place you can
  * jump to and nothing on it is a decision — tapping a stop says what it is and
  * what opens it, which is exactly what a padlock in Clash of Clans does.
@@ -40,7 +40,7 @@ import type { Career } from './career';
 export type StopState = 'done' | 'here' | 'locked';
 
 export interface Stop {
-  id: 1 | 2 | 3 | 4;
+  id: 1 | 2 | 3 | 4 | 5;
   /** Two words at most: this is read at a glance, at eleven pixels. */
   name: string;
   emoji: string;
@@ -61,24 +61,31 @@ const STOPS: Array<Omit<Stop, 'state'>> = [
   },
   {
     id: 2,
-    name: 'Grow it',
-    emoji: '📈',
-    what: 'Spend money to make money. A cooler, a helper, a better pitch — and somebody opens up across the road.',
+    name: 'More stands',
+    emoji: '\u{1F4C8}',
+    what: 'A cooler, a helper, a bigger pitch. Then somebody to mind it, so you can go and open another one.',
     opensWhen: 'Finish your first week.',
   },
   {
     id: 3,
-    name: 'Sell it',
-    emoji: '🤝',
-    what: 'Find out what your business is worth, and to whom. Somebody will offer to buy it.',
-    opensWhen: 'Build something worth buying.',
+    name: 'A shop',
+    emoji: '\u{1F3EA}',
+    what: 'A door, a counter and a rent you owe on the day nobody comes. The rain stops deciding how you do.',
+    opensWhen: 'Run two stands at once.',
   },
   {
     id: 4,
+    name: 'Go public',
+    emoji: '\u{1F514}',
+    what: 'Cut the whole thing into a thousand pieces. Sell some, keep the rest, and watch what one piece is worth.',
+    opensWhen: 'Make the shop pay for itself.',
+  },
+  {
+    id: 5,
     name: 'The market',
-    emoji: '💹',
-    what: 'Real companies, real prices, real accounts. Apple and Nike are lemonade stands with more zeros — and now you can read one.',
-    opensWhen: 'Sell your stand and take the money with you.',
+    emoji: '\u{1F4B9}',
+    what: 'Real companies, real prices, real accounts. Apple and Nike are lemonade stands with more zeros \u2014 and now you can read one.',
+    opensWhen: 'Put your own company on the market first.',
   },
 ];
 
@@ -108,6 +115,6 @@ export function roadLine(game: Game, career: Career): string {
     return 'Learn it on lemonade. Then do it with real companies.';
   }
   const reached = road(game).filter((stop) => stop.state !== 'locked').length;
-  if (game.act === 4) return 'You made it to the market. This is what it was all for.';
-  return `${reached} of 4 · next up: ${STOPS[game.act]?.name.toLowerCase() ?? 'the market'}`;
+  if (game.act === 5) return 'You made it to the market. This is what it was all for.';
+  return `${reached} of ${STOPS.length} \u00b7 next up: ${STOPS[game.act]?.name.toLowerCase() ?? 'the market'}`;
 }

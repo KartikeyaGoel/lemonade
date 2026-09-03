@@ -392,3 +392,157 @@ describe('the week', () => {
     expect(outcomes.has('hot')).toBe(true);
   });
 });
+
+describe('the mercy rule is a number, not magic', () => {
+  /*
+   * The floor is a retention rule and it stays: a kid who goes broke on day
+   * three quits, and PRODUCT.md §4 caps the downside on purpose. But it creates
+   * money, and while the whole business was one table and a $5 fee the gap was
+   * pennies. With a rent, a second pitch, a wage and a loan repayment, a bad
+   * day was inventing most of a hundred dollars behind a sentence that said
+   * only "your original $20 is protected" — so the two figures on the cash line
+   * did not reconcile with the profit above them, in the one screen a child is
+   * told they can check by hand.
+   */
+  it('reports what it put in, so the cash line closes', () => {
+    const state = { ...createInitialState(99), cash: 30 };
+    const outcome = runDay(
+      state,
+      { ...orderForTargetCups(state, 4), price: 4.9 },
+      { fixedCosts: [{ label: 'Rent', amount: 60 }], cashFloor: ECON.STARTING_CASH, lastDay: null },
+    );
+    expect(outcome.cashFloored).toBe(true);
+    expect(outcome.cashTopUp).toBeGreaterThan(0);
+    /*
+     * The whole point: the figure the day really ended on, plus the top-up, is
+     * exactly what is in the box. Deliberately not `cashBefore + profit` —
+     * cash and profit are different stories in this ledger, because cash pays
+     * for every lemon bought and profit counts only the ones sold.
+     */
+    expect(outcome.cashAfter - outcome.cashTopUp).toBeLessThan(ECON.STARTING_CASH);
+    expect(outcome.cashAfter).toBe(ECON.STARTING_CASH);
+  });
+
+  it('puts nothing in on a day that did not need it', () => {
+    const state = createInitialState(99);
+    const outcome = runDay(state, { ...orderForTargetCups(state, 28), price: 1.6 });
+    expect(outcome.cashFloored).toBe(false);
+    expect(outcome.cashTopUp).toBe(0);
+    expect(outcome.cashAfter - outcome.cashTopUp).toBe(outcome.cashAfter);
+  });
+
+  it('puts nothing in when there is no floor at all', () => {
+    // The Saturday stand runs without one, because a floor on an investment
+    // account would quietly print money into it.
+    const state = { ...createInitialState(99), cash: 20 };
+    const outcome = runDay(
+      state,
+      { ...orderForTargetCups(state, 4), price: 4.9 },
+      { fixedCosts: [{ label: 'Rent', amount: 60 }], cashFloor: null, lastDay: null },
+    );
+    expect(outcome.cashTopUp).toBe(0);
+    expect(outcome.cashAfter).toBeLessThan(0);
+  });
+});
+
+/**
+ * The close screen's cash box must close.
+ *
+ * §4's rule is that any two figures shown together reconcile with the third on
+ * paper, and the cash line is where that is hardest: profit charges the lemons
+ * a kid *used*, cash pays for the lemons they *bought*, and those differ on
+ * every day the pantry is not empty at both ends. The screen names the gap now
+ * — "ingredients you paid for earlier" — and this is the arithmetic that
+ * sentence is claiming.
+ *
+ * Found by playing: a $10.02 loss took the cash box from $250.00 to $240.90,
+ * and nothing on screen accounted for the ninety-two cents.
+ */
+describe('profit, the pantry and the cash box', () => {
+  /**
+   * Exactly what the screen prints, from the three halves the outcome reports.
+   *
+   * The spoilage term is not decoration: without it this closes on every day
+   * except one where fruit went in the bin, which is the version that shipped
+   * first and the version `tests/fuzz.test.ts` caught.
+   */
+  const shiftOf = (o: {
+    ingredients: { total: number };
+    spoilageCost: number;
+    purchases: { cost: { total: number } };
+  }) =>
+    Math.round((o.ingredients.total + o.spoilageCost - o.purchases.cost.total) * 100) / 100;
+
+  it('closes on a day that stocks up from nothing', () => {
+    const state = stateWith({ cash: 200 });
+    const o = runDay(state, { ...orderForTargetCups(state, 45), price: 1.5 });
+    // Bought more than was drunk, so cash falls further than profit.
+    expect(shiftOf(o)).toBeLessThanOrEqual(0);
+    expect(o.cashBefore + o.profit + shiftOf(o) + o.cashTopUp).toBeCloseTo(o.cashAfter, 2);
+  });
+
+  it('closes on a day that lives off yesterday’s pantry', () => {
+    const stocked = stateWith({ cash: 200 });
+    const first = runDay(stocked, { ...orderForTargetCups(stocked, 60), price: 1.5 });
+    // Buy nothing today: every cup comes out of what is already in the pantry.
+    const o = runDay(first.nextState, {
+      buyLemons: 0,
+      buySugarPacks: 0,
+      buyCupPacks: 0,
+      price: 1.5,
+    });
+    expect(o.purchases.cost.total).toBe(0);
+    expect(shiftOf(o)).toBeGreaterThan(0);
+    expect(o.cashBefore + o.profit + shiftOf(o) + o.cashTopUp).toBeCloseTo(o.cashAfter, 2);
+  });
+
+  /*
+   * The property, not the instance. A week of a business that buys
+   * erratically — including days it buys nothing at all, which is the case
+   * that produced the original gap — and the cash box closes on every one.
+   */
+  it('closes on every day of a week of erratic shopping', () => {
+    let state = stateWith({ cash: 400 });
+    for (let day = 0; day < ECON.TOTAL_DAYS; day++) {
+      const target = [0, 60, 20, 0, 45, 90, 10][day];
+      const order =
+        target === 0
+          ? { buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0 }
+          : orderForTargetCups(state, target);
+      const o = runDay(state, { ...order, price: 1.4 + (day % 3) * 0.2 });
+      expect(o.cashBefore + o.profit + shiftOf(o) + o.cashTopUp).toBeCloseTo(o.cashAfter, 2);
+      state = o.nextState;
+    }
+  });
+});
+
+/**
+ * And the day the fruit goes in the bin.
+ *
+ * Called out separately from the property test because this is the exact case
+ * the first version of the pantry line got wrong, and a named test is what
+ * stops somebody simplifying the arithmetic back.
+ */
+describe('the cash box on a day with spoiled lemons', () => {
+  it('closes, with the thrown-away fruit accounted for', () => {
+    const state = {
+      ...createInitialState(5),
+      day: 6,
+      cash: 500,
+      lemonLots: [{ lemons: 26, purchasedOnDay: 1 }],
+      sugarServings: 40,
+      cupsInStock: 40,
+    };
+    const o = runDay(state, { buyLemons: 6, buySugarPacks: 0, buyCupPacks: 0, price: 1.5 });
+    expect(o.spoiledLemons).toBeGreaterThan(0);
+
+    const withSpoilage =
+      Math.round((o.ingredients.total + o.spoilageCost - o.purchases.cost.total) * 100) / 100;
+    expect(o.cashBefore + o.profit + withSpoilage + o.cashTopUp).toBeCloseTo(o.cashAfter, 2);
+
+    // And the version without it does not close, which is why the term is there.
+    const withoutSpoilage =
+      Math.round((o.ingredients.total - o.purchases.cost.total) * 100) / 100;
+    expect(o.cashBefore + o.profit + withoutSpoilage + o.cashTopUp).not.toBeCloseTo(o.cashAfter, 2);
+  });
+});

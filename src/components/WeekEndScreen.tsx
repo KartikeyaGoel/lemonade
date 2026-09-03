@@ -1,6 +1,7 @@
 'use client';
 
 import { ECON, closingTakeaway, type GameState, weekSummary } from '@/lib/simulation';
+import { ACT_TITLES } from '@/lib/progress';
 import { ChunkyButton, Sky, money } from './ui';
 
 /**
@@ -72,9 +73,13 @@ export function WeekEndScreen({
           <div aria-hidden className="text-4xl">
             🧊
           </div>
-          <div className="mt-1 font-sign text-3xl text-ink">Act 2: Scale</div>
+          {/* Read from `ACT_TITLES`, not typed in. It said "Act 2: Scale"
+              here for as long as the act was called Scale, and went on saying
+              it after the act was renamed — a stale name on the one screen
+              whose job is to make a kid want the next thing. */}
+          <div className="mt-1 font-sign text-3xl text-ink">Act 2: {ACT_TITLES[2].name}</div>
           <p className="mt-1 font-body text-sm font-bold text-ink/65">
-            A cooler. A better spot. Someone else behind the counter.
+            {ACT_TITLES[2].promise}
           </p>
         </div>
 

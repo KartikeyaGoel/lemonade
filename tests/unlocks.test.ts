@@ -91,12 +91,15 @@ describe('each system arrives at the moment it makes sense', () => {
   });
 
   it('offers a club only once the kid has their own money in the market', () => {
-    expect(isUnlocked('club', { ...withDays(20), act: 3 }, createCareer())).toBe(false);
-    expect(isUnlocked('club', { ...withDays(20), act: 4 }, createCareer())).toBe(true);
+    // The market is the fifth stage now: the listing stage comes before it, and
+    // a kid arguing about Apple with three friends before they have ever owned
+    // a share of anything is the club arriving before it means anything.
+    expect(isUnlocked('club', { ...withDays(20), act: 4 }, createCareer())).toBe(false);
+    expect(isUnlocked('club', { ...withDays(20), act: 5 }, createCareer())).toBe(true);
   });
 
   it('offers a new season only once a run has finished', () => {
-    const game = { ...withDays(20), act: 4 as const, portfolio: createPortfolio(100, 1) };
+    const game = { ...withDays(20), act: 5 as const, portfolio: createPortfolio(100, 1) };
     expect(isUnlocked('seasons', game, createCareer())).toBe(false);
     const finished = { ...game, portfolio: { ...game.portfolio!, status: 'closed' as const } };
     expect(isUnlocked('seasons', finished, createCareer())).toBe(true);

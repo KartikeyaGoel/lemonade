@@ -51,10 +51,15 @@ export default function Error({
       </button>
       {/* A hard reload rather than a client-side link: the React tree has
           already thrown, so the thing most likely to recover is a fresh one. */}
+      {/* 44 tall, not 16.
+          This is the escape hatch on the one screen a child reaches when
+          everything else has already failed, and it was the smallest tap
+          target in the product. The underline is what makes it read as the
+          quieter of the two choices; the height is what makes it pressable. */}
       <button
         type="button"
         onClick={() => window.location.assign('/')}
-        className="font-body text-xs font-extrabold text-ink/50 underline"
+        className="flex h-11 items-center px-4 font-body text-xs font-extrabold text-ink/50 underline"
       >
         or go back to the start
       </button>

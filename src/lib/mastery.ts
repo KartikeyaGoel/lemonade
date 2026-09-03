@@ -40,9 +40,12 @@
 
 import type { DayRecord } from './simulation';
 import { judgeDealChoice } from './ownership';
+import { LOCATIONS, STAFF } from './business';
+import { SHOP } from './retail';
 import { positionFraction, type PortfolioState } from './market';
 import type { Game } from './progress';
 import type { ThesisScore } from './thesis';
+import { plural } from './copy';
 
 export type SkillId =
   | 'reads-the-queue'
@@ -51,6 +54,11 @@ export type SkillId =
   | 'holds-under-attack'
   | 'buys-capacity-when-it-binds'
   | 'judges-on-a-run'
+  | 'delegates-to-grow'
+  | 'reads-the-street'
+  | 'covers-the-fixed-cost'
+  | 'chooses-how-to-fund-it'
+  | 'sizes-what-to-sell'
   | 'prices-a-business'
   | 'reason-held-up'
   | 'spreads-the-risk'
@@ -79,7 +87,7 @@ export interface Skill {
   /** What it means, in the kid's words. Used everywhere else. */
   plain: string;
   /** Which act it becomes possible in, so nothing looks missing too early. */
-  act: 1 | 2 | 3 | 4;
+  act: 1 | 2 | 3 | 4 | 5;
   /** Separate occasions before this counts as held. */
   needed: number;
   sightings: Sighting[];
@@ -90,7 +98,7 @@ interface Detector {
   id: SkillId;
   grownUpName: string;
   plain: string;
-  act: 1 | 2 | 3 | 4;
+  act: 1 | 2 | 3 | 4 | 5;
   needed: number;
   find: (game: Game, theses: ThesisScore[]) => Sighting[];
 }
@@ -156,7 +164,7 @@ const DETECTORS: Detector[] = [
         .filter(([today, tomorrow]) => soldOut(today) && tomorrow.price > today.price)
         .map(([today, tomorrow]) => ({
           when: `Day ${today.day}`,
-          what: `Sold all ${today.cupsSold} cups with ${turnedAway(today)} people turned away, then put the price up to ${money(tomorrow.price)}.`,
+          what: `Sold all ${plural(today.cupsSold, 'cup')} with ${plural(turnedAway(today), 'person', 'people')} turned away, then put the price up to ${money(tomorrow.price)}.`,
         })),
   },
   {
@@ -175,7 +183,7 @@ const DETECTORS: Detector[] = [
         )
         .map(([today, tomorrow]) => ({
           when: `Day ${today.day}`,
-          what: `Poured away ${leftOver(today)} cups, then made ${tomorrow.cupsMade} instead of ${today.cupsMade} the next morning.`,
+          what: `Poured away ${plural(leftOver(today), 'cup')}, then made ${tomorrow.cupsMade} instead of ${today.cupsMade} the next morning.`,
         })),
   },
   {
@@ -206,7 +214,7 @@ const DETECTORS: Detector[] = [
         })
         .map(([today, tomorrow]) => ({
           when: `Day ${tomorrow.day}`,
-          what: `Forecast went from ${plainSky(today.forecast)} to ${plainSky(tomorrow.forecast)}, so the batch went from ${today.cupsMade} cups to ${tomorrow.cupsMade}.`,
+          what: `Forecast went from ${plainSky(today.forecast)} to ${plainSky(tomorrow.forecast)}, so the batch went from ${plural(today.cupsMade!, 'cup')} to ${tomorrow.cupsMade}.`,
         })),
   },
   {
@@ -245,7 +253,7 @@ const DETECTORS: Detector[] = [
       return [
         {
           when: `Day ${worst.day}`,
-          what: `Turned ${turnedAway(worst)} people away, on ${short.length} days of running short, and bought the room to serve them.`,
+          what: `Turned ${plural(turnedAway(worst), 'person', 'people')} away, on ${plural(short.length, 'day')} of running short, and bought the room to serve them.`,
         },
       ];
     },
@@ -270,10 +278,106 @@ const DETECTORS: Detector[] = [
         })),
   },
   {
+    id: 'delegates-to-grow',
+    grownUpName: 'Pays a wage to lift a constraint on themselves',
+    plain: 'You paid somebody to mind a stand so you could go and work another one.',
+    act: 2,
+    needed: 1,
+    find: (game) => {
+      const b = game.business;
+      if (!b.staff.manager || b.stands.length === 0) return [];
+      return [
+        {
+          when: 'The second stand',
+          what: `Put a manager on ${LOCATIONS[b.location].name.toLowerCase()} at $${STAFF.manager.wage} a day, then opened up at ${LOCATIONS[b.stands[0].location].name.toLowerCase()}.`,
+        },
+      ];
+    },
+  },
+  {
+    id: 'reads-the-street',
+    grownUpName: 'Understands that a second site can cannibalise the first',
+    plain: 'You put your second stand somewhere new instead of next to the first one.',
+    act: 2,
+    needed: 1,
+    find: (game) => {
+      const b = game.business;
+      const fresh = b.stands.filter((stand) => stand.location !== b.location);
+      if (fresh.length === 0) return [];
+      return [
+        {
+          when: 'The second stand',
+          what: `Opened at ${LOCATIONS[fresh[0].location].name.toLowerCase()} rather than doubling up on a pitch that was already yours.`,
+        },
+      ];
+    },
+  },
+  {
+    id: 'covers-the-fixed-cost',
+    grownUpName: 'Trades through a day where fixed costs dominate',
+    plain: 'You made money on a cold day, with the rent still owed.',
+    act: 3,
+    needed: 2,
+    find: (game) => {
+      if (!game.business.shop.open) return [];
+      return game.stand.history
+        .filter((day) => day.weather === 'cold' && day.profit > 0 && (day.fixedCost ?? 0) >= SHOP.rent)
+        .map((day) => ({
+          when: `Day ${day.day}`,
+          what: `Cold day, $${(day.fixedCost ?? 0).toFixed(2)} owed before opening, and still made ${money(day.profit)}.`,
+        }));
+    },
+  },
+  {
+    id: 'chooses-how-to-fund-it',
+    grownUpName: 'Chose between debt and equity, and can say what each cost',
+    plain: 'You decided how to pay for the shop, and you know what that choice cost you.',
+    act: 3,
+    needed: 1,
+    find: (game) => {
+      if (!game.business.shop.open) return [];
+      const out: Sighting[] = [];
+      if (game.business.loan) {
+        out.push({
+          when: 'The shop',
+          what: `Borrowed $${game.business.loan.principal} and took on $${game.business.loan.daily.toFixed(2)} a day owed whatever happened.`,
+        });
+      } else if (game.ownership.equitySoldPct > 0) {
+        out.push({
+          when: 'The shop',
+          what: `Sold ${Math.round(game.ownership.equitySoldPct * 100)}% of the business rather than borrow, so nothing is owed on a bad day.`,
+        });
+      } else {
+        out.push({
+          when: 'The shop',
+          what: 'Saved up the whole fit-out rather than borrow or sell a slice.',
+        });
+      }
+      return out;
+    },
+  },
+  {
+    id: 'sizes-what-to-sell',
+    grownUpName: 'Weighs cash raised against ownership given up',
+    plain: 'You picked how much of your company to sell, not just whether to sell.',
+    act: 4,
+    needed: 1,
+    find: (game) => {
+      const listing = game.listing;
+      if (!listing.listed) return [];
+      return [
+        {
+          when: 'The listing',
+          what: `Sold ${Math.round(listing.floated * 100)}% for ${money(listing.raised)} and kept ${Math.round(listing.founderShare * 100)}%, at ${money(listing.ipoPrice)} a piece.`,
+        },
+      ];
+    },
+  },
+  {
     id: 'prices-a-business',
     grownUpName: 'Compares a price against what a business earns',
     plain: 'You worked out which stand was worth more, not which was cheaper.',
-    act: 3,
+    act: 4,
     needed: 1,
     find: (game) => {
       const choice = game.ownership.comparisonChoiceId;
@@ -292,7 +396,7 @@ const DETECTORS: Detector[] = [
     id: 'reason-held-up',
     grownUpName: 'Buys for a reason, and the reason is what happened',
     plain: 'You said why before you bought, and you were right for that reason.',
-    act: 4,
+    act: 5,
     needed: 2,
     find: (_game, theses) =>
       theses
@@ -308,7 +412,7 @@ const DETECTORS: Detector[] = [
     id: 'spreads-the-risk',
     grownUpName: 'Spreads money across businesses',
     plain: 'You did not put everything into one company.',
-    act: 4,
+    act: 5,
     needed: 1,
     find: (game) => {
       const portfolio = game.portfolio;
@@ -329,7 +433,7 @@ const DETECTORS: Detector[] = [
     id: 'sat-on-cash',
     grownUpName: 'Does nothing when there is nothing worth doing',
     plain: 'You kept money back instead of spending it because you could.',
-    act: 4,
+    act: 5,
     needed: 1,
     find: (game) => {
       const portfolio = game.portfolio;
@@ -339,7 +443,7 @@ const DETECTORS: Detector[] = [
       return [
         {
           when: `Week ${portfolio.week}`,
-          what: `Went ${quiet} weeks without trading while holding ${money(portfolio.cash)} in cash.`,
+          what: `Went ${plural(quiet, 'week')} without trading while holding ${money(portfolio.cash)} in cash.`,
         },
       ];
     },

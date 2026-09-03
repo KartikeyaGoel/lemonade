@@ -9,14 +9,19 @@ and what has to be true of the game before we're allowed to say it.
 
 | After | They genuinely understand | They would still get hurt by |
 |---|---|---|
-| **Act 1** (shipped) | What a business is. Revenue vs profit. Unit cost, margin, fixed cost, break-even. That one day's result is noise. | Everything else. Act 1 is a business literacy act, not an investing act. |
-| **Act 2** | Capacity, capex vs opex, compounding, opportunity cost, ownership without labour. | Valuation. They know how to *run* a business, not how to *price* one. |
-| **Act 3** | Multiples. Why a growing business costs more per dollar of profit. Comparison shopping between two businesses. | Diversification. Behavioural discipline. Competition. |
-| **Act 4** | How to read a real company the way they read their own stand. | Nothing structural — *if* the three gaps in section 4 are closed. |
+| **Act 1** | What a business is. Revenue vs profit. Unit cost, margin, fixed cost, break-even. That one day's result is noise. | Everything else. Act 1 is a business literacy act, not an investing act. |
+| **Act 2** | Capacity, capex vs opex, compounding, opportunity cost, ownership without labour — and why a firm hires at all, because a wage is the only way to be in two places at once. | Valuation. They know how to *run* a business, not how to *price* one. |
+| **Act 3** | What a fixed cost owed on a bad day feels like. Break-even as a number of cups. That the two ways of raising money cost two different things. | Valuation, still. They can run something big and cannot yet say what it is worth. |
+| **Act 4** | Multiples. Why a growing business costs more per dollar of profit. Comparison shopping. **A share price, arrived at by dividing their own company by a thousand — and watched moving, once, for a reason they can name.** | Diversification. Behavioural discipline over more than one week. |
+| **Act 5** | How to read a real company the way they read their own stand. | Nothing structural — *if* the three gaps in section 4 are closed. |
 
-So: **Act 1 alone, no.** The full four-act ladder, yes — but only with the
-additions in section 4. As specced today, there are three holes big enough to
-produce exactly the bloodbath we're trying to prevent.
+So: **Act 1 alone, no.** The full five-stage ladder, yes — but only with the
+additions in section 4.
+
+The fifth row used to be the fourth, and the gap that closed is worth naming
+precisely, because it was the one place the product's own thesis was not being
+served: a child met their first share price on *Apple*, having never once had
+one of their own. `FRAMEWORK.md` is the audit that established it.
 
 ---
 
@@ -57,12 +62,12 @@ of potential gain. Act 1 already contains the primitive form of both halves:
   weather is not the same as making money, because the price also had to be
   right.
 
-**The missing piece, and where it goes:** in Act 3, when the kid is shown a
+**The missing piece, and where it goes:** on the deal board, when the kid is shown a
 growing stand and a flat stand, the growing one must *already cost more*. The
 lesson lands when they realise the thing they spotted was already in the price,
 and the only way to win is to be right about something the price doesn't yet
 say. That is the exact correction to the Apple Intelligence reasoning, and it
-should be the emotional peak of Act 3 — not a footnote.
+should be part of the emotional peak of the listing stage — not a footnote.
 
 ---
 
@@ -75,7 +80,7 @@ Nowhere in Acts 1–4 does a kid learn not to put everything in one thing. This
 is the highest-consequence omission on the list, because it's the one that
 turns a wrong opinion into a wiped-out account.
 
-*Fix:* Act 4 seeds the portfolio with the buyout proceeds and caps any single
+*Fix:* the market seeds the portfolio with what the kid walked out with and caps any single
 position at a fraction of it. Make the cap a visible, earned mechanic — the
 cap loosens as they hold more names. They should feel the concentration limit
 before they understand it.
@@ -95,7 +100,7 @@ monotonic-progression rule (which is right for retention) actively trains the
 belief that *things only go up* — which is the worst possible prior to carry
 into a real market.
 
-*Fix:* Act 4 must break the floor. Simulated positions have to be allowed to
+*Fix:* the market must break the floor. Simulated positions have to be allowed to
 fall, and the reward has to go to the kid who held a good business through a
 drawdown. The parent view should report "held through a 15% drop" as evidence,
 because it is the single best predictor of real-world outcomes.
@@ -108,16 +113,25 @@ The continuity has to be arithmetic, not analogy. A kid should be able to see
 it's literally the same sum.
 
 ```
-Act 3   Someone offers $270 for your stand.
+Act 4   Someone offers $270 for your stand.
         Your stand makes $34 a week.
         270 / 34 = 8.   "Eight times weekly profit."
 
-Act 4   Chipotle costs $X a share.
+        The public will pay 11, so the company is worth $374.
+        374 / 1000 pieces = $0.37 a piece.
+        That is a share price, and it is theirs.
+
+Act 5   Chipotle costs $X a share.
         Chipotle earns $Y a share per year.
         X / Y = 25.     "Twenty-five times yearly profit."
 
 Same division. Bigger numbers. That ratio is called PE.
 ```
+
+The middle block is the step this document used to be missing, and it is one
+division rather than a new idea. It is also the answer to the sharpest thing
+`FRAMEWORK.md` found: without it, the first share price a child ever sees
+belongs to somebody else.
 
 Then the two moves that make it usable:
 
@@ -139,12 +153,12 @@ already made in-game:
 2. Has held a strategy through a losing day rather than changing it on one
    day's noise. *(Act 1 can already measure this.)*
 3. Has correctly ranked two businesses by multiple and explained the cheaper
-   one wasn't automatically better. *(Act 3)*
+   one wasn't automatically better. *(the deal board)*
 4. Has passed on a deal because the price was too high — not because the
-   business was bad. *(Act 3; this is the hardest and most important.)*
-5. Has sized a position below the cap voluntarily. *(Act 4)*
+   business was bad. *(the deal board; the hardest and most important.)*
+5. Has sized a position below the cap voluntarily. *(the market)*
 
-Until 1–4 are true, Act 4 stays read-only research. A kid can look at real
+Until 1–4 are true, the market stays read-only research. A kid can look at real
 companies and compute the same ratios they computed for their stand, but
 cannot commit simulated money. That's a defensible gate, and it's also good
 product: the lock is what makes the unlock feel earned.
@@ -153,22 +167,30 @@ product: the lock is what makes the unlock feel earned.
 
 ## 7. Status
 
-**Built and tested — all four acts.**
+**Built and tested — all five stages.**
 
 | Act | Mechanics shipped |
 |---|---|
 | 1 | Day loop, two-dial cockpit, verifiable P&L, earned vocabulary, calibration scoring, 7-day price/profit chart |
-| 2 | Capex (cooler, sign, fresh-squeezed) vs opex (helper, manager), park location, an undercutting rival with a price floor, weekly reinvest-or-cash-out, manager-run days |
-| 3 | Equity offer with visible payback, three stands for sale at different multiples, buyout priced on trailing weekly profit with a growth premium, PE bridge generated from the kid's own sale |
-| 4 | Real-company research cards, 35% position cap, 12 weeks of price movement with a scripted market scare, drawdown/panic-sale bookkeeping, finale |
-| — | Parent view, readiness gate, save migration |
-| Meta | Trophy case (30 badges, all state-derived), earned-word glossary (26 words), rank ladder, career record across seasons, Same-Sky Challenge, investment club, thesis engine, reckoning screen, seasons |
+| 2 | Capex (cooler, sign, fresh-squeezed) vs opex (helper, manager), pitches, an undercutting rival with a price floor, weekly reinvest-or-cash-out, manager-run days — and a **second stand**, gated on having somebody to mind the first, with a half-crowd penalty for doubling up on a pitch you already work and per-stand takings on the close screen |
+| 3 | A **shop**: fit-out paid once, rent owed on the day nobody comes, staff at a wage, and a demand floor under the weather. Break-even printed in cups. Three ways to pay for it — wait, borrow at 25%, or sell a slice on a dial — with a repayment line owed whatever the day was like |
+| 4 | Equity dial with visible payback, three stands for sale at different multiples, buyout priced on trailing weekly profit with a growth premium, PE bridge from the kid's own sale — and a **listing**: a thousand shares, a price that is `value / 1000`, a float dial showing cash raised against ownership given up, and a week lived as a public company with the price move attributed to the two numbers that caused it |
+| 5 | Real-company research cards, 35% position cap, 12 weeks of price movement with a scripted market scare, drawdown/panic-sale bookkeeping, finale |
+| — | Parent view, readiness gate, save migration (v3 → v4: the ownership act became Act 4 and the market became Act 5; nobody is sent back to do the shop) |
+| Meta | Trophy case (40 badges, all state-derived), earned-word glossary (34 words), rank ladder, career record across seasons, Same-Sky Challenge, investment club, thesis engine, reckoning screen, seasons |
 
-**Gaps 1 and 2 from section 4 are now closed** (position cap in Act 4; rival in
-Act 2). **Gap 3 is closed in mechanism** — Act 4 lets prices fall, the week-5
-scare is scripted so it always happens, and holding through it is measured and
-reported. Verified across 25 seeds: every diversified player experiences at
-least one holding down 10% or more.
+**Gaps 1 and 2 from section 4 are now closed** (position cap in the market;
+rival in Act 2). **Gap 3 is closed in mechanism** — the market lets prices fall,
+the week-5 scare is scripted so it always happens, and holding through it is
+measured and reported. Verified across 25 seeds: every diversified player
+experiences at least one holding down 10% or more.
+
+**And Gap 3 now gets a rehearsal before the market.** A founder who lists trades
+a week as a public company and watches their own price move — often down, since
+a re-rate on a soft week is the common case. A child practising discipline on
+something of their own, before it happens to a stranger's company with money
+that was never theirs, is a materially better first encounter than the one this
+document used to describe.
 
 ## 8. The retention question, which is a learning question
 
@@ -185,7 +207,7 @@ What was added for that, and what each thing is actually for:
 |---|---|
 | **Trophy case** (30 badges) | Every badge names a business concept and is awarded only for a decision that demonstrates it. No badge exists for time played. Rank derives from badges, so the only way up is to demonstrate something new. |
 | **Words you earned** (26 words) | Closes a real gap: the first build taught the P/E ratio as arithmetic and never said the words. Concepts you cannot name are concepts you cannot discuss or be corrected on. |
-| **The round** (Act 2) | Recurring revenue, felt from the inside — give up margin, get customers who turn up in the cold — and then *paid for* in Act 3 as extra weeks of profit on the multiple. Business model → valuation, in one loop. |
+| **The round** (Act 2) | Recurring revenue, felt from the inside — give up margin, get customers who turn up in the cold — and then *paid for* at the sale as extra weeks of profit on the multiple. Business model → valuation, in one loop. |
 | **Same-Sky Challenge** | The seed is the week, so two kids get identical weather and the entire difference is decisions. The screen decomposes the gap into price, volume, fixed costs and waste, and the four lines sum to the gap. |
 | **Investment club** | You cannot spend the pot without a written thesis, and a tie fails. Defending a number to a peer who can vote you down is how people learn to value things. Attribution reports money made and reasoning-that-held-up as two separate boards. |
 | **Thesis + reckoning** | The anti-bloodbath mechanism. A quantitative claim checked against the company's real metrics, a qualitative claim in their own words, then a 2×2 twelve weeks later. The box that matters is *made money, reason was wrong* — the game says "that was luck" out loud. |
@@ -203,7 +225,7 @@ it, and the invariant is enforced by test:
   the name field folded into it. Three other systems come true at the same
   moment and stay silent, because they explain themselves where they appear.
 - The challenge arrives at the end of Act 1 (there is now a week to send), the
-  club in Act 4 (there is now money in a real company), seasons after the
+  club in the market (there is now money in a real company), seasons after the
   finale.
 - Rewards never arrive in front of a result. Playing it revealed both halves of
   that: an unlock card appeared instead of the kid's first profit and loss
@@ -224,7 +246,7 @@ and nothing on a child's device ever calls a data provider.
 **Prices are real weekly closes**, five years of them, on one shared date axis
 so a market-wide fall lands on every company in the same week.
 
-**Act 4 replays a real stretch of history.** The kid's own seed picks twelve
+**The market replays a real stretch of history.** The kid's own seed picks twelve
 weeks out of the five years and they are not told which. This replaced a random
 walk with a scripted week-5 crash, and it is a straight upgrade:
 
@@ -319,7 +341,7 @@ What it does not do is remove the risk. The rehearsal is yesterday and says so.
 Today's sky is still unknown, so a kid who optimises hard against yesterday and
 then meets a cold day loses money — and learns the second lesson, which is that
 a good decision and a good outcome are different things. That lesson has its own
-badge, and it is the one that matters most in Act 4.
+badge, and it is the one that matters most in the market.
 
 ## 11. What playing it for ten minutes with fresh eyes cost us
 
@@ -376,7 +398,7 @@ The deepest thing in the product is now one number on the playbook screen:
 
 > Across 224 real twelve-week stretches — **59% of them ended ahead.**
 
-Everything else in Act 4 teaches a kid to reason about *a* company. This teaches
+Everything else in the market teaches a kid to reason about *a* company. This teaches
 them what a strategy *is*: not a result, a distribution of results. It is the
 difference between "I made 8%, I'm good at this" and "these rules come out ahead
 about six times in ten, and the worst stretch cost 27%."
@@ -434,7 +456,7 @@ used to be true.
 
 Honest list, after this pass:
 
-- **Act 3 is a set of choice moments, and that is fine.** The deal board is a
+- **The listing stage is a set of choice moments, and that is fine.** The deal board is a
   real three-way comparison with a reveal; the weekly fork is a genuine binary.
   Neither is a form pretending to be a game, so neither got the treatment Act 2
   got. Converting them into places would be decoration.
@@ -510,7 +532,37 @@ I trusted the number instead of reading the output, I would have spent an hour
 rewriting copy that was already fine. A measurement you have not sanity-checked
 against its own worst cases is not evidence.
 
-## 18. What is still not true
+## 18. What the five-stage arc changed about all of this
+
+Everything above section 7 was written for a four-act arc. What actually moved,
+in the terms this document cares about:
+
+- **Shares and share price stopped being somebody else's.** They were the two
+  concepts on the customer's list with no mechanic anywhere in the game, and
+  they were the two the whole product points at. A child now cuts their own
+  company into a thousand pieces, divides to get the price, sells some, and
+  watches it move once.
+- **Behavioural discipline gets a rehearsal.** Section 4's Gap 3 was closed in
+  the market and nowhere earlier. A founder who lists trades a week and usually
+  watches their own price fall, because a soft week re-rates. That is a better
+  first encounter with a falling price than a stranger's company with money that
+  was never theirs.
+- **Capital became a decision.** The investor offer used to arrive where the kid
+  did not need the money. It now sits beside a shop they cannot afford and a bank
+  that wants it back, with waiting on the list as a real third answer.
+- **Hiring got its reason.** "Runs the stand without you" was a way to be paid
+  for nothing. It is now the only way to be in two places at once, which is why
+  firms hire, and a child can work that out rather than be told it.
+- **Five mastery skills were added**, all demonstration rather than exposure,
+  and `tests/reachable.test.ts` now asserts that every badge and every new skill
+  has a reachable state that produces it — because restructuring the arc made one
+  badge unearnable and nothing noticed.
+
+What it did **not** change: the readiness gate, which is still four demonstrated
+behaviours and still the honest answer to "when is it time to trade"; the Act 1
+constants; and the market itself.
+
+## 19. What is still not true
 
 Honest, after all of this:
 
@@ -519,7 +571,7 @@ Honest, after all of this:
   players. Whether a real eleven-year-old learns anything is unmeasured, and no
   amount of further building will change that. The next real step is not code.
 - **The arc does finish.** Played end to end for the first time this session:
-  Act 4 → the twelve-week finale → "Season 2 — new street" → a fresh Day 1 with
+  the market → the twelve-week finale → "Season 2 — new street" → a fresh Day 1 with
   the career intact. That run turned up one real bug — every badge still queued
   from the finished season arrived as a toast over the new season's first
   morning, eleven of them in the pathological case. A reward for something that
@@ -531,7 +583,7 @@ Honest, after all of this:
   and the biggest remaining drag on the social loop.
 - **Quarterly fundamentals.** Still 10-K only; see §9.
 
-## 19. An hour lost to a service worker, and the guard that ends it
+## 20. An hour lost to a service worker, and the guard that ends it
 
 An edit to `ParentScreen.tsx` compiled, passed its tests, and was not on the
 screen. Three restarts and an `rm -rf .next` later, the cause:
@@ -561,7 +613,7 @@ in this repo passed while the thing on the screen was wrong, because every
 check reads the source and the browser was not reading the source. A test suite
 cannot tell you that the artefact under test is not the artefact being served.
 
-## 20. Two clocks, and a rolling window that eats indices
+## 21. Two clocks, and a rolling window that eats indices
 
 Building the live market surfaced two bugs of the same family: **an index is
 not a fact about the world, and a row is not a week.**

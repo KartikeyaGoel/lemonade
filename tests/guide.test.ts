@@ -43,6 +43,7 @@ const context = (over: Partial<GuideContext> = {}): GuideContext => ({
   act2Day: 1,
   hasManager: false,
   inMarket: false,
+  listed: false,
   ...over,
 });
 
@@ -182,21 +183,39 @@ describe('the thread', () => {
   });
 
   it('states the act’s objective rather than a way of reaching it', () => {
-    // "Your stand can run without you" is the goal of the act. "Somebody may
-    // want to buy it" is the payoff, and it is about what somebody else does.
-    // Neither is a route: the word that would make this advice is `hire`.
+    /*
+     * "Somebody else could mind this stand" is the state of the world. "Then
+     * your hands would be free" is the consequence, and it is the thing the act
+     * is actually about now that a manager is the unlock rather than the
+     * finish. Neither is a route: the word that would make this advice is
+     * `hire`, and Pip is never allowed to say it.
+     */
     const stall = lineFor('act2-stall').says.join(' ');
-    expect(stall).toMatch(/without you/i);
+    expect(stall).toMatch(/mind this stand|hands would be free/i);
     expect(stall).not.toMatch(/\bhire\b/i);
     expect(stall).not.toMatch(/\byou (should|could|need to|have to)\b/i);
   });
 
+  it('names the market differently for a founder who kept the company', () => {
+    // Two doors lead into the market and they are not the same story. Telling
+    // a kid who sold up "your company has a price now" is a line about a run
+    // they did not have.
+    const sold = nextBeat(context({ act: 5, listed: false }), ['welcome']);
+    const kept = nextBeat(context({ act: 5, listed: true }), ['welcome']);
+    expect(sold!.id).toBe('act5-open-sold');
+    expect(kept!.id).toBe('act5-open');
+    expect(sold!.says.join(' ')).toMatch(/sold/i);
+    expect(kept!.says.join(' ')).toMatch(/price/i);
+  });
+
   it('gives every act after the first a handoff', () => {
+    // Every stage after the first, and the market twice — once for each door.
     for (const [act, beat] of [
       [2, 'act2-open'],
       [3, 'act3-open'],
       [4, 'act4-open'],
-    ] as Array<[2 | 3 | 4, Beat]>) {
+      [5, 'act5-open-sold'],
+    ] as Array<[2 | 3 | 4 | 5, Beat]>) {
       expect(nextBeat(context({ act }), ['welcome'])?.id).toBe(beat);
     }
   });

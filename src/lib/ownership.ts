@@ -1,24 +1,34 @@
 /**
- * Act 3 — Ownership.
+ * Ownership: what a slice costs, and what the whole thing is worth.
  *
  * The emotional peak. The kid stops being someone who runs a business and
  * becomes someone who owns one, which means learning that a business has a
  * price, and that the price and the business are two different questions.
  *
- * Three beats, in order:
- *   1. An investor offers cash today for a slice of every future profit.
- *      Dilution, felt daily afterwards.
- *   2. A buyer offers a multiple of trailing weekly profit for the lot.
- *      This multiple is PE, arrived at by division the kid can do.
- *   3. Before deciding, the kid is shown other stands for sale at different
- *      multiples and must pick the best deal. The growing one costs the most.
- *      Spotting a good business is not the same as getting a good price.
+ * Three beats, and they no longer all sit in one stage — which is the change
+ * worth writing down, because it is the whole of PRODUCT.md §4's rule about
+ * not teaching a concept before the wall that motivates it:
+ *
+ *   1. **An investor offers cash today for a slice of every future profit.**
+ *      This used to arrive in the ownership act, where the kid did not need the
+ *      money and the offer was therefore something to read rather than decide.
+ *      It now lives in Stage 3, next to a shop they cannot afford, alongside a
+ *      bank that wants the money back — see `src/lib/retail.ts`. Same offer,
+ *      and now a real decision with two other real answers beside it.
+ *   2. **Three stands for sale at three multiples**, ranked. The growing one
+ *      costs the most. Spotting a good business is not the same as getting a
+ *      good price, and this has to happen *before* the kid is handed a multiple
+ *      for their own company or they have nothing to judge it against.
+ *   3. **A buyer offers a multiple of trailing weekly profit for the lot.**
+ *      This multiple is PE, arrived at by division the kid can do. It is now
+ *      one of two ways out — see `src/lib/listing.ts` for the other.
  *
  * Pure module. No React, no I/O.
  */
 
 import { round2, type DayRecord } from './simulation';
 import { growthRate, regularShareOfSales, trailingWeeklyProfit } from './business';
+import { plural } from './copy';
 
 /* ------------------------------------------------------------------ *
  * State
@@ -65,9 +75,48 @@ export function createOwnershipState(): OwnershipState {
  * Beat 1 — the equity offer
  * ------------------------------------------------------------------ */
 
+/** The slice the dial opens on. */
 export const EQUITY_SLICE = 0.2;
 /** Weeks of the investor's slice that they are willing to pay up front. */
 export const EQUITY_OFFER_WEEKS = 5;
+
+/**
+ * The slices the investor will consider.
+ *
+ * This used to be the single constant above, and a fixed slice on a card is
+ * something a kid reads rather than something a kid decides. PRODUCT.md §4 is
+ * explicit that dials and their consequences belong on the same screen, and
+ * this is the first decision in the game where the consequence arrives every
+ * day for the rest of the run: sell a bigger slice, take more cash today, and
+ * watch more of every close screen leave.
+ */
+export const EQUITY_SLICES = [0.1, 0.15, 0.2, 0.25, 0.3] as const;
+
+/**
+ * The most of the business the investor is ever allowed to end up holding.
+ *
+ * A ceiling rather than a rule the kid has to remember, because the whole
+ * point of the beat is that a slice is *cheap today and expensive forever* —
+ * and a child who can sell it all has been handed a way to lose the business
+ * without ever being told that is what they were doing. Half keeps them the
+ * owner, which is the fact the buyout in Beat 2 depends on.
+ *
+ * It lives here and not on the funding screen because it constrains
+ * `acceptEquity`, and it used to live *only* on the screen. That split was a
+ * real defect: the screen filtered the slices on offer additively — a kid who
+ * had sold 30% was shown 10%, 15% and 20% — while `acceptEquity` *replaced*
+ * the stored slice instead of adding to it. So a second sale paid the kid
+ * again and left them owing **less**: sell 30% for $36, come back and sell
+ * 20% for $24, and the investor's share drops from 30% to 20% having paid
+ * $60 for it. Two files modelling one rule, and only one of them right.
+ *
+ * Reachable on the ordinary path, not a corner: on a modest week the largest
+ * slice raises about $36 against a $600 fit-out, so returning to the shop plot
+ * for a second go is the *normal* experience, and `page.tsx` says as much —
+ * "come back, which is the honest answer and is a better lesson than a
+ * disabled button".
+ */
+export const MAX_EQUITY_SOLD = 0.5;
 
 export interface EquityOffer {
   slice: number;
@@ -87,29 +136,75 @@ export interface EquityOffer {
  * We never tell them it is a bad deal. They can work it out, and either way
  * the cash is genuinely useful today.
  */
-export function equityOffer(history: DayRecord[]): EquityOffer {
+export function equityOffer(history: DayRecord[], slice: number = EQUITY_SLICE): EquityOffer {
   const weekly = trailingWeeklyProfit(history);
-  const weeklyCost = round2(weekly * EQUITY_SLICE);
+  const chosen = nearestSlice(slice);
+  const weeklyCost = round2(weekly * chosen);
   return {
-    slice: EQUITY_SLICE,
+    slice: chosen,
     cash: round2(weeklyCost * EQUITY_OFFER_WEEKS),
     weeklyCost,
     paybackWeeks: EQUITY_OFFER_WEEKS,
   };
 }
 
+/** Snaps a dragged dial to a slice the investor actually offers. */
+export function nearestSlice(slice: number): number {
+  return EQUITY_SLICES.reduce((best, option) =>
+    Math.abs(option - slice) < Math.abs(best - slice) ? option : best,
+  );
+}
+
+/**
+ * Is there room under the ceiling for this slice?
+ *
+ * Exported so the caller can refuse *before* it puts the cash in the box.
+ * `acceptEquity` alone is not enough: `page.tsx` adds `offer.cash` to the
+ * stand and then calls this module, so a sale this module quietly declined
+ * would leave the kid holding money for a slice nobody received.
+ */
+export function canSellSlice(ownership: OwnershipState, slice: number): boolean {
+  return round2(ownership.equitySoldPct + slice) <= MAX_EQUITY_SOLD;
+}
+
 export function acceptEquity(
   ownership: OwnershipState,
   offer: EquityOffer,
 ): OwnershipState {
+  /*
+   * Added to what was already sold, not written over it. A kid can reach this
+   * twice — the shop's fit-out is far more than one slice raises — and each
+   * sale is a fresh slice of what is left, paid for on top of the last. The
+   * cash has always accumulated; the slice used to not, which meant selling
+   * more of the business made the investor's cut smaller. See
+   * `MAX_EQUITY_SOLD`.
+   *
+   * A slice that will not fit is refused outright rather than trimmed to fit.
+   * Clamping was the first attempt and it was the same defect wearing the
+   * other face: the slice stopped at the ceiling while the cash carried on
+   * up, so the kid was paid for something they never handed over. The two
+   * ledgers move together or neither moves.
+   */
+  if (!canSellSlice(ownership, offer.slice)) {
+    return { ...ownership, equityOfferSeen: true };
+  }
+
   return {
     ...ownership,
-    equitySoldPct: offer.slice,
+    equitySoldPct: round2(ownership.equitySoldPct + offer.slice),
     equityOfferSeen: true,
     equityCashReceived: round2(ownership.equityCashReceived + offer.cash),
   };
 }
 
+/**
+ * Records that the offer was on the table and another way was taken.
+ *
+ * Called when the shop is paid for out of cash or borrowed for, because both of
+ * those *are* decisions about the investor — they are turning her down. There
+ * is no longer a screen whose only job is to decline her, and there should not
+ * be: her wall is the shop, and next to a bank.
+ */
 export function declineEquity(ownership: OwnershipState): OwnershipState {
   return { ...ownership, equityOfferSeen: true };
 }
@@ -234,7 +329,7 @@ export const HOLD_WEEKS = 26;
  *  - the best is neither cheapest nor dearest
  *
  * A kid who reaches for "cheap is good" or "expensive means quality" gets it
- * wrong, which is exactly the habit we are trying to break before Act 4.
+ * wrong, which is exactly the habit we are trying to break before the market.
  */
 export const STANDS_FOR_SALE: StandForSale[] = [
   {
@@ -339,9 +434,9 @@ export function judgeDealChoice(choiceId: string, weeks = HOLD_WEEKS): DealVerdi
 
   const correct = chosen.id === best.id;
   const lesson = correct
-    ? `${best.name} was not the cheapest. It cost ${best.askingMultiple} times its weekly profit while Bella's cost ${STANDS_FOR_SALE[0].askingMultiple}. You paid more per dollar of profit because that profit was growing.`
+    ? `${best.name} was not the cheapest. It cost ${plural(best.askingMultiple, 'time')} its weekly profit while Bella's cost ${STANDS_FOR_SALE[0].askingMultiple}. You paid more per dollar of profit because that profit was growing.`
     : chosen.id === worst.id
-      ? `${chosen.name} earns the same ${chosen.weeklyProfit} a week as the others but costs ${chosen.askingMultiple} times it. You would wait ${chosen.askingMultiple} weeks just to get your money back.`
+      ? `${chosen.name} earns the same ${chosen.weeklyProfit} a week as the others but costs ${plural(chosen.askingMultiple, 'time')} it. You would wait ${plural(chosen.askingMultiple, 'week')} just to get your money back.`
       : `${chosen.name} was the cheapest on the board, but its profit shrinks every week. Cheap is not the same as good value.`;
 
   return {
@@ -365,7 +460,7 @@ export function recordDealChoice(ownership: OwnershipState, choiceId: string): O
 }
 
 /* ------------------------------------------------------------------ *
- * The bridge to Act 4
+ * The bridge to the market
  * ------------------------------------------------------------------ */
 
 /**
@@ -381,12 +476,12 @@ export function peBridge(offer: BuyoutOffer): {
   const weekly = Math.max(0.01, offer.weeklyProfit);
   return {
     standLine: `Your stand makes $${weekly.toFixed(2)} a week. They offered $${offer.price.toFixed(2)}.`,
-    ratioLine: `$${offer.price.toFixed(2)} ÷ $${weekly.toFixed(2)} = ${offer.multiple}. They paid ${offer.multiple} times weekly profit.`,
+    ratioLine: `$${offer.price.toFixed(2)} ÷ $${weekly.toFixed(2)} = ${offer.multiple}. They paid ${plural(offer.multiple, 'time')} weekly profit.`,
     // Deliberately restated as a payback period rather than a percentage.
     // Your stand is priced on a WEEK of profit; a real company is priced on a
-    // YEAR of it. A kid who carries "12.5% a week" into Act 4 and meets a
+    // YEAR of it. A kid who carries "12.5% a week" into the market and meets a
     // company at 37x will do the sum in the wrong unit, so we name the unit
     // here instead of leaving them to notice.
-    yieldLine: `So it would take ${offer.multiple} weeks of profit to earn that price back. Real companies are priced the same way, counted in years instead of weeks.`,
+    yieldLine: `So it would take ${plural(offer.multiple, 'week')} of profit to earn that price back. Real companies are priced the same way, counted in years instead of weeks.`,
   };
 }

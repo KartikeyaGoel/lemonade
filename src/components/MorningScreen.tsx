@@ -2,16 +2,7 @@
 
 import { FORECAST_COPY, type GameState, ECON, weekSummary } from '@/lib/simulation';
 import { PipBubble } from './Pip';
-import {
-  ChunkyButton,
-  GoalStrip,
-  Ground,
-  HeaderBar,
-  SignHeading,
-  Sky,
-  WeatherArt,
-  money,
-} from './ui';
+import { ActionFooter, ChunkyButton, GoalStrip, Ground, HeaderBar, SignHeading, Sky, WeatherArt, money } from './ui';
 import { Stand } from './Stand';
 
 /**
@@ -67,11 +58,11 @@ export function MorningScreen({ state, onContinue }: { state: GameState; onConti
           </div>
         )}
 
-        <div className="relative mt-auto flex w-full flex-1 items-end justify-center pb-6">
+        <ActionFooter className="relative mt-auto flex w-full flex-1 items-end justify-center pb-6">
           <div className="animate-bob">
             <Stand price={yesterday?.price ?? 1} />
           </div>
-        </div>
+        </ActionFooter>
 
         {firstEver && (
           <PipBubble className="relative z-10 mb-1">Buy lemons first. Then pick a price.</PipBubble>

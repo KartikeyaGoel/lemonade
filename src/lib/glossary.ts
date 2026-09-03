@@ -19,14 +19,11 @@
  * Pure module. No React, no I/O.
  */
 
-import {
-  type DayRecord,
-  type Insight,
-  type InsightId,
-} from './simulation';
+import { type Insight, type InsightId } from './simulation';
 import type { BuyoutOffer } from './ownership';
+import { plural } from './copy';
 
-export type WordAct = 1 | 2 | 3 | 4;
+export type WordAct = 1 | 2 | 3 | 4 | 5;
 
 export interface GlossaryWord {
   id: InsightId;
@@ -173,60 +170,116 @@ export const GLOSSARY: GlossaryWord[] = [
     act: 2,
   },
   {
+    id: 'marketing',
+    word: 'Marketing',
+    kidLine: 'You paid for a sign, and more people walked over. You bought attention.',
+    grownUpLine: 'Money spent to be noticed. The question is always the same one: did more come back than went out?',
+    act: 2,
+  },
+  {
+    id: 'delegation',
+    word: 'Delegating',
+    kidLine: 'You paid somebody to mind the first stand, so you could go and run a second one.',
+    grownUpLine: 'Why firms hire at all. A wage buys back the founder\u2019s time, and time is the thing that was capping the business.',
+    act: 2,
+  },
+  {
+    id: 'break-even',
+    word: 'Break-even',
+    kidLine: 'The cups you have to sell before you have covered what you owe today.',
+    grownUpLine: 'Every business has a number of sales below which it loses money. Big fixed costs push it up fast.',
+    act: 3,
+  },
+  {
+    id: 'interest',
+    word: 'Interest',
+    kidLine: 'You borrowed $400 and you will hand back $500. The extra $100 is the cost of borrowing.',
+    grownUpLine: 'The price of money. It is owed whatever the business does, which is what makes debt sharper than selling a slice.',
+    act: 3,
+  },
+  {
     id: 'equity',
     word: 'Equity',
     kidLine: 'A slice of your stand that somebody else owns, forever, along with a slice of the profit.',
     grownUpLine: 'A share is exactly this. Buying one makes you a part-owner of a business, not a bettor on a squiggly line.',
-    act: 3,
+    act: 4,
   },
   {
     id: 'multiple',
     word: 'Multiple',
     kidLine: 'How many weeks of profit somebody wants for a stand. Six weeks or twenty-five weeks.',
     grownUpLine: 'Every business on earth is priced as a multiple of what it earns. Learn to compare multiples and you can compare anything.',
-    act: 3,
+    act: 4,
   },
   {
     id: 'pe-ratio',
     word: 'P/E ratio',
     kidLine: 'Your multiple, with a name. Price divided by profit — how long until you get your money back.',
     grownUpLine: 'Say it out loud: price to earnings. It is the first number people quote about a share, and now you know exactly what it is.',
-    act: 3,
+    act: 4,
   },
   {
     id: 'business-model',
     word: 'Business model',
     kidLine: 'How the money actually arrives. One cup to a stranger, or a standing order every day.',
     grownUpLine: 'Two firms with identical profit can be worth very different amounts, because one has to win its customers again and one does not.',
-    act: 3,
+    act: 4,
+  },
+  {
+    id: 'shares',
+    word: 'Shares',
+    kidLine: 'Your company cut into a thousand equal pieces. Owning one means owning a thousandth of it.',
+    grownUpLine: 'Ownership, made divisible. It is what lets a thousand strangers each own a bit of the same company.',
+    act: 4,
+  },
+  {
+    id: 'share-price',
+    word: 'Share price',
+    kidLine: 'What one piece of your company costs. It went up when you earned more than they expected.',
+    grownUpLine: 'A guess about the future, changing whenever the guess changes. Not a score for what already happened.',
+    act: 4,
+  },
+  {
+    id: 'market-cap',
+    word: 'Market value',
+    kidLine: 'Price of one piece, times the number of pieces. That is what the whole company is worth today.',
+    grownUpLine: 'Market capitalisation. The figure people mean by "how big is it", and it moves every day the price does.',
+    act: 4,
+  },
+  {
+    id: 'going-public',
+    word: 'Going public',
+    kidLine: 'You sold pieces to lots of people instead of the whole thing to one, and kept the rest.',
+    grownUpLine: 'An IPO. The founder takes money off the table, keeps control, and gains a price they now have to live with.',
+    act: 4,
   },
   {
     id: 'diversification',
     word: 'Diversification',
     kidLine: 'You owned three companies, so one of them falling did not sink you.',
     grownUpLine: 'The only free lunch in finance. It does not raise your return, it stops one mistake ending the game.',
-    act: 4,
+    act: 5,
   },
   {
     id: 'drawdown',
     word: 'Drawdown',
     kidLine: 'How far down your money went before it came back. It went down. You sat still.',
     grownUpLine: 'Every good long-term investment has terrifying stretches. Selling into them is how most people turn a dip into a loss.',
-    act: 4,
+    act: 5,
   },
   {
     id: 'thesis',
     word: 'Thesis',
     kidLine: 'The reason you bought it, written down before you bought it.',
     grownUpLine: 'Without one you cannot tell a good decision from a lucky one, and you will learn the wrong lesson from both.',
-    act: 4,
+    act: 5,
   },
   {
     id: 'luck-vs-skill',
     word: 'Luck and skill',
     kidLine: 'You made money on one where your reason turned out to be wrong. That was luck.',
     grownUpLine: 'Judge the decision, not the outcome. A run of luck mistaken for skill is how people lose far more later.',
-    act: 4,
+    act: 5,
   },
 ];
 
@@ -251,7 +304,7 @@ export interface WordProgress {
 
 export function wordProgress(learned: string[]): WordProgress {
   const held = new Set(learned);
-  const acts: WordAct[] = [1, 2, 3, 4];
+  const acts: WordAct[] = [1, 2, 3, 4, 5];
   return {
     earned: GLOSSARY.filter((word) => held.has(word.id)).length,
     total: GLOSSARY.length,
@@ -311,7 +364,7 @@ export function multipleInsight(bestName: string, bestMultiple: number, worstMul
   return {
     id: 'multiple',
     term: 'Multiple',
-    evidence: `${bestName} was asking ${bestMultiple} weeks of profit. The famous one wanted ${worstMultiple}.`,
+    evidence: `${bestName} was asking ${plural(bestMultiple, 'week')} of profit. The famous one wanted ${worstMultiple}.`,
     carriesForward:
       'Every business is priced as some number of times what it earns. Once you can compare that number you can compare a lemonade stand with an airline.',
   };
@@ -331,7 +384,7 @@ export function peRatioInsight(offer: BuyoutOffer): Insight {
     id: 'pe-ratio',
     term: 'P/E ratio',
     evidence: `Somebody paid ${money(offer.price)} for a stand earning ${money(offer.weeklyProfit)} a week. ${money(offer.price)} ÷ ${money(offer.weeklyProfit)} = ${offer.multiple}. That is your multiple.`,
-    carriesForward: `Real companies are priced the same way, only counted in years instead of weeks. Your ${offer.multiple} weeks is about ${months} ${months === 1 ? 'month' : 'months'} — a bargain nobody gets in real life. When someone says a share trades at a P/E of 20, they mean twenty years of profit, and you already know exactly what that sentence means.`,
+    carriesForward: `Real companies are priced the same way, only counted in years instead of weeks. Your ${plural(offer.multiple, 'week')} is about ${months} ${months === 1 ? 'month' : 'months'} — a bargain nobody gets in real life. When someone says a share trades at a P/E of 20, they mean twenty years of profit, and you already know exactly what that sentence means.`,
   };
 }
 
@@ -401,7 +454,3 @@ export function unrecorded(insights: Insight[], learned: string[]): Insight[] {
   });
 }
 
-/** History convenience: did a regular ever actually get served? */
-export function hasServedRegulars(history: DayRecord[]): boolean {
-  return history.some((day) => (day.subscriberCups ?? 0) > 0);
-}

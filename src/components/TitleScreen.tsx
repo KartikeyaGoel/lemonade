@@ -135,7 +135,12 @@ export function TitleScreen({
           <button
             type="button"
             onClick={onParent}
-            className="mt-4 rounded-full bg-white/45 px-4 py-1.5 font-body text-xs font-extrabold text-ink/60"
+            /* Stays visually quiet — it must not compete with the button a
+               child came for — but `py-2.5` gets it to a size a thumb can
+               actually land on. PRODUCT.md §41: this is the one screen built
+               to show a grown-up what the game teaches, and every parent
+               evaluating it cold has to find it exactly once. */
+            className="mt-4 inline-flex min-h-11 items-center rounded-full bg-white/45 px-4 py-2.5 font-body text-xs font-extrabold text-ink/60"
           >
             {parentLabel}
           </button>

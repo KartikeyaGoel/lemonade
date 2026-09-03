@@ -6,7 +6,7 @@
  * rise, and feel clever has taught them to gamble and told them it was
  * investing.
  *
- * So money does not move in Act 4 until there is a sentence, in two halves:
+ * So money does not move in the market until there is a sentence, in two halves:
  *
  *  - a **number reason**, picked from the company's actual metrics and then
  *    *checked against them*. A kid who claims a company is growing fast enough
@@ -34,7 +34,7 @@ export interface QuantClaim {
   /**
    * True when the company's own numbers support the claim *at this price*.
    *
-   * The price is passed in rather than read off the company because Act 4
+   * The price is passed in rather than read off the company because the market
    * replays real history — the kid is paying the price from the week they are
    * in, and a claim about value has to be judged against the price they are
    * actually paying, not against today's.

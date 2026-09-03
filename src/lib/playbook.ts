@@ -10,7 +10,7 @@
  * compounds — the kind nobody assigned.
  *
  * This game had no deck. It had decisions, one at a time, each argued from
- * scratch. A kid could play the whole of Act 4 well and still not be able to
+ * scratch. A kid could play the whole of the market well and still not be able to
  * say what their strategy *was*, because there was nowhere for a strategy to
  * live.
  *

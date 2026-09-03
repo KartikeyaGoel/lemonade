@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WEATHER_COPY, round2, type DayOutcome } from '@/lib/simulation';
 import { play } from '@/lib/sound';
-import { ChunkyButton, Ground, SignHeading, Sky, WeatherArt, money } from './ui';
+import { ChunkyButton, Ground, SignHeading, Sky, WeatherArt, money, plural } from './ui';
 import { Stand } from './Stand';
 import { CustomerSprite } from './Customer';
 
@@ -151,7 +151,7 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
       </div>
       <div className="relative z-30 mt-1.5 flex justify-center">
         <span className={`stat-chip !px-3 ${cupsLeft === 0 ? '!border-berry !text-berry' : ''}`}>
-          {cupsLeft > 0 ? `${cupsLeft} cups left to sell` : 'SOLD OUT'}
+          {cupsLeft > 0 ? `${plural(cupsLeft, 'cup')} left to sell` : 'SOLD OUT'}
         </span>
       </div>
 
@@ -198,7 +198,7 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
           <button
             type="button"
             onClick={() => setHurry(true)}
-            className="mx-auto block rounded-full bg-white/70 px-5 py-2 font-body text-sm font-extrabold text-ink/70"
+            className="mx-auto flex min-h-11 items-center rounded-full bg-white/70 px-5 py-2 font-body text-sm font-extrabold text-ink/70"
           >
             {hurry ? 'Hurrying…' : 'Tap to speed up'}
           </button>

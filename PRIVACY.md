@@ -20,16 +20,28 @@ parent can check it rather than take our word for it.
 
 ## Where the child's progress is stored
 
-In their own browser, in `localStorage`, on their own device. Three keys:
+In their own browser, in `localStorage`, on their own device. Six keys, and
+this is all of them:
 
 | Key | What is in it |
 |---|---|
 | `lemonade.save.v2` | The run in progress: the stand, the money, the days played |
 | `lemonade.career.v1` | Badges, words, companies read, and a first name if they typed one |
 | `lemonade.class.v1` | A teacher's class board, on the teacher's device only |
+| `lemonade.live.v1` | The practice portfolio: which companies were bought, at which week |
+| `lemonade.guide.v1` | Which of the guide's lines have already been said |
+| `lemonade.act1.v1` | A save from an early build, read once and then migrated |
 
-Clearing the browser's site data deletes all of it permanently. There is no
-copy anywhere else.
+## How to delete it
+
+Open **For a grown-up** from the title screen, scroll to the foot of the
+report, and press **Delete it from this device**. It asks once, tells you what
+it is about to remove, and then removes all six keys and lists them back to
+you. Clearing the browser's site data does the same thing.
+
+Either way it is permanent, including the badges and the words, and there is no
+copy anywhere else — so there is nothing we could restore even if you asked us
+to.
 
 ## The one name we ask for
 

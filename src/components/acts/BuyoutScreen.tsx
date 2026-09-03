@@ -1,14 +1,14 @@
 'use client';
 
 import { peBridge, type BuyoutOffer } from '@/lib/ownership';
-import { ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
 
 /**
  * The buyout. The emotional peak of the game, and the moment PE stops being a
  * ratio and becomes a cheque with the kid's name on it.
  *
  * The multiple is shown as the division that produced it, using their own
- * trailing profit, because the entire bridge to Act 4 rests on the kid seeing
+ * trailing profit, because the entire bridge to the market rests on the kid seeing
  * that it was one sum they could have done themselves.
  */
 export function BuyoutScreen({
@@ -26,7 +26,7 @@ export function BuyoutScreen({
 
   return (
     <Sky mood="dawn">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pb-28 pt-8">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pt-8" style={clearsBar()}>
         <div className="text-center">
           <div aria-hidden className="text-5xl">
             📄
@@ -96,7 +96,7 @@ export function BuyoutScreen({
           )}
         </div>
 
-        {/* The bridge to Act 4, generated from their real sale. */}
+        {/* The bridge to the market, generated from their real sale. */}
         <div className="mt-4 rounded-2xl border-[3px] border-dashed border-ink/30 bg-ink/5 p-4">
           <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/50">
             This ratio has a name
@@ -111,7 +111,7 @@ export function BuyoutScreen({
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/30 to-transparent pb-5 pt-8">
+      <PinnedBar className="z-30 bg-gradient-to-t from-black/30 to-transparent pb-5 pt-8">
         <div className="mx-auto w-full max-w-md space-y-2.5 px-4">
           <ChunkyButton variant="mint" full onClick={onAccept}>
             Sell for {money(offer.proceeds)}
@@ -122,7 +122,7 @@ export function BuyoutScreen({
             </ChunkyButton>
           )}
         </div>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }

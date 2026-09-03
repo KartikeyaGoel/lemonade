@@ -84,14 +84,48 @@ body {
   .ledger-row {
     @apply flex items-baseline justify-between gap-3 font-ledger text-[15px] tabular-nums;
   }
+
+  /*
+   * A narrower ledger on a narrower phone.
+   *
+   * The profit and loss is the one screen in this game a child is told they
+   * can check by hand, and every row of it is a label against a figure. At
+   * 320 pixels — an iPhone SE, which is a real device and not an edge case —
+   * the monospaced 15-pixel type ran a row like "300 pieces sold  $1539.00"
+   * about five pixels past the card, so the label wrapped and left its own
+   * figure on the line above it. A number that has come away from its label
+   * is worse than no label.
+   *
+   * Shrinking the type is the structural answer; the alternative was shaving
+   * a word off every label in the game until each one happened to fit, which
+   * would have to be redone the first time anybody wrote a new row.
+   */
+  @media (max-width: 359px) {
+    .ledger-row {
+      @apply gap-2 text-[13px];
+    }
+  }
 }
 
-/* Range inputs are the primary control in this game, so they get real work. */
+/*
+ * Range inputs are the primary control in this game, so they get real work.
+ *
+ * The height is the hit area, and it used to be 34px while the thumb drawn on
+ * top of it was 40px — so the top and bottom of the thumb a child can see were
+ * outside the element that receives the drag. Found by measuring every control
+ * in a browser rather than by looking at one: a screenshot shows a generous
+ * 40px thumb and cannot show that six of those pixels do nothing.
+ *
+ * 44px is Apple's guideline for a touch target, and a slider deserves it more
+ * than a button does — a drag has to stay inside the box for its whole
+ * journey, not just land in it once. The track and the thumb are unchanged, so
+ * this costs nothing visually.
+ */
 .slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 34px;
+  height: 44px;
   background: transparent;
 }
 .slider::-webkit-slider-runnable-track {
@@ -110,7 +144,8 @@ body {
   -webkit-appearance: none;
   height: 40px;
   width: 40px;
-  margin-top: -14px;
+  /* Centres the 40px thumb on the 18px track inside a 44px box. */
+  margin-top: -11px;
   border-radius: 999px;
   border: 4px solid #6e3b18;
   background: #fff8dc;

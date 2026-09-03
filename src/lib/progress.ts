@@ -1,6 +1,6 @@
 /**
  * The whole game: which act the kid is in, what they have demonstrated, and
- * whether they have earned the right to commit money in Act 4.
+ * whether they have earned the right to commit money in the market.
  *
  * The readiness gate is the spine of the product's honesty. We do not let a
  * kid put simulated money into real companies because they clicked through
@@ -25,6 +25,8 @@ import {
   type BusinessState,
 } from './business';
 import { createOwnershipState, judgeDealChoice, type OwnershipState } from './ownership';
+import { createListing, listingComplete, type Listing } from './listing';
+import { shopProgress, type ShopProgress } from './retail';
 import { createPortfolio, summarisePortfolio, type PortfolioState } from './market';
 import { BADGES, earnedBadges, type BadgeContext } from './achievements';
 import { GLOSSARY, wordProgress } from './glossary';
@@ -34,9 +36,31 @@ import type { ClubState } from './club';
 import { createPlaybook, type Playbook } from './playbook';
 import type { ChallengeSpec, RunResult } from './challenge';
 
-export type Act = 1 | 2 | 3 | 4;
+/**
+ * The five stages of the arc.
+ *
+ * Four for a very long time, and the fifth was not an addition so much as an
+ * admission: the arc claimed to run from a small business to a public company
+ * and stopped one step short, at a private sale. A kid sold their stand to one
+ * buyer and then met their first share price on Apple, having never had one.
+ *
+ * So the stands split into "one" and "more than one", the shop went in between
+ * — because a chain of pitches that all shut when it rains is the wall a door
+ * answers — and the ownership stage now ends at a listing.
+ */
+export type Act = 1 | 2 | 3 | 4 | 5;
 
-export const SAVE_VERSION = 3;
+/**
+ * Bumped from 3 for the five-stage arc.
+ *
+ * A save in the old Act 3 was in the ownership stage, which is now Act 4, and a
+ * save in the old Act 4 was in the market, which is now Act 5. See
+ * `migrateGame`: the shop stage is skipped for anybody already past it rather
+ * than inserted behind them, because sending a child back to do a stage they
+ * have already earned their way out of is the one thing a migration must never
+ * do.
+ */
+export const SAVE_VERSION = 4;
 
 /**
  * A same-sky challenge in progress: the seed both kids are playing, and the
@@ -63,6 +87,8 @@ export interface Game {
   stand: GameState;
   business: BusinessState;
   ownership: OwnershipState;
+  /** Shares, a share price, and every week since the company went public. */
+  listing: Listing;
   portfolio: PortfolioState | null;
   /** Insight ids already given, so a word is never taught twice. */
   learned: string[];
@@ -80,18 +106,29 @@ export interface Game {
    * than three.
    */
   pendingInsights: Insight[];
+  /**
+   * The day count the current stage started from.
+   *
+   * Stages used to be timed by subtracting `ECON.TOTAL_DAYS`, which worked
+   * while there was exactly one stage before the open-ended ones. It stops
+   * working the moment two stages in a row end on a *condition* rather than a
+   * clock: two kids can reach the shop on day fourteen and on day twenty-two,
+   * and a shop clock that assumes the fortnight tells the second one they are
+   * on day minus two. So each stage records where it began.
+   */
+  stageStartDay: number;
   /** Total days of business traded across every act. */
   daysTraded: number;
   /** Which run through the whole arc this is. Kept for the career record. */
   season: number;
-  /** Every reason written down before money moved in Act 4. */
+  /** Every reason written down before money moved in the market. */
   theses: Thesis[];
   /** A challenge against a friend, if this run is one. */
   challenge: ChallengeRun | null;
   /** A shared portfolio being passed between phones. */
   club: ClubState | null;
   /**
-   * True while the kid is running the Saturday stand out of Act 4.
+   * True while the kid is running the Saturday stand out of the market.
    *
    * See `beginWeekend` for why the stand is still standing after it was sold.
    */
@@ -115,7 +152,9 @@ export function createGame(seed = Math.floor(Math.random() * 1_000_000)): Game {
     stand: createInitialState(seed),
     business: createBusinessState(),
     ownership: createOwnershipState(),
+    listing: createListing(),
     portfolio: null,
+    stageStartDay: 0,
     learned: [],
     pendingInsights: [],
     daysTraded: 0,
@@ -178,22 +217,30 @@ export const ACT_TITLES: Record<
       'Unit economics before anything else. A child who can say what they keep from a dollar can read every business that follows.',
   },
   2: {
-    name: 'Scale',
-    promise: 'Spend money to make money. Someone else opens up too.',
-    question: 'What is worth spending on?',
-    grownUpConcept: 'Capacity, fixed cost and competition',
+    name: 'More stands',
+    promise: 'Spend money to make money. Then be in two places at once.',
+    question: 'How do I sell more than my own two hands can?',
+    grownUpConcept: 'Capacity, capital, hiring and competition',
     grownUpWhy:
-      'The difference between buying a thing once and paying a wage every day — capital versus running cost, felt as two different kinds of risk.',
+      'The difference between buying a thing once and paying a wage every day, and then the reason firms hire at all: a second site needs somebody at the first one. Growth as arithmetic rather than magic.',
   },
   3: {
-    name: 'Ownership',
-    promise: 'Find out what your business is worth, and to whom.',
-    question: 'What is the whole thing worth?',
-    grownUpConcept: 'Valuation, and price against earnings',
+    name: 'The shop',
+    promise: 'Get a door, so the rain stops deciding how your day goes.',
+    question: 'What do I owe on a day nobody comes?',
+    grownUpConcept: 'Fixed costs, operating leverage, debt against equity',
     grownUpWhy:
-      'That a business has a value separate from its cash, that the value is a multiple of what it earns, and that a good business at a bad price is a bad purchase.',
+      'A big rent owed whatever happened is what makes a quiet week dangerous and a busy one enormous. It is also the first thing they cannot buy out of profit, which is where borrowing and selling a slice become two real answers.',
   },
   4: {
+    name: 'Go public',
+    promise: 'Cut the whole thing into a thousand pieces and sell some.',
+    question: 'What is one piece of my company worth?',
+    grownUpConcept: 'Valuation, ownership, shares and share price',
+    grownUpWhy:
+      'That a business has a value separate from its cash, that the value is a multiple of what it earns, and that dividing it by a share count is where a share price comes from. They watch their own price move before they see anybody else\'s.',
+  },
+  5: {
     name: 'Markets',
     promise: 'Other people\'s lemonade stands, at a much bigger scale.',
     question: 'Whose business do I want a piece of?',
@@ -214,13 +261,59 @@ export function act1Complete(stand: GameState, lastDay: number = ECON.TOTAL_DAYS
   return stand.history.length >= lastDay;
 }
 
-/** Act 2 ends when a manager has run it profitably, or the fortnight is up. */
+/**
+ * Act 2 ends when the kid is running two stands at a profit, or time is up.
+ *
+ * It used to end at "a manager has run it profitably", which proved the manager
+ * worked and stopped there. The manager is the *unlock*, not the finish: what a
+ * manager buys is the kid's own hands back, and the thing to do with a spare
+ * pair of hands is stand behind a second table. So the act now ends where the
+ * lesson does, with two pitches and one price.
+ */
 export function act2Complete(business: BusinessState, act2DaysPlayed: number): boolean {
   return act2Progress(business, act2DaysPlayed).complete || act2DaysPlayed >= ACT2_DAYS;
 }
 
-export function act3Complete(ownership: OwnershipState): boolean {
-  return ownership.buyoutAccepted;
+/** Stage 3 ends when the shop has paid for its own door for a working week. */
+export function act3Complete(business: BusinessState, act3DaysPlayed = 0): boolean {
+  return shopProgress(business.shop).complete || act3DaysPlayed >= ACT3_DAYS;
+}
+
+/**
+ * Act 4 ends at the listing, or at the sale.
+ *
+ * Both are real endings and the kid picks. Selling the lot to one buyer is a
+ * respectable outcome and it is what the game used to do; the listing is the
+ * one the arc now points at, because a founder who still owns most of a public
+ * company has a share price to watch and a reason to care what a share price
+ * *is*.
+ */
+export function act4Complete(ownership: OwnershipState, listing: Listing): boolean {
+  return ownership.buyoutAccepted || listingComplete(listing);
+}
+
+/**
+ * Days the shop stage runs before it hands over regardless.
+ *
+ * Six, and this one is free. Measured in `tests/wordbudget.test.ts` over ten
+ * seeds and two levels of play: the objective — fit the shop out, then five
+ * good days — completes on **day five in every single run**, careless play
+ * included, because the shop's capacity makes a good day easy once the door is
+ * open. Words delivered are byte-identical at caps twelve, eight, six and
+ * five.
+ *
+ * So the twelve it started at, and the eight it passed through, were six spare
+ * days and two spare days that no child ever spent well. Six is the worst
+ * observed run plus one day of margin.
+ *
+ * Contrast `ACT2_DAYS`, where the same measurement says the opposite and the
+ * cap is deliberately *not* cut to the floor.
+ */
+export const ACT3_DAYS = 6;
+
+/** The one line the goal strip shows in the shop stage. */
+export function act3Progress(business: BusinessState): ShopProgress {
+  return shopProgress(business.shop);
 }
 
 /* ------------------------------------------------------------------ *
@@ -311,7 +404,7 @@ export function readiness(game: Game): Readiness {
         ? verdict.correct
           ? `Chose ${verdict.best.name} over the cheaper option, and was right.`
           : `Chose ${verdict.chosen.name}. Worth another look at the numbers.`
-        : 'Not yet — the stands for sale come in Act 3.',
+        : 'Not yet — the stands for sale come when you sell up.',
       met: Boolean(verdict?.correct),
     },
     {
@@ -341,22 +434,64 @@ export function beginAct2(game: Game): Game {
   return {
     ...game,
     act: 2,
+    stageStartDay: game.stand.history.length,
     stand: { ...game.stand, status: 'playing' },
   };
 }
 
+/** Stage 3 keeps the stands. The shop goes up beside them. */
 export function beginAct3(game: Game): Game {
-  return { ...game, act: 3, stand: { ...game.stand, status: 'playing' } };
+  return {
+    ...game,
+    act: 3,
+    stageStartDay: game.stand.history.length,
+    stand: { ...game.stand, status: 'playing' },
+  };
 }
 
-/** Act 4 is seeded with exactly what the kid walked away with. */
 export function beginAct4(game: Game): Game {
-  const proceeds = game.ownership.buyoutProceeds + game.business.savings + game.stand.cash;
   return {
     ...game,
     act: 4,
+    stageStartDay: game.stand.history.length,
+    stand: { ...game.stand, status: 'playing' },
+  };
+}
+
+/**
+ * The market is seeded with exactly what the kid walked out with.
+ *
+ * Two doors lead here now and they hand over different money. A sale hands over
+ * the proceeds and the business is gone. A listing hands over what the float
+ * raised — and the kid still owns most of a company, so the stake stays on the
+ * books and in the report rather than being quietly converted into pocket money
+ * the market can spend.
+ */
+export function beginAct5(game: Game): Game {
+  const proceeds = seededWith(game) + game.business.savings + game.stand.cash;
+  return {
+    ...game,
+    act: 5,
     portfolio: createPortfolio(round2(proceeds), game.stand.seed),
   };
+}
+
+/**
+ * What the investing account was actually seeded with.
+ *
+ * Two doors lead into the market and they hand over different money: a sale
+ * hands over the proceeds, a listing hands over what the float raised. Six
+ * places worked this out for themselves from `buyoutProceeds`, which is zero
+ * for a founder who went public — so the finale told them they "started with
+ * $0.00" and printed a flat return on an account that had grown, the parent
+ * report computed its gain against nothing, and the career record banked the
+ * wrong number.
+ *
+ * One place now. `beginAct5` seeds the account from this, so anything asking
+ * "what did they start with" is asking the same function that decided it.
+ */
+export function seededWith(game: Game): number {
+  return game.listing.listed ? game.listing.raised : game.ownership.buyoutProceeds;
 }
 
 function round2(n: number): number {
@@ -430,10 +565,17 @@ export function endWeekend(game: Game): Game {
   };
 }
 
-/** Days played in the current act, derived from total history. */
+/**
+ * Days played in the current stage.
+ *
+ * Act 1 still derives from the total, because Act 1 *is* the total and its
+ * length is arithmetic on the starting cash. Everything after it counts from
+ * where the stage opened — see `Game.stageStartDay` for why that cannot be a
+ * subtraction from `ECON.TOTAL_DAYS` any more.
+ */
 export function actDay(game: Game): number {
   if (game.act === 1) return game.stand.history.length + 1;
-  return Math.max(1, game.stand.history.length - ECON.TOTAL_DAYS + 1);
+  return Math.max(1, game.stand.history.length - game.stageStartDay + 1);
 }
 
 /* ------------------------------------------------------------------ *
@@ -460,9 +602,7 @@ export function standing(game: Game): GameStanding {
     cash: game.stand.cash,
     savings: game.business.savings,
     netWorth: round2(
-      (game.act === 4 ? portfolioValue : game.stand.cash) +
-        game.business.savings +
-        (game.act === 4 ? 0 : 0),
+      (game.act === 5 ? portfolioValue : game.stand.cash) + game.business.savings,
     ),
     weeklyProfit: trailingWeeklyProfit(game.stand.history),
     daysTraded: game.stand.history.length,
@@ -490,6 +630,7 @@ export function badgeContext(game: Game, career: Career): BadgeContext {
     clubWeeks: career.clubWeeks,
     clubProposalsPassed: career.clubProposalsPassed,
     thesisCount: game.theses.length,
+    listing: game.listing,
   };
 }
 
@@ -565,11 +706,16 @@ export function whatsNext(game: Game, career: Career): NextThing[] {
 export function seasonRecord(game: Game) {
   const totalProfit = game.stand.history.reduce((sum, day) => sum + day.profit, 0);
   const gain = game.portfolio
-    ? summarisePortfolio(game.portfolio, game.ownership.buyoutProceeds).gainPercent
+    ? summarisePortfolio(game.portfolio, seededWith(game)).gainPercent
     : 0;
   return {
     weekProfit: trailingWeeklyProfit(game.stand.history),
-    buyoutMultiple: game.ownership.buyoutMultiple,
+    // A listing is priced on the same sum as a sale, so the career record keeps
+    // whichever of the two this run actually reached rather than reporting zero
+    // for a kid who went public instead of selling up.
+    buyoutMultiple: game.listing.listed
+      ? game.listing.multiple
+      : game.ownership.buyoutMultiple,
     portfolioGainPct: gain,
     daysTraded: game.stand.history.length,
     totalProfit: Math.round(totalProfit * 100) / 100,

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { play } from '@/lib/sound';
-import { money } from './ui';
+import { money, plural } from './ui';
 
 /**
  * The stand as a place, not a form.
@@ -104,7 +104,7 @@ export function StandScene({
         onSelect={select}
         className="bottom-[6%] left-[1%]"
         label="How much to make"
-        badge={`${cupsReady} cups`}
+        badge={plural(cupsReady, 'cup')}
         sub={atCapacity && capacity !== null ? `max ${capacity}` : money(costToBuy)}
         tone="lemon"
       >

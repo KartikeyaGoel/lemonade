@@ -55,8 +55,16 @@ describe('the plot of land', () => {
   });
 
   it('will not let a kid buy what they cannot pay for', () => {
-    const broke = plots(bare, 5);
+    /*
+     * The shop is the exception, deliberately. Every other plot is a purchase,
+     * so `affordable` means "is the money there". The shop costs more than the
+     * business has by design, and tapping it opens the screen that answers *how*
+     * to pay for it — borrow, sell a slice, or wait. Gating that tap on having
+     * the cash made the one screen a broke kid needs unreachable by them.
+     */
+    const broke = plots(bare, 5).filter((p) => p.id !== 'shop');
     expect(broke.every((p) => !p.affordable)).toBe(true);
+    expect(plots(bare, 5).find((p) => p.id === 'shop')?.affordable).toBe(true);
     // And a wage they can cover for exactly one day still counts as affordable:
     // the game does not get to refuse a decision, only to show its cost.
     expect(plots(bare, STAFF.helper.wage).find((p) => p.id === 'helper')?.affordable).toBe(true);

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import {
   FUNDAMENTALS_SOURCE,
+  PRICES_SOURCE,
   MODELS,
   SNAPSHOT,
   SNAPSHOT_AS_OF,
@@ -34,10 +35,10 @@ import {
 import { runningFor } from '@/lib/live';
 import type { Readiness } from '@/lib/progress';
 import { PipSays } from '../Pip';
-import { ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
 
 /**
- * Act 4. Other people's lemonade stands.
+ * Act 5. Other people's lemonade stands.
  *
  * Every company is described with the same four numbers the kid used on their
  * own stand — what it sells, what it keeps, what slice that is, and how many
@@ -62,7 +63,7 @@ export function MarketScreen({
 }: {
   portfolio: PortfolioState;
   readiness: Readiness;
-  /** True once the kid has been handed the words "P/E ratio" in Act 3. */
+  /** True once the kid has been handed the words "P/E ratio" at the sale. */
   knowsPE: boolean;
   /** Standing, which is what opens the later tiers of the collection. */
   badges: number;
@@ -139,7 +140,7 @@ export function MarketScreen({
 
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-28 pt-5">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-5" style={clearsBar()}>
         <div className="flex items-baseline justify-between">
           <SignHeading className="!text-lemon-light text-3xl">The market</SignHeading>
           {/* Weeks *elapsed*, not a week number. The counter starts at zero
@@ -312,7 +313,11 @@ export function MarketScreen({
               setComparing((on) => !on);
               setPicked([]);
             }}
-            className={`rounded-full border-2 px-2.5 py-0.5 font-body text-[11px] font-extrabold ${
+            /* Raised twice. `py-0.5` made this a 25-pixel target at eleven
+               pixels of type; `py-1.5` got it to 33. Compare is the verb this
+               screen most wants a kid to reach for, so it now gets the full 44
+               the guideline asks for, with the pill drawn exactly as before. */
+            className={`inline-flex min-h-11 items-center rounded-full border-2 px-3 py-1.5 font-body text-[11px] font-extrabold ${
               comparing ? 'border-mint bg-mint/25 text-white' : 'border-white/40 text-white/70'
             }`}
           >
@@ -436,7 +441,7 @@ export function MarketScreen({
         })}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/60 to-transparent pb-5 pt-8">
+      <PinnedBar className="z-30 pb-5 pt-8 bg-gradient-to-t from-black/60 to-transparent">
         <div className="mx-auto w-full max-w-md px-4">
           {comparing ? (
             <ChunkyButton variant="mint" full disabled={picked.length < 2} onClick={() => undefined}>
@@ -456,7 +461,7 @@ export function MarketScreen({
             </ChunkyButton>
           )}
         </div>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }
@@ -573,7 +578,8 @@ function CompanyDetail({
   const price = currentPrice(portfolio, company.ticker);
   const asOf = currentDate(portfolio);
   // Metrics at the price on screen, against the accounts that were public that
-  // week. Act 4 replays real history, so mixing this week's price with a filing
+  // week. The market replays real history, so mixing this week's price with a
+  // filing
   // from two years later would produce a P/E nobody ever quoted.
   const m = metricsFor(company, price, asOf);
   const allowed = maxSpendOn(portfolio, company.ticker);
@@ -582,7 +588,7 @@ function CompanyDetail({
 
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-28 pt-5">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-5" style={clearsBar()}>
         <button
           type="button"
           onClick={onBack}
@@ -647,7 +653,7 @@ function CompanyDetail({
                 {m.pe ? m.pe.toFixed(0) : 'never yet'}
               </span>
             </div>
-            {/* The word, once they have earned it in Act 3. Same number,
+            {/* The word, once they have earned it on their own company. Same number,
                 named — so they can say it to somebody. */}
             {knowsPE && (
               <div className="ledger-row text-[12px] text-ink/55">
@@ -681,8 +687,13 @@ function CompanyDetail({
           </p>
 
           <p className="mt-2 font-body text-[10px] font-bold leading-snug text-ink/40">
-            Sells, keeps and share count from {FUNDAMENTALS_SOURCE}. Prices are real weekly
-            closes. Nothing on this card was rounded for the lesson.
+            {/* Both sources named, not one. PRODUCT.md §21 makes a point of
+                there being two, and `PRICES_SOURCE` existed for this line and
+                was never used — so the card credited the filings and left the
+                prices as "real weekly closes", which is a claim without a
+                source attached to it. */}
+            Sells, keeps and share count from {FUNDAMENTALS_SOURCE}. Prices from{' '}
+            {PRICES_SOURCE}. Nothing on this card was rounded for the lesson.
           </p>
         </div>
 

@@ -1,5 +1,5 @@
 /**
- * Act 4 — Markets.
+ * Act 5 — Markets.
  *
  * Simulated money, real everything else. The kid buys slices of businesses they
  * already know how to read, because Acts 1 to 3 taught them the only four
@@ -23,7 +23,8 @@
  *      "diversification".
  *   2. Prices genuinely fall. Acts 1 to 3 are monotonic, which is right for
  *      retention but trains the belief that things only go up. That belief is
- *      the most expensive thing a young investor can carry, so Act 4 breaks it
+ *      the most expensive thing a young investor can carry, so the market
+ *      breaks it
  *      on purpose and rewards the kid who holds a sound business through it.
  *
  * No day trading, no leverage, no shorting, no options. Ever.
@@ -50,7 +51,7 @@ import { round2, toCents } from './simulation';
 export const MAX_POSITION_FRACTION = 0.35;
 /** Holdings needed before the cap is considered satisfied for the gate. */
 export const DIVERSIFIED_MIN_HOLDINGS = 3;
-/** How many weeks Act 4 runs for. */
+/** How many weeks the market runs for. */
 export const MARKET_WEEKS = 12;
 /** A fall of this much counts as a drawdown worth crediting them for holding. */
 export const DRAWDOWN_THRESHOLD = 0.1;
@@ -221,7 +222,8 @@ export function currentPrice(portfolio: PortfolioState, ticker: string): number 
   if (series && series.length > 0) return series[series.length - 1];
   /*
    * The fallback used to be today's price, which is the one price this must
-   * never be. Act 4 replays a week from the past and pairs it with the accounts
+   * never be. The market replays a week from the past and pairs it with the
+   * accounts
    * that were public *then*; handing it the latest close instead would show a
    * 2026 share price over 2023 earnings and quote a price-to-earnings ratio
    * nobody ever paid. Read the real close for the week being replayed.
@@ -234,24 +236,7 @@ export function canRunStand(portfolio: PortfolioState): boolean {
   return portfolio.status === 'open' && portfolio.standWeek !== portfolio.week;
 }
 
-export function priceAtWeek(portfolio: PortfolioState, ticker: string, week: number): number {
-  const series = portfolio.priceHistory[ticker] ?? [];
-  return series[Math.min(Math.max(0, week), series.length - 1)] ?? 0;
-}
 
-/**
- * What a company actually did in a given week of this run.
- *
- * No drift term, no noise term, no seed. The number is the change between two
- * real closes, which is why the weekly moves cluster the way real ones do and
- * why any single week still says nothing — the same lesson the weather taught
- * in Act 1, except nobody had to tune it.
- */
-export function weeklyReturn(ticker: string, windowStart: number, week: number): number {
-  const from = realClose(ticker, windowStart, week - 1);
-  const to = realClose(ticker, windowStart, week);
-  return from > 0 ? to / from - 1 : 0;
-}
 
 /* ------------------------------------------------------------------ *
  * Valuation of what the kid holds
@@ -319,8 +304,28 @@ export function buy(portfolio: PortfolioState, ticker: string, dollars: number):
   if (portfolio.status === 'closed') return { ok: false, reason: 'The market is closed.', portfolio };
 
   const price = currentPrice(portfolio, ticker);
+  /*
+   * No price, no trade.
+   *
+   * `shares = spend / price` was unguarded, so a price of zero bought an
+   * *infinite* number of shares — and the holding was then permanently
+   * unprintable, worth `Infinity`, and poisoned every total on the screen. Real
+   * closes are never zero, which is why nothing had ever tried it; a portfolio
+   * restored from a save this program did not write, or a ticker whose week is
+   * missing from the data, both are.
+   *
+   * Refusing is the only honest answer. There is no number of shares that
+   * `$100` buys at a price of nothing, and inventing one would put a figure on
+   * the screen that no arithmetic supports.
+   */
+  if (!Number.isFinite(price) || price <= 0) {
+    return { ok: false, reason: 'There is no price for that company this week.', portfolio };
+  }
+
   const spend = round2(Math.min(dollars, portfolio.cash));
-  if (spend <= 0) return { ok: false, reason: 'You have no cash to spend.', portfolio };
+  if (!Number.isFinite(spend) || spend <= 0) {
+    return { ok: false, reason: 'You have no cash to spend.', portfolio };
+  }
 
   const allowed = maxSpendOn(portfolio, ticker);
   if (spend > allowed + 0.01) {
@@ -362,9 +367,14 @@ export function sell(portfolio: PortfolioState, ticker: string, fraction = 1): T
   const holding = portfolio.holdings[ticker];
   if (!holding || holding.shares <= 0) return { ok: false, reason: 'You do not own any.', portfolio };
 
-  const share = Math.max(0, Math.min(1, fraction));
+  // `fraction` reaches here from a slider and from a decoded club proposal, so
+  // `NaN` is possible and would silently sell nothing while reporting a sale.
+  const share = Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : 0;
   const shares = holding.shares * share;
   const price = currentPrice(portfolio, ticker);
+  if (!Number.isFinite(price) || price < 0) {
+    return { ok: false, reason: 'There is no price for that company this week.', portfolio };
+  }
   const proceeds = round2(shares * price);
 
   const gain = holdingGain(portfolio, ticker);
@@ -374,7 +384,7 @@ export function sell(portfolio: PortfolioState, ticker: string, fraction = 1): T
     ...holding,
     shares: remaining,
     costBasis: round2(holding.costBasis * (1 - share)),
-    // Bailing out underwater is exactly the habit Act 4 exists to surface.
+    // Bailing out underwater is exactly the habit the market exists to surface.
     soldWhileDown: holding.soldWhileDown || gain.percent < -0.02,
   };
 
@@ -471,7 +481,7 @@ export function advanceWeek(portfolio: PortfolioState): { portfolio: PortfolioSt
     };
   }
 
-  // A live account has no last week. The twelve-week cap is what turns Act 4
+  // A live account has no last week. The twelve-week cap is what turns the arc
   // into a story with an ending, and the whole point of the live market is that
   // it is a practice rather than a story.
   const finished = !portfolio.live && week >= MARKET_WEEKS;
@@ -538,7 +548,7 @@ export function summarisePortfolio(portfolio: PortfolioState, startingValue: num
 
 /**
  * Ranks the companies by the same arithmetic the kid used on the stands for
- * sale in Act 3: cheap per dollar of profit, and growing.
+ * sale on the deal board: cheap per dollar of profit, and growing.
  *
  * This is used only to check the kid's reasoning after the fact. It is never
  * shown as a recommendation, because the whole point is that they decide.

@@ -74,7 +74,7 @@ export function ClassroomScreen({
         <button
           type="button"
           onClick={onBack}
-          className="self-start font-body text-sm font-extrabold text-ink/70"
+          className="-m-2 self-start p-2 font-body text-sm font-extrabold text-ink/70"
         >
           ← Back
         </button>
@@ -96,7 +96,7 @@ export function ClassroomScreen({
             <button
               type="button"
               onClick={onNewCode}
-              className="shrink-0 rounded-full border-2 border-ink/25 px-2.5 py-0.5 font-body text-[11px] font-extrabold text-ink/60"
+              className="shrink-0 rounded-full border-2 border-ink/25 px-3 py-1.5 font-body text-[11px] font-extrabold text-ink/60"
             >
               New week
             </button>

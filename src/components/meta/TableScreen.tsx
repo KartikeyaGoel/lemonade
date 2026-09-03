@@ -37,7 +37,7 @@ export function TableScreen({
         <button
           type="button"
           onClick={onBack}
-          className="self-start font-body text-sm font-extrabold text-ink/70"
+          className="-m-2 self-start p-2 font-body text-sm font-extrabold text-ink/70"
         >
           ← Back
         </button>

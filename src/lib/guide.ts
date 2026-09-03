@@ -67,6 +67,7 @@
 
 import type { Act } from './progress';
 import { totalFixedCost, type DayOutcome, type DayRecord } from './simulation';
+import { plural } from './copy';
 
 export const GUIDE_NAME = 'Pip';
 
@@ -94,6 +95,8 @@ export type Beat =
   | 'act2-stall'
   | 'act3-open'
   | 'act4-open'
+  | 'act5-open'
+  | 'act5-open-sold'
   | 'market';
 
 export interface GuideLine {
@@ -123,15 +126,30 @@ const LINES: Record<Beat, GuideLine> = {
   },
   'act2-stall': {
     id: 'act2-stall',
-    says: ['Your stand can run without you.', 'Then somebody may want to buy it.'],
+    says: ['Somebody else could mind this stand.', 'Then your hands would be free.'],
   },
   'act3-open': {
     id: 'act3-open',
-    says: ['Your stand runs without you now.', 'So what is the whole thing worth?'],
+    says: ['Two stands, and the rain still shuts both.', 'A door would not care.'],
   },
   'act4-open': {
     id: 'act4-open',
-    says: ['You sold your stand.', 'Now you can buy a piece of somebody else’s.'],
+    says: ['The shop pays for its own door now.', 'So what is the whole thing worth?'],
+  },
+  /*
+   * Two beats, because two doors lead here.
+   *
+   * A founder who listed has a share price of their own to compare against.
+   * A founder who sold up has cash and no company, and telling them "your
+   * company has a price now" is a line about a run they did not have.
+   */
+  'act5-open': {
+    id: 'act5-open',
+    says: ['Your company has a price now.', 'So does everybody else’s.'],
+  },
+  'act5-open-sold': {
+    id: 'act5-open-sold',
+    says: ['You sold your company.', 'Now you can buy a piece of somebody else’s.'],
   },
   market: {
     id: 'market',
@@ -163,9 +181,15 @@ export interface GuideContext {
   hasManager: boolean;
   /** True on the market screen itself. */
   inMarket: boolean;
+  /**
+   * Whether the kid took the company public rather than selling it.
+   *
+   * The only thing that decides which of the two market beats is true.
+   */
+  listed: boolean;
 }
 
-/** Act 2 is fourteen days. Nagging before halfway is nagging. */
+/** Act 2 runs a fortnight and a bit. Nagging before halfway is nagging. */
 export const STALL_DAY = 7;
 
 /**
@@ -182,6 +206,10 @@ export function nextBeat(context: GuideContext, seen: readonly string[]): GuideL
 
   if (context.daysPlayed === 0 && unseen('welcome')) return LINES.welcome;
 
+  if (context.act === 5) {
+    const beat: Beat = context.listed ? 'act5-open' : 'act5-open-sold';
+    if (unseen(beat)) return LINES[beat];
+  }
   if (context.act === 4 && unseen('act4-open')) return LINES['act4-open'];
   if (context.act === 3 && unseen('act3-open')) return LINES['act3-open'];
   if (context.act === 2 && unseen('act2-open')) return LINES['act2-open'];
@@ -257,7 +285,7 @@ export function closingLine(outcome: DayOutcome): string {
 
   // Sold out with people still wanting one: capacity decided the day.
   if (outcome.cupsWanted > outcome.cupsMakeable && outcome.cupsSold >= outcome.cupsMakeable) {
-    return `You sold every cup. ${Math.round(outcome.cupsWanted)} people wanted one and you had ${outcome.cupsMakeable}.`;
+    return `You sold every cup. ${plural(Math.round(outcome.cupsWanted), 'person', 'people')} wanted one and you had ${outcome.cupsMakeable}.`;
   }
 
   // Nobody bought anything. "Each cup sold for $3.00" is false when no cup
@@ -276,13 +304,13 @@ export function closingLine(outcome: DayOutcome): string {
   }
 
   if (outcome.spoiledLemons > 0) {
-    return `${outcome.spoiledLemons} lemons went off before anyone drank them. That is ${dollars(outcome.spoilageCost)} gone.`;
+    return `${plural(outcome.spoiledLemons, 'lemon')} went off before anyone drank them. That is ${dollars(outcome.spoilageCost)} gone.`;
   }
 
   if (outcome.subscriberCups > 0) {
-    return `${outcome.subscriberCups} of your ${cups} cups went to regulars. They come whatever the weather does.`;
+    return `${outcome.subscriberCups} of your ${plural(cups, 'cup')} went to regulars. They come whatever the weather does.`;
   }
 
   // The ordinary good day. Name the gap between what came in and what it cost.
-  return `${cups} cups brought in ${dollars(outcome.revenue)}. Making them cost ${dollars(outcome.ingredients.total)}.`;
+  return `${plural(cups, 'cup')} brought in ${dollars(outcome.revenue)}. Making them cost ${dollars(outcome.ingredients.total)}.`;
 }

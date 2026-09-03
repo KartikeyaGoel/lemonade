@@ -1,6 +1,6 @@
 'use client';
 
-import { money } from './ui';
+import { money, plural } from './ui';
 
 /**
  * The stand itself, with the price sign the customers actually read.
@@ -52,7 +52,7 @@ export function Stand({
 
       {typeof cupsLeft === 'number' && (
         <div className="mt-2 text-center font-body text-sm font-extrabold text-ink/70">
-          {cupsLeft > 0 ? `${cupsLeft} cups left` : 'SOLD OUT'}
+          {cupsLeft > 0 ? `${plural(cupsLeft, 'cup')} left` : 'SOLD OUT'}
         </div>
       )}
     </div>

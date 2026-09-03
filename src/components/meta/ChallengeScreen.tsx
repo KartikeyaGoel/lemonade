@@ -17,6 +17,7 @@ import {
 } from '@/lib/challenge';
 import type { DayRecord } from '@/lib/simulation';
 import { ChunkyButton, CodeBox, CodeInput, SignHeading, Sky, money } from '../ui';
+import { plural } from '@/lib/copy';
 
 /**
  * Same-Sky Challenge.
@@ -126,7 +127,7 @@ export function ChallengeScreen({
               <div className="mt-1 flex items-baseline gap-3">
                 <span className="font-sign text-4xl text-ink">{money(myResult.profit)}</span>
                 <span className="font-body text-xs font-extrabold text-ink/55">
-                  {myResult.cupsSold} cups, {myResult.spoiledLemons} lemons wasted
+                  {plural(myResult.cupsSold, 'cup')}, {plural(myResult.spoiledLemons, 'lemon')} wasted
                 </span>
               </div>
             </div>
@@ -391,7 +392,7 @@ function Side({
       </div>
       <div className="font-sign text-3xl leading-none text-ink">{money(result.profit)}</div>
       <div className="mt-1 font-body text-[11px] font-bold leading-tight text-ink/60">
-        {result.cupsSold} cups at about {money(result.avgPriceCents / 100)}
+        {plural(result.cupsSold, 'cup')} at about {money(result.avgPriceCents / 100)}
       </div>
     </div>
   );

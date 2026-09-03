@@ -84,7 +84,7 @@ Keep these short. Answer, then stop.
 - **Don't say "financial literacy."** It's the phrase on every product they've
   already deleted.
 - **Don't say "gamified."** Same problem.
-- **Don't list the four acts.** Show the screen instead.
+- **Don't list the five stages.** Show the screen instead.
 - **Don't claim kids love it.** No kid has played it yet. Saying so out loud
   is worth more than the claim would be.
 
@@ -214,25 +214,38 @@ it.*
 
 ## 3. What we actually built
 
-Four acts. Each is a wall the kid hits, and the concept is what gets them
-over it. No act teaches a word before the kid has already done the thing.
+Five stages. Each is a wall the kid hits, and the concept is what gets them
+over it. No stage teaches a word before the kid has already done the thing.
 
-| Act | The kid's question | What it actually is |
+| Stage | The kid's question | What it actually is |
 |---|---|---|
 | **1. One stand** | *What is a cup worth to them?* | Price, cost and margin |
-| **2. Scale** | *What is worth spending on?* | Capacity, fixed cost, competition |
-| **3. Ownership** | *What is the whole thing worth?* | Valuation, price against earnings |
-| **4. Markets** | *Whose business do I want a piece of?* | Public markets, reading a filing |
+| **2. More stands** | *How do I sell more than my own two hands can?* | Capacity, capital, hiring, competition |
+| **3. The shop** | *What do I owe on a day nobody comes?* | Fixed costs, operating leverage, debt against equity |
+| **4. Go public** | *What is one piece of my company worth?* | Valuation, ownership, shares, share price |
+| **5. Markets** | *Whose business do I want a piece of?* | Public markets, reading a filing |
 
-Act 1 doesn't tell a kid about demand curves. It lets them charge $3.00 and
+Stage 1 doesn't tell a kid about demand curves. It lets them charge $3.00 and
 watch people walk away. At the end of the week it plots **their own seven
 price points** and says: you found this.
 
-By Act 4 the kid has priced a product, been undercut by a rival, hired a
-manager, and sold their company for a multiple of its profit. Then they open
-a stock screen and see revenue, net income, share count and price — the same
-four numbers they have been living inside for an hour. **They are not
-learning to read a company. They are recognising one.**
+Stage 2 doesn't explain why companies hire people. It caps the kid at thirty
+cups a day, and the only way past it is to pay somebody to mind the first stand
+so they can go and work a second one. *You cannot be in two places at once* is a
+thing a child works out, not a thing we say.
+
+Stage 4 is the one that took a customer conversation to see. The kid cuts their
+own company into a thousand shares, divides to get the price, sells 30% of them
+and keeps running it — and then trades one week as a public company and watches
+that price move, with the two numbers that moved it printed beside it. **They
+get a share price of their own before they ever see anybody else's.**
+
+So by the market, the kid has priced a product, been undercut by a rival, hired
+a manager, owed rent on a day nobody came, chosen between a bank and an
+investor, and rung the bell on their own listing. Then they open a stock screen
+and see revenue, net income, share count and price — the same four numbers they
+have been living inside for an hour. **They are not learning to read a company.
+They are recognising one.**
 
 ### The data is real
 
@@ -336,7 +349,7 @@ the concept name the kid never sees. On day zero it says, honestly:
   amount of engineering substitutes for it.
 - 24 tickers, not a few hundred (needs a data key, not a redesign)
 - Weekly price granularity, not daily
-- Two of the four acts still lack a closing recap
+- Two of the five stages still lack a closing recap
 - It is a web prototype. **The product is a phone app.**
 
 ---

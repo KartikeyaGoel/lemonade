@@ -29,16 +29,7 @@ import {
   type TryDiff,
 } from '@/lib/bench';
 import { STAFF, UPGRADES, type BusinessState } from '@/lib/business';
-import {
-  ChunkyButton,
-  GoalStrip,
-  HeaderBar,
-  Sheet,
-  SignHeading,
-  Sky,
-  WeatherArt,
-  money,
-} from './ui';
+import { ChunkyButton, clearsBar, GoalStrip, HeaderBar, money, PinnedBar, plural, Sheet, SignHeading, Sky, WeatherArt } from './ui';
 import { PipBubble, PipSays } from './Pip';
 import { StandScene, type SpotId } from './StandScene';
 
@@ -90,7 +81,8 @@ export function PlanScreen({
    * here: the goal strip below used to be wrapped in `dayLabel === undefined`,
    * which is true in Act 1 and false in every act after it. So the objective
    * vanished on day eight and never came back, and the header dropped its
-   * `/ 14` at the same moment. He was grinding an unbounded day loop with no
+   * its day count at the same moment. He was grinding an unbounded day loop
+   * with no
    * stated aim and no finish line, and the one screen that did name the aim
    * was the shop, which he had no reason to open.
    *
@@ -110,7 +102,7 @@ export function PlanScreen({
   /** One line of context above the stand, when the day is not an ordinary one. */
   note?: string;
   onOpen: (targetCups: number, price: number) => void;
-  /** Act 2 only: jump to the shop. */
+  /** Stages 2 to 4: jump to the yard. */
   onInvest?: () => void;
 }) {
   const fixedCost = totalFixedCost(params.fixedCosts);
@@ -150,7 +142,22 @@ export function PlanScreen({
   const rival = business?.rival;
   const rivalHere = Boolean(rival?.active && rival.location === business?.location);
   const capacity = Math.floor(params.serviceCapacity);
-  const atCapacity = projection.cupsMakeable >= capacity;
+  /*
+   * A queue with no ceiling has no number.
+   *
+   * `DEFAULT_DAY_PARAMS.serviceCapacity` is `Number.POSITIVE_INFINITY`, which
+   * is the right value — nothing caps a folding table but the pantry — and
+   * `Math.floor` of it is still `Infinity`. Printed straight into a row it
+   * reads "Cups you can serve in a day: Infinity", which is not a sentence.
+   *
+   * Not reachable today: Act 1 does not render the sheet this appears in, and
+   * every act that does passes a finite capacity from the business the child
+   * built. It is one omitted prop away from being reachable, and "as many as
+   * you can pour" is a better answer than a number anyway.
+   */
+  const capped = Number.isFinite(capacity);
+  const capacityLabel = capped ? `${capacity}` : 'as many as you can pour';
+  const atCapacity = capped && projection.cupsMakeable >= capacity;
   const rehearsable = canRehearse(yesterday);
   const best = bestTry(tries);
 
@@ -221,7 +228,7 @@ export function PlanScreen({
       {/* min-h plus a flex-1 scene: the stand grows to fill whatever is left
           between the goal strip and the pinned buttons, instead of sitting in a
           fixed box with two hundred pixels of empty sky under it. */}
-      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-64px)] w-full max-w-md flex-col px-4 pb-36 pt-2">
+      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-64px)] w-full max-w-md flex-col px-4 pt-2" style={clearsBar()}>
         <div className="flex items-center justify-between gap-3">
           <SignHeading className="text-3xl">{dayLabel ?? `Day ${state.day}`}</SignHeading>
           <span className="stat-chip !text-xs">{forecast.headline} · a guess</span>
@@ -242,8 +249,9 @@ export function PlanScreen({
         ) : (
           dayLabel === undefined && (
             <GoalStrip>
-              {ECON.TOTAL_DAYS - state.history.length} days left · {money(state.cash)} of{' '}
-              {money(ECON.STARTING_CASH)} start
+              {ECON.TOTAL_DAYS - state.history.length}{' '}
+              {ECON.TOTAL_DAYS - state.history.length === 1 ? 'day' : 'days'} left ·{' '}
+              {money(state.cash)} of {money(ECON.STARTING_CASH)} start
             </GoalStrip>
           )
         )}
@@ -311,7 +319,7 @@ export function PlanScreen({
                     {best && attempt.id === best.id && tries.length > 1 ? ' ★' : ''}
                   </div>
                   <div className="font-body text-[11px] font-extrabold text-ink/70">
-                    {money(attempt.price)} · {attempt.cupsMade} cups
+                    {money(attempt.price)} · {plural(attempt.cupsMade, 'cup')}
                   </div>
                   <div
                     className={`font-ledger text-[13px] font-bold tabular-nums ${
@@ -337,7 +345,7 @@ export function PlanScreen({
       {/* Pinned, so the kid can poke at the stand and still reach both actions.
           Two buttons, and they are visibly different weights: trying is cheap
           and reversible, opening is neither. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/30 to-transparent pb-5 pt-8">
+      <PinnedBar className="z-30 pb-5 pt-8 bg-gradient-to-t from-black/30 to-transparent">
         <div className="mx-auto w-full max-w-md space-y-2 px-4">
           {rehearsable && (
             <ChunkyButton variant="wood" full onClick={runTry} className="!text-lg">
@@ -353,7 +361,7 @@ export function PlanScreen({
             Open the stand!
           </ChunkyButton>
         </div>
-      </div>
+      </PinnedBar>
 
       {/* ---- Inside the objects ---- */}
 
@@ -455,13 +463,13 @@ export function PlanScreen({
 
           {totalLemons(state.lemonLots) + state.sugarServings + state.cupsInStock > 0 && (
             <p className="mt-2 font-body text-[12px] font-bold text-ink/55">
-              Using what you already have first: {totalLemons(state.lemonLots)} lemons,{' '}
-              {state.sugarServings} sugar, {state.cupsInStock} cups.
+              Using what you already have first: {plural(totalLemons(state.lemonLots), 'lemon')},{' '}
+              {state.sugarServings} sugar, {plural(state.cupsInStock, 'cup')}.
             </p>
           )}
           {atCapacity && (
             <p className="mt-2 font-body text-[12px] font-extrabold text-wood-deep">
-              You can only serve {capacity} cups a day. Making more would just be lemons in the bin.
+              You can only serve {plural(capacity, 'cup')} a day. Making more would just be lemons in the bin.
             </p>
           )}
         </Sheet>
@@ -491,7 +499,7 @@ export function PlanScreen({
 
           <p className="mt-2 font-body text-[12px] font-extrabold text-wood-deep">
             {projection.breakEvenCups !== null
-              ? `Sell ${projection.breakEvenCups} cups and you are even. Everything after that is yours.`
+              ? `Sell ${plural(projection.breakEvenCups, 'cup')} and you are even. Everything after that is yours.`
               : 'At this price you cannot break even, however many you sell.'}
           </p>
 
@@ -570,7 +578,7 @@ export function PlanScreen({
             </div>
           )}
           <div className="mt-3">
-            <Row label="Cups you can serve in a day" value={`${capacity}`} strong />
+            <Row label="Cups you can serve in a day" value={capacityLabel} strong />
           </div>
           {onInvest && (
             <ChunkyButton
@@ -614,7 +622,7 @@ export function PlanScreen({
       {repeat && (
         <Sheet title="You already tried that" onClose={() => setRepeat(null)}>
           <p className="font-body text-sm font-bold leading-snug text-ink/75">
-            {money(repeat.price)} with {repeat.cupsMade} cups made{' '}
+            {money(repeat.price)} with {plural(repeat.cupsMade, 'cup')} made{' '}
             <span className="font-ledger font-bold">{money(repeat.profit)}</span> on that crowd. The
             same plan on the same people gives the same answer — change something first.
           </p>
@@ -812,14 +820,14 @@ function TryDetail({ attempt }: { attempt: Try }) {
         <span className="font-body text-[12px] font-extrabold text-ink/55">profit</span>
       </div>
       <div className="mt-2">
-        <Row label={`Sold ${attempt.cupsSold} of ${attempt.cupsMade} cups`} value={money(attempt.revenue)} muted />
+        <Row label={`Sold ${attempt.cupsSold} of ${plural(attempt.cupsMade, 'cup')}`} value={money(attempt.revenue)} muted />
         <Row label="Lemons, sugar and cups" value={`−${money(attempt.ingredientCost)}`} muted />
         {attempt.fixedCost > 0 && (
           <Row label="Owed whatever happened" value={`−${money(attempt.fixedCost)}`} muted />
         )}
         {attempt.spoilageCost > 0 && (
           <Row
-            label={`${attempt.spoiledLemons} lemons thrown away`}
+            label={`${plural(attempt.spoiledLemons, 'lemon')} thrown away`}
             value={`−${money(attempt.spoilageCost)}`}
             muted
           />
@@ -831,7 +839,8 @@ function TryDetail({ attempt }: { attempt: Try }) {
       </div>
       {(attempt.turnedAway > 0 || attempt.walkedAwayOnPrice > 0) && (
         <p className="mt-2 font-body text-[12px] font-bold text-ink/55">
-          {attempt.turnedAway > 0 && `${attempt.turnedAway} people wanted one after you ran out. `}
+          {attempt.turnedAway > 0 &&
+            `${plural(attempt.turnedAway, 'person', 'people')} wanted one after you ran out. `}
           {attempt.walkedAwayOnPrice > 0 &&
             `${attempt.walkedAwayOnPrice} looked at the sign and kept walking.`}
         </p>
@@ -851,7 +860,7 @@ function Scenario({ label, cups, profit }: { label: string; cups: number; profit
       <div className="font-body text-[10px] font-extrabold uppercase tracking-wide text-ink/55">
         {label}
       </div>
-      <div className="font-body text-[10px] font-bold text-ink/45">{cups} cups</div>
+      <div className="font-body text-[10px] font-bold text-ink/45">{plural(cups, 'cup')}</div>
       <div className={`font-ledger text-[13px] font-bold tabular-nums ${good ? 'text-ink' : 'text-berry'}`}>
         {money(profit)}
       </div>

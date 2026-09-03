@@ -1,5 +1,5 @@
 /**
- * Act 4 — the companies.
+ * The market — the companies.
  *
  * These are real businesses a middle schooler has heard of, described with
  * exactly the four numbers they already use for their own stand: what it
@@ -31,15 +31,12 @@
  */
 
 import DATA from './market-data.json';
+import { plural } from './copy';
 
 /** The date of the most recent real weekly close in the bundled data. */
 export const SNAPSHOT_AS_OF: string = DATA.asOf;
 export const FUNDAMENTALS_SOURCE: string = DATA.fundamentalsSource;
 export const PRICES_SOURCE: string = DATA.pricesSource;
-export const DATA_FETCHED_AT: string = DATA.fetchedAt;
-
-/** Kept for the UI, which used to have to warn that figures were approximate. */
-export const SNAPSHOT_IS_APPROXIMATE = false;
 
 /** The shared weekly date axis, oldest first. */
 export const WEEK_DATES: string[] = DATA.weeks;
@@ -51,7 +48,7 @@ export const WEEK_DATES: string[] = DATA.weeks;
  * P/E of 45 read as the same kind of fact to them. Two companies with identical
  * profit can be worth very different amounts because one has to win its
  * customers again every month and the other does not — which is exactly what
- * the kid felt when their own round earned a higher multiple in Act 3.
+ * the kid felt when their own round earned a higher multiple at the sale.
  */
 export type BusinessModel =
   | 'one-off'
@@ -168,16 +165,12 @@ export function tierUnlocked(tier: Tier, standing: number): boolean {
   return standing >= TIERS[tier].opensAt;
 }
 
-/** The companies a kid can actually see, in tier order. */
-export function openCompanies(standing: number): Company[] {
-  return SNAPSHOT.filter((company) => tierUnlocked(company.tier, standing));
-}
 
 /**
  * One fiscal year, as it was published.
  *
  * `filedOn` is the date the 10-K carrying these figures became public, taken
- * from the first filing that reported them. Act 4 replays a real past week, so
+ * from the first filing that reported them. The market replays a real past week, so
  * the game shows whichever year was actually public then — otherwise the kid
  * gets accounts nobody had yet, and a P/E that mixes a price from one year with
  * earnings from another.
@@ -243,7 +236,7 @@ export interface Company {
 
   /**
    * Five years of real weekly adjusted closes, oldest first, aligned to
-   * `WEEK_DATES`. Act 4 replays a hidden stretch of these.
+   * `WEEK_DATES`. The market replays a hidden stretch of these.
    */
   closes: number[];
 
@@ -354,7 +347,7 @@ export const FIRST_HONEST_WEEK: number = (() => {
 /**
  * Was this company public, with accounts a kid could have read, by this date?
  *
- * Act 4 replays a real week. Offering Duolingo in a week before it floated
+ * The market replays a real week. Offering Duolingo in a week before it floated
  * would be offering a share nobody could have bought, priced off accounts
  * nobody had seen.
  */
@@ -394,7 +387,7 @@ export interface CompanyMetrics {
 /**
  * The four numbers, at a given price.
  *
- * `price` is a parameter and not just `company.price` because Act 4 replays a
+ * `price` is a parameter and not just `company.price` because the market replays a
  * real stretch of history: the kid is looking at, and paying, the price from
  * *that* week. Computing the P/E off today's price while they trade a
  * historical one produced a card where the price and the multiple came from
@@ -447,5 +440,5 @@ export function standComparison(company: Company, price = company.price, asOf?: 
   if (!m.profitable) {
     return `${company.name} takes in ${formatMillions(m.year.revenueM)} a year and still loses money. It has no P/E, because there are no earnings to divide by.`;
   }
-  return `${company.name} sells ${formatMillions(m.year.revenueM)} a year and keeps ${keeps}. At ${m.pe!.toFixed(0)} times yearly profit, you would wait ${m.pe!.toFixed(0)} years to get your money back.`;
+  return `${company.name} sells ${formatMillions(m.year.revenueM)} a year and keeps ${keeps}. At ${plural(Number(m.pe!.toFixed(0)), 'time')} yearly profit, you would wait ${m.pe!.toFixed(0)} years to get your money back.`;
 }

@@ -68,7 +68,8 @@ describe('what a parent finds there before their kid has played', () => {
 
   it('shows the stages ahead rather than hiding them', () => {
     render(<ParentScreen report={cold} onBack={() => {}} />);
-    expect(screen.getAllByText('Ahead')).toHaveLength(3);
+    // Five stages: one they are standing in, four still ahead.
+    expect(screen.getAllByText('Ahead')).toHaveLength(4);
     expect(screen.getByText('Here now')).toBeInTheDocument();
   });
 
@@ -99,5 +100,101 @@ describe('the child never sees the grown-up register', () => {
       expect(screen.queryByText(ACT_TITLES[act].grownUpWhy)).not.toBeInTheDocument();
       unmount();
     }
+  });
+});
+
+/**
+ * Deleting the child's data.
+ *
+ * The one destructive control in the product, and the two things worth pinning
+ * are both about restraint: the tap that does the damage must not be the tap
+ * that was already under the parent's thumb, and the panel has to name what
+ * goes rather than saying "all progress". A parent who is not told they are
+ * about to lose eleven badges has not been asked anything.
+ */
+describe('deleting everything', () => {
+  const played = {
+    ...createGame(3),
+    daysTraded: 12,
+  };
+  const record = { ...createCareer(), name: 'Ada', seasons: 2, badges: ['first-sale'] };
+
+  function reportFor() {
+    return parentReport(played, record, []);
+  }
+
+  it('takes two taps, and the first one destroys nothing', async () => {
+    const onEraseAll = vi.fn();
+    render(
+      <ParentScreen report={reportFor()} onEraseAll={onEraseAll} onBack={() => {}} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /delete it from this device/i }));
+    expect(onEraseAll).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: /yes, delete everything/i }));
+    expect(onEraseAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('names what goes, and offers a way out', async () => {
+    const onEraseAll = vi.fn();
+    render(
+      <ParentScreen report={reportFor()} onEraseAll={onEraseAll} onBack={() => {}} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /delete it from this device/i }));
+
+    expect(screen.getByText(/2 seasons of play/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 badge and/i)).toBeInTheDocument();
+    expect(screen.getByText(/the name Ada/i)).toBeInTheDocument();
+    expect(screen.getByText(/no copy anywhere else/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /keep it/i }));
+    expect(
+      screen.queryByRole('button', { name: /yes, delete everything/i }),
+    ).not.toBeInTheDocument();
+    expect(onEraseAll).not.toHaveBeenCalled();
+  });
+
+  /* A child must never find it, and a harness must have to ask for it. */
+  it('is absent unless the host passes the handler', () => {
+    render(<ParentScreen report={reportFor()} onBack={() => {}} />);
+    expect(
+      screen.queryByRole('button', { name: /delete it from this device/i }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A fresh install has nothing to lose, and the panel must not invent any.
+ *
+ * The placeholder name is the trap: `parentReport` substitutes "Your kid" for
+ * a headline, which is right there and wrong the moment the screen offers to
+ * delete it.
+ */
+describe('deleting everything on a fresh install', () => {
+  it('names only what exists', async () => {
+    render(
+      <ParentScreen
+        report={parentReport(createGame(1), createCareer(), [])}
+        onEraseAll={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /delete it from this device/i }));
+
+    expect(screen.getByText(/the run in progress/i)).toBeInTheDocument();
+    expect(screen.queryByText(/0 badges/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/the name/i)).not.toBeInTheDocument();
+  });
+
+  it('names the child once they have typed one', async () => {
+    render(
+      <ParentScreen
+        report={parentReport(createGame(1), createCareer('Ada'), [])}
+        onEraseAll={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /delete it from this device/i }));
+    expect(screen.getByText(/the name Ada/i)).toBeInTheDocument();
   });
 });

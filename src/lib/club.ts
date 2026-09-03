@@ -462,14 +462,34 @@ export function encodeClub(club: ClubState): string {
   return encodeLong(CLUB_PREFIX, club);
 }
 
-export function decodeClub(code: string): ClubState | null {
-  const club = decodeLong<ClubState>(CLUB_PREFIX, code);
+/**
+ * Is this actually a club, and can the rest of the game read it?
+ *
+ * Shared by both doors a club comes in through, and that sharing is the whole
+ * point. It used to guard only the code a kid types in from a friend — where
+ * the risk is obvious and the comment about doctored tickers explains it — and
+ * a club coming back out of this kid's own `localStorage` was passed straight
+ * through unchecked.
+ *
+ * Which is the one that actually broke. A stored club missing its `portfolio`
+ * takes `clubStatus` down with `totalValue(undefined)`, and that is not a blank
+ * card — it is the error boundary, on a screen reachable from the title, with
+ * nothing to do about it but clear the browser's site data. Every other slot in
+ * `storage.ts` is checked on the way in and says why; this was the exception.
+ *
+ * Returning `null` rather than repairing is deliberate and matches the live
+ * account: a half-restored club would show a pot and a vote count that are not
+ * true, and a wrong number is worse here than a missing feature.
+ */
+export function reviveClub(club: ClubState | null | undefined): ClubState | null {
   if (!club || club.version !== 1) return null;
   if (!Array.isArray(club.members) || club.members.length === 0) return null;
   if (!club.portfolio || typeof club.portfolio.week !== 'number') return null;
+  if (typeof club.portfolio.cash !== 'number') return null;
+  if (typeof club.turn !== 'number') return null;
 
-  // Every ticker in a code has to be one we actually know about, or a doctored
-  // code could put a company that does not exist into somebody's portfolio.
+  // Every ticker has to be one we actually know about, or a doctored code could
+  // put a company that does not exist into somebody's portfolio.
   const tickers = Object.keys(club.portfolio.holdings ?? {});
   if (tickers.some((ticker) => !findCompany(ticker))) return null;
 
@@ -478,4 +498,8 @@ export function decodeClub(code: string): ClubState | null {
     proposals: Array.isArray(club.proposals) ? club.proposals : [],
     nextProposalId: club.nextProposalId ?? (club.proposals?.length ?? 0) + 1,
   };
+}
+
+export function decodeClub(code: string): ClubState | null {
+  return reviveClub(decodeLong<ClubState>(CLUB_PREFIX, code));
 }

@@ -44,6 +44,7 @@ import { SNAPSHOT } from '../src/lib/companies';
 import { createBusinessState } from '../src/lib/business';
 import { buyoutOffer, createOwnershipState } from '../src/lib/ownership';
 import { createPortfolio } from '../src/lib/market';
+import { createListing } from '../src/lib/listing';
 import { type DayRecord } from '../src/lib/simulation';
 
 function day(over: Partial<DayRecord> = {}): DayRecord {
@@ -66,6 +67,7 @@ function ctx(over: Partial<BadgeContext> = {}): BadgeContext {
     business: createBusinessState(),
     ownership: createOwnershipState(),
     portfolio: null,
+    listing: createListing(),
     learned: [],
     challengesPlayed: 0,
     clubWeeks: 0,
@@ -240,7 +242,7 @@ describe('the trophy screen', () => {
   });
 
   it('groups them by act, including the social ones', () => {
-    expect(trophyCase([]).map((g) => g.act)).toEqual([1, 2, 3, 4, 'social']);
+    expect(trophyCase([]).map((g) => g.act)).toEqual([1, 2, 3, 4, 5, 'social']);
   });
 
   it('can look a badge up by id', () => {
@@ -281,8 +283,10 @@ describe('words you earned', () => {
     const progress = wordProgress(['margin', 'pe-ratio']);
     expect(progress.earned).toBe(2);
     expect(progress.total).toBe(GLOSSARY.length);
-    expect(progress.byAct.find((a) => a.act === 3)!.earned).toBe(1);
-    expect(progress.byAct.find((a) => a.act === 4)!.earned).toBe(0);
+    // `pe-ratio` belongs to the listing stage, which is Act 4 in the
+    // five-stage arc — the market is Act 5 and has nothing earned here.
+    expect(progress.byAct.find((a) => a.act === 4)!.earned).toBe(1);
+    expect(progress.byAct.find((a) => a.act === 5)!.earned).toBe(0);
     expect(progress.byAct.reduce((sum, a) => sum + a.total, 0)).toBe(GLOSSARY.length);
   });
 

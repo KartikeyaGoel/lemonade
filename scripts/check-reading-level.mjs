@@ -66,6 +66,7 @@ const NOT_FOR_KIDS = [
   'src/lib/parent.ts',
   'src/components/acts/ParentScreen.tsx',
   'src/lib/teacher.ts',
+  'src/components/meta/ErasedScreen.tsx',
 ];
 
 function walk(dir) {

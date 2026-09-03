@@ -25,6 +25,8 @@
 import { type DayRecord } from './simulation';
 import { HANDS_OFF_DAYS_REQUIRED, type BusinessState } from './business';
 import { GROWING_MULTIPLE, judgeDealChoice, type OwnershipState } from './ownership';
+import { founderStake, type Listing } from './listing';
+import { loanCleared } from './retail';
 import { DIVERSIFIED_MIN_HOLDINGS, type PortfolioState } from './market';
 import { GLOSSARY } from './glossary';
 
@@ -39,7 +41,7 @@ export interface Badge {
   /** How to get it, in kid language. Shown while it is still locked. */
   how: string;
   tier: BadgeTier;
-  act: 1 | 2 | 3 | 4 | 'social';
+  act: 1 | 2 | 3 | 4 | 5 | 'social';
 }
 
 export interface BadgeContext {
@@ -56,6 +58,8 @@ export interface BadgeContext {
   clubProposalsPassed: number;
   /** Buys made with a written reason. */
   thesisCount: number;
+  /** Shares, a share price, and every week since the company went public. */
+  listing: Listing;
 }
 
 interface BadgeDef extends Badge {
@@ -222,6 +226,109 @@ export const BADGES: BadgeDef[] = [
     test: (c) => c.business.staff.helper || c.business.staff.manager,
   },
   {
+    id: 'two-tables',
+    name: 'Two tables',
+    emoji: '\u{1F91D}',
+    proves: 'You cannot be in two places at once. That is what a wage buys back.',
+    how: 'Pay somebody to mind the first stand, then open a second one.',
+    tier: 'silver',
+    act: 2,
+    test: (c) => c.business.staff.manager && c.business.stands.length >= 1,
+  },
+  {
+    id: 'chain-of-two',
+    name: 'A chain of two',
+    emoji: '\u{1F4C8}',
+    proves: 'Growth is arithmetic. One more stand, again, and every cost doubles too.',
+    how: 'Run two stands at a profit, on the same price, twice.',
+    tier: 'gold',
+    act: 2,
+    test: (c) => c.business.twoStandDays >= 2,
+  },
+  {
+    id: 'read-the-street',
+    name: 'Read the street',
+    emoji: '\u{1F5FA}\u{FE0F}',
+    proves: 'A second stand on your own pitch splits your own crowd. A new pitch does not.',
+    how: 'Open your second stand somewhere you were not already trading.',
+    tier: 'silver',
+    act: 2,
+    test: (c) => c.business.stands.some((stand) => stand.location !== c.business.location),
+  },
+  {
+    id: 'got-a-door',
+    name: 'Got a door',
+    emoji: '\u{1F3EA}',
+    proves: 'A big rent owed every day is a different kind of risk from a pitch fee.',
+    how: 'Open the shop.',
+    tier: 'silver',
+    act: 3,
+    test: (c) => c.business.shop.open,
+  },
+  {
+    id: 'rain-proof',
+    name: 'Rain proof',
+    emoji: '\u{2602}\u{FE0F}',
+    proves: 'Indoors, a cold day is an ordinary day. That is what the rent bought.',
+    how: 'Make money at the shop on a cold day.',
+    tier: 'gold',
+    act: 3,
+    test: (c) =>
+      c.business.shop.open &&
+      c.history.some((day) => day.weather === 'cold' && day.profit > 0),
+  },
+  {
+    id: 'paid-it-back',
+    name: 'Paid it back',
+    emoji: '\u{1F3E6}',
+    proves: 'Borrowed money is owed on the days nobody comes in as well as the good ones.',
+    how: 'Borrow from the bank and clear the whole loan.',
+    tier: 'gold',
+    act: 3,
+    test: (c) => loanCleared(c.business.loan),
+  },
+  {
+    id: 'rang-the-bell',
+    name: 'Rang the bell',
+    emoji: '\u{1F514}',
+    proves: 'Going public is selling pieces to many people instead of the lot to one.',
+    how: 'Put your company on the market instead of selling it.',
+    tier: 'gold',
+    act: 4,
+    test: (c) => c.listing.listed,
+  },
+  {
+    id: 'kept-control',
+    name: 'Kept control',
+    emoji: '\u{1F451}',
+    proves: 'Cash today costs a slice of every profit after it. A founder can sell too much.',
+    how: 'Go public and still own more than half of it.',
+    tier: 'silver',
+    act: 4,
+    test: (c) => c.listing.listed && c.listing.founderShare > 0.5,
+  },
+  {
+    id: 'own-price-moved',
+    name: 'Watched it move',
+    emoji: '\u{1F4C9}',
+    proves: 'A share price moves when the guess about next week changes. It is not a scoreboard.',
+    how: 'Trade a week as a public company and see what your own price does.',
+    tier: 'gold',
+    act: 4,
+    test: (c) => c.listing.weeks.length >= 1,
+  },
+  {
+    id: 'held-your-own',
+    name: 'Held your own',
+    emoji: '\u{1F9F1}',
+    proves: 'Your own price fell and the business was still the business.',
+    how: 'Have a bad week as a public company, and keep running it.',
+    tier: 'legend',
+    act: 4,
+    test: (c) =>
+      c.listing.weeks.some((week) => week.change < -0.03) && founderStake(c.listing) > 0,
+  },
+  {
     id: 'held-the-line',
     name: 'Held the line',
     emoji: '🛡️',
@@ -286,8 +393,10 @@ export const BADGES: BadgeDef[] = [
     name: 'Kept the whole thing',
     emoji: '🧱',
     proves: 'Selling a slice cheap is the most common mistake a founder makes.',
-    how: 'Turn down the investor and keep 100% of your stand.',
+    how: 'Open the shop without selling anybody a slice of the business.',
     tier: 'gold',
+    // Stage 3, where the offer actually is: a shop that costs more than the
+    // business has, with a bank and an investor beside it.
     act: 3,
     test: (c) => c.ownership.equityOfferSeen && c.ownership.equitySoldPct === 0,
   },
@@ -298,7 +407,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'Cash today for a slice of forever. Sometimes that is the right trade.',
     how: 'Sell a slice of the stand to the investor.',
     tier: 'bronze',
-    act: 3,
+    act: 4,
     test: (c) => c.ownership.equitySoldPct > 0,
   },
   {
@@ -308,7 +417,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'You can compare any two businesses once you count in years of profit.',
     how: 'Pick the better of the stands for sale, and be right.',
     tier: 'gold',
-    act: 3,
+    act: 4,
     test: (c) => {
       const id = c.ownership.comparisonChoiceId;
       return Boolean(id && judgeDealChoice(id).correct);
@@ -321,7 +430,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'A great business at a silly price is still a bad buy.',
     how: 'Turn down the famous kiosk purely because of what it costs.',
     tier: 'legend',
-    act: 3,
+    act: 4,
     test: (c) => c.ownership.passedOnOverpriced,
   },
   {
@@ -331,7 +440,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'A business is worth some number of times what it earns. Yours had a number.',
     how: 'Accept the buyout.',
     tier: 'silver',
-    act: 3,
+    act: 4,
     test: (c) => c.ownership.buyoutAccepted,
   },
   {
@@ -341,7 +450,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'Buyers pay more per dollar for profits that are climbing.',
     how: `Be growing when you sell, and get ${GROWING_MULTIPLE} weeks of profit or better.`,
     tier: 'legend',
-    act: 3,
+    act: 4,
     test: (c) => c.ownership.buyoutMultiple >= GROWING_MULTIPLE,
   },
   {
@@ -351,7 +460,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'You can now say "P/E ratio" and mean something exact by it.',
     how: 'Get to the end of the sale and see your own multiple given its real name.',
     tier: 'silver',
-    act: 3,
+    act: 4,
     test: (c) => c.learned.includes('pe-ratio'),
   },
   {
@@ -361,7 +470,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'Reading the numbers before buying is the entire job.',
     how: 'Look properly at six different companies.',
     tier: 'silver',
-    act: 4,
+    act: 5,
     test: (c) => (c.portfolio?.researched.length ?? 0) >= 6,
   },
   {
@@ -371,7 +480,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'A reason written before you buy is the only way to grade the decision later.',
     how: 'Buy three companies, each with a reason.',
     tier: 'silver',
-    act: 4,
+    act: 5,
     test: (c) => c.thesisCount >= 3,
   },
   {
@@ -381,7 +490,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'One mistake should never be able to end the game.',
     how: `Own ${DIVERSIFIED_MIN_HOLDINGS} companies at the same time.`,
     tier: 'gold',
-    act: 4,
+    act: 5,
     test: (c) => Object.keys(c.portfolio?.holdings ?? {}).length >= DIVERSIFIED_MIN_HOLDINGS,
   },
   {
@@ -391,7 +500,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'Doing nothing during a fall is a skill, and a rare one.',
     how: 'Watch something you own fall hard, and keep it.',
     tier: 'legend',
-    act: 4,
+    act: 5,
     test: (c) =>
       Object.values(c.portfolio?.holdings ?? {}).some((h) => h.heldThroughDrawdown && !h.soldWhileDown),
   },
@@ -402,7 +511,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'Telling a good decision from a lucky one is most of getting better.',
     how: 'Make money on a company where your reason turned out to be wrong, and be told so.',
     tier: 'legend',
-    act: 4,
+    act: 5,
     test: (c) => c.learned.includes('luck-vs-skill'),
   },
   {
@@ -412,7 +521,7 @@ export const BADGES: BadgeDef[] = [
     proves: 'You can hold your end of a conversation about a business now.',
     how: `Earn ${GLOSSARY.length - 6} of the ${GLOSSARY.length} words.`,
     tier: 'legend',
-    act: 4,
+    act: 5,
     test: (c) => {
       const held = new Set(c.learned);
       return GLOSSARY.filter((w) => held.has(w.id)).length >= GLOSSARY.length - 6;
@@ -538,7 +647,7 @@ export function trophyCase(held: string[]): Array<{
   badges: Array<Badge & { held: boolean }>;
 }> {
   const heldSet = new Set(held);
-  const acts: Array<Badge['act']> = [1, 2, 3, 4, 'social'];
+  const acts: Array<Badge['act']> = [1, 2, 3, 4, 5, 'social'];
   return acts.map((act) => ({
     act,
     badges: BADGES.filter((badge) => badge.act === act).map((badge) => ({
