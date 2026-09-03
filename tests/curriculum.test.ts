@@ -34,7 +34,7 @@ function pricer(state: GameState) {
   return { price, cups: 24 };
 }
 
-const ACTS: Act[] = [1, 2, 3, 4];
+const ACTS: Act[] = [1, 2, 3, 4, 5];
 
 describe('the ladder', () => {
   it('has one rung per act, in order', () => {
@@ -46,7 +46,7 @@ describe('the ladder', () => {
     // The reason this exists at all: a parent looking at it before their kid
     // has played must still be able to see what the game teaches.
     const stages = curriculum(createGame(1));
-    expect(stages).toHaveLength(4);
+    expect(stages).toHaveLength(5);
     for (const stage of stages) {
       expect(stage.grownUpConcept.length).toBeGreaterThan(0);
       expect(stage.outOf).toBeGreaterThan(0);
@@ -62,10 +62,10 @@ describe('the ladder', () => {
 
   it('marks where the kid is standing, and never from how much they showed', () => {
     const early = curriculum(createGame(1));
-    expect(early.map((s) => s.state)).toEqual(['here', 'locked', 'locked', 'locked']);
+    expect(early.map((s) => s.state)).toEqual(['here', 'locked', 'locked', 'locked', 'locked']);
 
     const later = curriculum(beginAct2(createGame(1)));
-    expect(later.map((s) => s.state)).toEqual(['done', 'here', 'locked', 'locked']);
+    expect(later.map((s) => s.state)).toEqual(['done', 'here', 'locked', 'locked', 'locked']);
   });
 
   it('counts only the stages the kid could have reached', () => {
@@ -139,7 +139,7 @@ describe('the report a parent opens before their kid has played', () => {
   const cold = parentReport(createGame(1));
 
   it('still says what the game teaches', () => {
-    expect(cold.ladder).toHaveLength(4);
+    expect(cold.ladder).toHaveLength(5);
     expect(cold.ladder.map((s) => s.grownUpConcept).join(' ')).toContain('margin');
   });
 

@@ -35,7 +35,9 @@ const PALETTE = {
   ink: '#2B2118',
   'ink-soft': '#5A4A38',
   berry: '#BF3F54',
+  'berry-light': '#FF9DAE',
   mint: '#2ED9A0',
+  'mint-deep': '#0B7A59',
   white: '#FFFFFF',
   'panel-cream': '#FFF8E4',
   'night-panel': '#3A4363',
@@ -63,6 +65,23 @@ const PAIRS = [
   ['white', 'night-panel', 'body'],
   ['lemon-light', 'night-panel', 'body'],
   ['ink', 'mint', 'body'],
+  /*
+   * The green that is text rather than a background, on the three surfaces it
+   * appears on. `mint` itself is only ever a fill behind ink — at 1.8:1 on
+   * white it could never be a figure — so the moment a green *number* was
+   * wanted, a second green had to exist and be checked.
+   */
+  ['mint-deep', 'white', 'body'],
+  ['mint-deep', 'panel-cream', 'body'],
+  ['mint-deep', 'lemon-light', 'body'],
+  /*
+   * The listed-company screen, whose share price is green when it rose and
+   * pink when it fell. Measured against the solid panel those figures sit on
+   * rather than against the sky, because the sky is a gradient and its bottom
+   * stop is far too light to carry a tinted figure at all.
+   */
+  ['berry-light', 'night-panel', 'body'],
+  ['mint', 'night-panel', 'body'],
   ['ink', 'sky-hot', 'large'],
   // The hand-painted price on the sign, which is the most-looked-at number in
   // the game and was the one that failed hardest.
@@ -137,7 +156,13 @@ for (const [fg, bg, size] of PAIRS) {
  * a sign on every figure and a word on every verdict — but the two should still
  * not collapse into the same colour.
  */
-const MEANING_PAIRS = [['mint', 'berry']];
+const MEANING_PAIRS = [
+  ['mint', 'berry'],
+  /* On white: the challenge comparison and the reckoning verdict. */
+  ['mint-deep', 'berry'],
+  /* On the night sky: a share price that rose against one that fell. */
+  ['mint', 'berry-light'],
+];
 const SEPARATE_ENOUGH = 0.12;
 
 console.log('\nColour-blind separation of good and bad\n');

@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import {
+  ACT3_DAYS,
   ACT_TITLES,
   act1Complete,
   act2Complete,
   act3Complete,
+  act4Complete,
+  actDay,
   beginAct2,
   beginAct3,
   beginAct4,
+  beginAct5,
   createGame,
   heldThroughWorstDay,
   readiness,
@@ -14,13 +18,20 @@ import {
   type Game,
 } from '../src/lib/progress';
 import { parentReport, conversationStarter } from '../src/lib/parent';
-import { ECON, orderForTargetCups, runDay, type DayRecord } from '../src/lib/simulation';
+import { ECON, orderForTargetCups, round2, runDay, type DayRecord } from '../src/lib/simulation';
 import {
+  ACT2_DAYS,
   HANDS_OFF_DAYS_REQUIRED,
+  TWO_STAND_DAYS_REQUIRED,
   buyUpgrade,
+  openStand,
   toggleStaff,
+  trailingWeeklyProfit,
   updateHandsOff,
+  updateTwoStandDays,
 } from '../src/lib/business';
+import { SHOP_DAYS_REQUIRED, updateShopDays } from '../src/lib/retail';
+import { floatPlan, listCompany, listingOffer, markListedWeek } from '../src/lib/listing';
 import {
   acceptBuyout,
   buyoutOffer,
@@ -41,7 +52,7 @@ function withHistory(profits: number[], prices?: number[]): DayRecord[] {
   }));
 }
 
-/** A game that has been played all the way through Act 3. */
+/** A game played all the way through Level 1, ending in a sale. */
 function playedThrough(): Game {
   let game = createGame(7);
   for (let day = 1; day <= ECON.TOTAL_DAYS; day++) {
@@ -54,12 +65,41 @@ function playedThrough(): Game {
   for (let i = 0; i < HANDS_OFF_DAYS_REQUIRED; i++) {
     game = { ...game, business: updateHandsOff(game.business, true, 25) };
   }
+  game = { ...game, business: openStand(game.business, 'park', 200).business };
+  for (let i = 0; i < TWO_STAND_DAYS_REQUIRED; i++) {
+    game = { ...game, business: updateTwoStandDays(game.business, 25) };
+  }
+  // Stage 3: a door, paid for out of profit, trading well enough to end it.
   game = beginAct3(game);
+  game = {
+    ...game,
+    business: { ...game.business, shop: { ...game.business.shop, open: true } },
+  };
+  for (let i = 0; i < SHOP_DAYS_REQUIRED; i++) {
+    game = { ...game, business: { ...game.business, shop: updateShopDays(game.business.shop, 40) } };
+  }
+  // Stage 4: rank the stands for sale, then sell up rather than list.
+  game = beginAct4(game);
   game = { ...game, learned: [...game.learned, 'margin'] };
   game = { ...game, ownership: recordDealChoice(game.ownership, 'sam') };
   const offer = buyoutOffer(game.stand.history, game.ownership);
   game = { ...game, ownership: acceptBuyout(game.ownership, offer) };
   return game;
+}
+
+/** The same run, but taken public instead of sold. */
+function listedInstead(): Game {
+  const game = playedThrough();
+  const base: Game = { ...game, ownership: { ...game.ownership, buyoutAccepted: false } };
+  const offer = listingOffer(base.stand.history, base.ownership);
+  const plan = floatPlan(offer, 0.3, base.ownership);
+  const listing = listCompany(offer, plan);
+  const marked = markListedWeek(listing, trailingWeeklyProfit(base.stand.history));
+  return {
+    ...base,
+    listing: marked.listing,
+    stand: { ...base.stand, cash: round2(base.stand.cash + plan.cashRaised) },
+  };
 }
 
 describe('acts begin and end on real conditions', () => {
@@ -73,25 +113,66 @@ describe('acts begin and end on real conditions', () => {
     expect(act1Complete(game.stand)).toBe(true);
   });
 
-  it('Act 2 needs a manager running it profitably', () => {
+  it('Act 2 needs a manager and then a second stand actually paying', () => {
     const game = createGame(1);
     expect(act2Complete(game.business, 5)).toBe(false);
+
+    // A manager on its own used to end the act. It is now the unlock: it frees
+    // the kid's hands, and the act ends where the lesson does.
     let business = toggleStaff(game.business, 'manager');
     for (let i = 0; i < HANDS_OFF_DAYS_REQUIRED; i++) {
       business = updateHandsOff(business, true, 20);
+    }
+    expect(act2Complete(business, 5)).toBe(false);
+
+    business = openStand(business, 'park', 200).business;
+    expect(act2Complete(business, 5)).toBe(false);
+
+    for (let i = 0; i < TWO_STAND_DAYS_REQUIRED; i++) {
+      business = updateTwoStandDays(business, 20);
     }
     expect(act2Complete(business, 5)).toBe(true);
   });
 
   it('Act 2 also ends if the fortnight runs out, so nobody gets stuck', () => {
     const game = createGame(1);
-    expect(act2Complete(game.business, 14)).toBe(true);
+    expect(act2Complete(game.business, ACT2_DAYS)).toBe(true);
   });
 
-  it('Act 3 ends only when the business is actually sold', () => {
+  it('Act 3 ends when the shop has paid for its own door', () => {
     const game = createGame(1);
-    expect(act3Complete(game.ownership)).toBe(false);
-    expect(act3Complete(playedThrough().ownership)).toBe(true);
+    expect(act3Complete(game.business, 0)).toBe(false);
+
+    let shop = { ...game.business.shop, open: true };
+    for (let i = 0; i < SHOP_DAYS_REQUIRED; i++) shop = updateShopDays(shop, 40);
+    expect(act3Complete({ ...game.business, shop }, 0)).toBe(true);
+  });
+
+  it('Act 3 hands over on the clock too, so a bad run is not a dead end', () => {
+    const game = createGame(1);
+    expect(act3Complete(game.business, ACT3_DAYS)).toBe(true);
+  });
+
+  it('Act 4 ends at a sale or at a listing, and both are real endings', () => {
+    const fresh = createGame(1);
+    expect(act4Complete(fresh.ownership, fresh.listing)).toBe(false);
+
+    const sold = playedThrough();
+    expect(act4Complete(sold.ownership, sold.listing)).toBe(true);
+
+    const listed = listedInstead();
+    expect(listed.ownership.buyoutAccepted).toBe(false);
+    expect(act4Complete(listed.ownership, listed.listing)).toBe(true);
+  });
+
+  it('a listing is not finished until a week has actually been lived through', () => {
+    const game = playedThrough();
+    const base: Game = { ...game, ownership: { ...game.ownership, buyoutAccepted: false } };
+    const offer = listingOffer(base.stand.history, base.ownership);
+    const listing = listCompany(offer, floatPlan(offer, 0.3, base.ownership));
+    // Reaching a listing teaches what a company is worth. Living a week as one
+    // is what teaches what a share price is, so the stage does not end here.
+    expect(act4Complete(base.ownership, listing)).toBe(false);
   });
 
   it('carries the same money and stand from Act 1 into Act 2', () => {
@@ -103,17 +184,43 @@ describe('acts begin and end on real conditions', () => {
     expect(act2.stand.history).toEqual(game.stand.history);
   });
 
-  it('seeds Act 4 with exactly what the kid walked away with', () => {
+  it('seeds the market with exactly what the kid walked away with', () => {
     const game = playedThrough();
-    const act4 = beginAct4(game);
-    expect(act4.portfolio).not.toBeNull();
+    const act5 = beginAct5(game);
+    expect(act5.portfolio).not.toBeNull();
     const expected =
       game.ownership.buyoutProceeds + game.business.savings + game.stand.cash;
-    expect(act4.portfolio!.cash).toBeCloseTo(expected, 2);
+    expect(act5.portfolio!.cash).toBeCloseTo(expected, 2);
+  });
+
+  it('seeds the market from the float when the kid listed instead of selling', () => {
+    const game = listedInstead();
+    const act5 = beginAct5(game);
+    // What the float raised, not what a buyer would have paid for the lot. The
+    // company still exists and the kid still owns most of it.
+    const expected = game.listing.raised + game.business.savings + game.stand.cash;
+    expect(act5.portfolio!.cash).toBeCloseTo(expected, 2);
+    expect(game.listing.raised).toBeGreaterThan(0);
+  });
+
+  it('counts each stage from where that stage opened, not from a fixed day', () => {
+    // Two kids reach the shop on different days; both are on its day one.
+    const early: Game = { ...createGame(1), act: 3, stageStartDay: 14 };
+    const late: Game = { ...createGame(1), act: 3, stageStartDay: 26 };
+    expect(actDay({ ...early, stand: { ...early.stand, history: withHistory([1], [1.6]) } })).toBe(1);
+    expect(
+      actDay({
+        ...late,
+        stand: {
+          ...late.stand,
+          history: Array.from({ length: 28 }, () => withHistory([1], [1.6])[0]),
+        },
+      }),
+    ).toBe(3);
   });
 
   it('names every act with a promise, not a lesson title', () => {
-    for (const act of [1, 2, 3, 4] as const) {
+    for (const act of [1, 2, 3, 4, 5] as const) {
       expect(ACT_TITLES[act].name.length).toBeGreaterThan(3);
       expect(ACT_TITLES[act].promise).not.toMatch(/learn|lesson/i);
     }
@@ -235,7 +342,7 @@ describe('the parent report is evidence, never a score', () => {
 
   it('is honest about what has not been shown yet', () => {
     let game = playedThrough();
-    game = beginAct4(game);
+    game = beginAct5(game);
     game = { ...game, portfolio: buy(game.portfolio!, 'AAPL', maxSpendOn(game.portfolio!, 'AAPL')).portfolio };
     const report = parentReport(game);
     // One holding is not diversification, and we say so rather than implying it.
@@ -244,7 +351,7 @@ describe('the parent report is evidence, never a score', () => {
   });
 
   it('credits diversification once it is real', () => {
-    const game = beginAct4(playedThrough());
+    const game = beginAct5(playedThrough());
     let portfolio = game.portfolio!;
     for (const ticker of ['AAPL', 'KO', 'CMG']) {
       portfolio = buy(portfolio, ticker, maxSpendOn(portfolio, ticker)).portfolio;
@@ -259,7 +366,7 @@ describe('the parent report is evidence, never a score', () => {
   });
 
   it('reports research actually opened', () => {
-    const game = beginAct4(playedThrough());
+    const game = beginAct5(playedThrough());
     let portfolio = markResearched(game.portfolio!, 'AAPL');
     portfolio = markResearched(portfolio, 'KO');
     const report = parentReport({ ...game, portfolio });
@@ -273,11 +380,29 @@ describe('the parent report is evidence, never a score', () => {
     expect(sold.ownership.passedOnOverpriced).toBe(true);
     expect(conversationStarter(sold)).toContain('kiosk');
 
-    const soldOnly = {
+    /*
+     * The starter picks the most interesting true thing, and the shop and the
+     * second stand are both more interesting than the sale. So this asserts the
+     * ordering rather than one string: with the later facts taken away, the
+     * buyout question is what is left.
+     */
+    const soldOnly: Game = {
       ...sold,
       ownership: { ...sold.ownership, passedOnOverpriced: false, comparisonChoiceId: null },
+      business: {
+        ...sold.business,
+        stands: [],
+        shop: { ...sold.business.shop, open: false },
+        loan: null,
+      },
+      listing: createGame(1).listing,
     };
     expect(conversationStarter(soldOnly)).toContain('times what your stand earns');
+
+    // And with the shop back, the shop is what gets asked about.
+    expect(conversationStarter({ ...soldOnly, business: sold.business })).toMatch(
+      /shop owes|second stand|borrowed/,
+    );
   });
 
   it('never asks about something that did not happen', () => {

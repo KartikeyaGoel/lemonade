@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import type { ParentReport } from '@/lib/parent';
 import type { Stage } from '@/lib/curriculum';
 import type { Skill } from '@/lib/mastery';
-import { ChunkyButton, SignHeading, Sky } from '../ui';
+import { ChunkyButton, clearsBar, PinnedBar, SignHeading, Sky } from '../ui';
+import { plural } from '@/lib/copy';
 
 /**
  * The parent view. Thirty seconds, no analytics, no scores.
@@ -17,22 +19,46 @@ import { ChunkyButton, SignHeading, Sky } from '../ui';
 export function ParentScreen({
   report,
   onClassroom,
+  onEraseAll,
   onBack,
 }: {
   report: ParentReport;
   /** The teacher's way in. Nothing on the child's side links here. */
   onClassroom?: () => void;
+  /**
+   * Deletes the run, the trophy case and everything else on this device.
+   *
+   * Optional in the type and always passed in practice, so that a harness
+   * rendering this screen has to opt in to a destructive control rather than
+   * getting one by default.
+   */
+  onEraseAll?: () => void;
   onBack: () => void;
 }) {
+  /*
+   * Two taps, and the second one is a different button in a different place.
+   *
+   * The whole point of a confirmation is that the tap which does the damage
+   * cannot be the tap somebody already had their thumb over.
+   */
+  const [confirming, setConfirming] = useState(false);
   return (
     <Sky mood="dawn">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pb-28 pt-8">
+      {/* Padded by whatever the bar underneath actually measures, rather than
+          by a guess. The guess was `pb-28`, and the bar is nearer 180px with
+          the teacher's door in it — so the last card on the longest document
+          in the product sat under it. Eleven other screens had the same
+          arithmetic; `clearsBar` is now the only place it happens. */}
+      <div
+        className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pt-8"
+        style={clearsBar()}
+      >
         <div className="font-body text-xs font-extrabold uppercase tracking-[0.2em] text-ink/50">
           For a grown-up · 30 seconds
         </div>
         <SignHeading className="mt-1 text-3xl">{report.headline}</SignHeading>
         <div className="mt-1 font-body text-sm font-bold text-ink/60">
-          Act {report.act}: {report.actName} · {report.daysTraded} days in this run
+          Act {report.act}: {report.actName} · {plural(report.daysTraded, 'day')} in this run
         </div>
 
         {/* The record across every season. This is the evidence a parent is
@@ -133,9 +159,19 @@ export function ParentScreen({
             &ldquo;{report.conversationStarter}&rdquo;
           </p>
         </div>
+
+        {onEraseAll && (
+          <EraseBlock
+            confirming={confirming}
+            career={report.career}
+            onAsk={() => setConfirming(true)}
+            onKeep={() => setConfirming(false)}
+            onErase={onEraseAll}
+          />
+        )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/25 to-transparent pb-5 pt-8">
+      <PinnedBar className="z-30 pb-5 pt-8 bg-gradient-to-t from-black/25 to-transparent">
         <div className="mx-auto w-full max-w-md px-4">
           {/* One teacher is thirty children, and this is the only door to
               that. It sits at the bottom of the grown-up view rather than
@@ -168,8 +204,109 @@ export function ParentScreen({
             Back to the game
           </ChunkyButton>
         </div>
-      </div>
+      </PinnedBar>
     </Sky>
+  );
+}
+
+/**
+ * Deleting the child's data.
+ *
+ * This is the only destructive control in the product, and everything about
+ * how it looks is an argument with itself. It has to be genuinely findable,
+ * because `PRIVACY.md` promises a parent their child's data is theirs and a
+ * promise you keep by explaining browser settings is not one. It also has to
+ * be nothing like the buttons around it, because the thing it destroys is the
+ * one thing the game elsewhere guarantees is never destroyed: the trophy case
+ * survives a new season precisely so that starting over is safe to press.
+ *
+ * So: bottom of the grown-up document, below the dinner question, styled as a
+ * line of small print rather than an action — and then, once asked, the panel
+ * names what goes by counting it. "12 badges and 9 words" is a sentence a
+ * parent can weigh. "All progress" is not.
+ */
+function EraseBlock({
+  confirming,
+  career,
+  onAsk,
+  onKeep,
+  onErase,
+}: {
+  confirming: boolean;
+  career: ParentReport['career'];
+  onAsk: () => void;
+  onKeep: () => void;
+  onErase: () => void;
+}) {
+  if (!confirming) {
+    return (
+      <div className="mt-5 border-t-2 border-dashed border-ink/15 pt-3">
+        <p className="font-body text-[11px] font-bold leading-snug text-ink/50">
+          Everything above is stored in this browser and nowhere else. No accounts, no servers,
+          nothing sent anywhere.
+        </p>
+        {/* Small print, 44-pixel target. The two are not in tension: the
+            underlined label is what makes this read as the quiet option, and
+            the height is what makes it pressable. It measured 18. */}
+        <button
+          type="button"
+          onClick={onAsk}
+          className="mt-0.5 flex h-11 items-center font-body text-[12px] font-extrabold uppercase tracking-wide text-berry underline decoration-2 underline-offset-2"
+        >
+          Delete it from this device
+        </button>
+      </div>
+    );
+  }
+
+  /*
+   * Only things that actually exist.
+   *
+   * A confirmation is a question, and a question padded with "0 badges and 0
+   * words earned" and a name the child never typed is not one — it is a form
+   * that happens to have a verb on it. On a fresh install this correctly
+   * collapses to two lines.
+   */
+  const earned = career ? career.badges.held + career.words.held : 0;
+  const losses = [
+    career && career.seasons > 1 ? `${career.seasons} seasons of play` : 'the run in progress',
+    career && earned > 0
+      ? `${career.badges.held} ${career.badges.held === 1 ? 'badge' : 'badges'} and ${career.words.held} ${career.words.held === 1 ? 'word' : 'words'} earned`
+      : null,
+    career?.named ? `the name ${career.name}` : null,
+  ].filter((line): line is string => line !== null);
+
+  return (
+    <div className="mt-5 rounded-2xl border-[3px] border-berry/60 bg-berry/10 p-4">
+      <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-berry">
+        Delete everything
+      </div>
+      <p className="mt-1 font-body text-[13px] font-extrabold leading-snug text-ink">
+        This removes it permanently. There is no copy anywhere else, so we cannot restore it.
+      </p>
+      <ul className="mt-2 space-y-0.5">
+        {losses.map((line) => (
+          <li key={line} className="font-body text-[13px] font-bold leading-snug text-ink/75">
+            &middot; {line}
+          </li>
+        ))}
+        <li className="font-body text-[13px] font-bold leading-snug text-ink/75">
+          &middot; any class board and practice market account on this device
+        </li>
+      </ul>
+      <div className="mt-3 space-y-2">
+        <ChunkyButton variant="ghost" full onClick={onKeep}>
+          Keep it
+        </ChunkyButton>
+        <button
+          type="button"
+          onClick={onErase}
+          className="w-full rounded-2xl border-[3px] border-berry bg-berry px-4 py-2.5 font-body text-[13px] font-extrabold uppercase tracking-wide text-white"
+        >
+          Yes, delete everything
+        </button>
+      </div>
+    </div>
   );
 }
 

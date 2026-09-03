@@ -8,6 +8,7 @@ import {
   deriveInsights,
   orderForTargetCups,
   projectDay,
+  round2,
   runDay,
   type DayOutcome,
   type DayProjection,
@@ -20,21 +21,43 @@ import {
   advanceRival,
   applyWeeklyChoice,
   buyUpgrade,
+  closeStand as closeStandAt,
   deriveAct2Insights,
+  deriveAct3Insights,
   deriveDayParams,
   managerBatch,
   managerPrice,
   moveTo,
+  openStand as openStandAt,
+  standCount,
   toggleStaff,
   trailingWeeklyProfit,
   updateHandsOff,
+  updateTwoStandDays,
   type LocationId,
   type StaffId,
   type UpgradeId,
 } from '@/lib/business';
 import {
+  SHOP,
+  hireShopStaff,
+  letShopStaffGo,
+  loanQuote,
+  repayLoan,
+  updateShopDays,
+} from '@/lib/retail';
+import {
+  deriveListingInsights,
+  listCompany,
+  listingOffer,
+  floatPlan,
+  markListedWeek,
+  type PriceMove,
+} from '@/lib/listing';
+import {
   acceptBuyout,
   acceptEquity,
+  canSellSlice,
   buyoutOffer,
   declineEquity,
   equityOffer,
@@ -60,17 +83,24 @@ import {
   beginWeekend,
   endWeekend,
   WEEKEND_FLOAT,
+  ACT3_DAYS,
   act2Complete,
+  act3Complete,
+  act3Progress,
+  act4Complete,
+  actDay,
   badgeContext,
   badgesHeld,
   beginAct2,
   beginAct3,
   beginAct4,
+  beginAct5,
   createChallengeGame,
   createGame,
   newSeason,
   readiness,
   seasonRecord,
+  seededWith,
   whatsNext,
   type Game,
 } from '@/lib/progress';
@@ -79,6 +109,7 @@ import { catchUp, createLivePortfolio, type CatchUp } from '@/lib/live';
 import { LiveOpenScreen } from '@/components/acts/LiveOpenScreen';
 import {
   clearGame,
+  eraseEverything,
   loadBoard,
   loadCareer,
   loadGame,
@@ -112,6 +143,8 @@ import {
   recordAnnounced,
   recordBadges,
   recordChallenge,
+  recordClubWeek,
+  recordClubWin,
   recordDay,
   recordSeason,
   recordWords,
@@ -141,13 +174,16 @@ import { WeekEndScreen } from '@/components/WeekEndScreen';
 import { ActIntroScreen } from '@/components/acts/ActIntroScreen';
 import { InvestScreen } from '@/components/acts/InvestScreen';
 import { WeeklyChoiceScreen } from '@/components/acts/WeeklyChoiceScreen';
-import { EquityOfferScreen } from '@/components/acts/EquityOfferScreen';
+import { FundingScreen } from '@/components/acts/FundingScreen';
+import { ListingScreen } from '@/components/acts/ListingScreen';
+import { ListedScreen } from '@/components/acts/ListedScreen';
 import { DealBoardScreen } from '@/components/acts/DealBoardScreen';
 import { BuyoutScreen } from '@/components/acts/BuyoutScreen';
 import { MarketScreen } from '@/components/acts/MarketScreen';
 import { WeekReportScreen } from '@/components/acts/WeekReportScreen';
 import { GateScreen } from '@/components/acts/GateScreen';
 import { ParentScreen } from '@/components/acts/ParentScreen';
+import { ErasedScreen } from '@/components/meta/ErasedScreen';
 import { FinaleScreen } from '@/components/acts/FinaleScreen';
 import { TrophyScreen } from '@/components/meta/TrophyScreen';
 import { ChallengeScreen } from '@/components/meta/ChallengeScreen';
@@ -179,9 +215,11 @@ type Phase =
   | 'close'
   | 'week-end'
   | 'weekly-choice'
-  | 'equity'
+  | 'funding'
   | 'deals'
   | 'buyout'
+  | 'listing'
+  | 'listed'
   | 'market'
   | 'week-report'
   | 'gate'
@@ -197,7 +235,8 @@ type Phase =
   | 'live-open'
   | 'live'
   | 'thesis'
-  | 'reckoning';
+  | 'reckoning'
+  | 'erased';
 
 /**
  * Screens where a child's reward is never allowed to appear.
@@ -210,11 +249,34 @@ type Phase =
 const KID_FREE_SCREENS = new Set<Phase>(['run', 'close', 'parent', 'classroom']);
 
 /** The wall each act opens on, in the kid's language. */
+/**
+ * The wall each stage opens on, in the kid's language.
+ *
+ * Not a summary of what is coming. The thing that has just stopped working,
+ * stated as the reason the next stage exists at all — PRODUCT.md §4: no concept
+ * before the wall that motivates it. Each of these is a sentence a kid could
+ * have written themselves the day before they read it.
+ */
 const ACT_WALLS: Record<number, string> = {
   2: 'You found the best price. You still cannot make more than 30 cups a day.',
-  3: 'Your stand runs itself and earns money. So what is the whole thing actually worth?',
-  4: 'You have cash and no business. Other people have businesses and want cash.',
+  3: 'Two stands, a manager and a helper — and the rain still shuts all of it.',
+  4: 'The shop pays for its own door. So what is the whole thing actually worth?',
 };
+
+/**
+ * The wall the market opens on, which depends on how the kid got here.
+ *
+ * Two doors lead into Act 5 and they are not the same story. A founder who
+ * listed still owns most of a company and has a price of their own to compare
+ * against; a founder who sold up has money and no business. Telling the second
+ * one "you have a price of your own" is a sentence about somebody else's run,
+ * on the screen that is supposed to name what just happened to them.
+ */
+function marketWall(game: Game): string {
+  return game.listing.listed
+    ? 'You have money, and a price of your own to compare it against. Everybody else has one too.'
+    : 'You have money and no business. Other people have businesses and want cash.';
+}
 
 export default function Page() {
   const [game, setGame] = useState<Game | null>(null);
@@ -278,6 +340,14 @@ export default function Page() {
    * the first render and then un-spoken a tick later.
    */
   const [guideSeen, setGuideSeen] = useState<string[] | null>(null);
+  /**
+   * The storage keys a deletion actually removed.
+   *
+   * Held so the confirmation can list them. Reported by the storage layer
+   * rather than assembled here, because "we deleted six things" is a claim and
+   * the only honest source for it is the code that did the deleting.
+   */
+  const [erasedKeys, setErasedKeys] = useState<string[]>([]);
 
   useEffect(() => {
     const saved = loadGame();
@@ -396,6 +466,49 @@ export default function Page() {
     [],
   );
 
+  /**
+   * Hands over one word now and queues the rest for the days after it.
+   *
+   * `queueWords` shows a full-screen card, which is right for a beat that earns
+   * one or two words — an equity deal, a buyout, a thesis. The listing earns
+   * four at once, and putting four through it produced a stack of four cards
+   * over the biggest moment in the game. That is precisely the failure
+   * PRODUCT.md §26 records and fixed once already: *"day one handed over three
+   * new words in three stacked panels of italic explanation"*.
+   *
+   * So the first one lands on the moment that earned it, and the rest go into
+   * `Game.pendingInsights`, which the day loop already drains at one a day.
+   * Nothing is lost and nothing is skipped; the kid is simply still being told
+   * one new thing tomorrow.
+   */
+  const handOverOne = useCallback(
+    (current: Game, insights: Insight[]): Game => {
+      const fresh = unrecorded(insights, [
+        ...current.learned,
+        ...current.pendingInsights.map((insight) => insight.id),
+      ]);
+      if (fresh.length === 0) return current;
+      const [first, ...rest] = fresh;
+      return {
+        ...queueWords(current, [first]),
+        pendingInsights: [...current.pendingInsights, ...rest],
+      };
+    },
+    [queueWords],
+  );
+
+  /**
+   * Everything owned by somebody other than the kid.
+   *
+   * Auntie Ro's slice plus whatever went to the public at the float. Two
+   * separate things that are recorded separately — see `handleList` — and add
+   * up to one number in exactly one place, which is here.
+   */
+  const outsideShare = useMemo(
+    () => (game ? round2(game.ownership.equitySoldPct + game.listing.floated) : 0),
+    [game],
+  );
+
   /** Act 2 onwards, the day's economics come from the business the kid built. */
   const dayParams = useMemo(() => {
     if (!game) return DEFAULT_DAY_PARAMS;
@@ -403,17 +516,68 @@ export default function Page() {
     const price = game.stand.history[game.stand.history.length - 1]?.price ?? 1.6;
     return {
       ...deriveDayParams(game.business, price),
-      equityShare: game.ownership.equitySoldPct,
+      equityShare: outsideShare,
     };
-  }, [game]);
+  }, [game, outsideShare]);
 
-  const act2Day = game ? Math.max(1, game.stand.history.length - ECON.TOTAL_DAYS + 1) : 1;
+
+  /*
+   * Each stage counts its own days from where the one before it stopped.
+   *
+   * `Game.stageStartDay` is recorded when a stage opens rather than derived
+   * from a fixed day count, because the stands stage ends on a condition and
+   * not on a clock: two kids can arrive at the shop on day fourteen and day
+   * twenty-two, and a shop clock that assumed the fortnight would tell one of
+   * them they were on day minus two.
+   */
+  const stageDay = game ? actDay(game) : 1;
+
+  /**
+   * The stage's goal and clock, computed once.
+   *
+   * Both the stand and the yard show it, and for a while they each worked it
+   * out for themselves — which is how the yard ended up telling a kid to "open
+   * the shop" two good days before the stands stage had finished with them. One
+   * source, two readers.
+   *
+   * Act 1 is deliberately absent: its goal is arithmetic on the starting cash
+   * and it derives its own.
+   */
+  const stage = useMemo(() => {
+    if (!game || game.weekend || game.act === 1) return undefined;
+    if (game.act === 2) {
+      return {
+        goal: act2Progress(game.business, stageDay).nextStep,
+        day: stageDay,
+        total: ACT2_DAYS,
+      };
+    }
+    if (game.act === 3) {
+      return { goal: act3Progress(game.business).goal, day: stageDay, total: ACT3_DAYS };
+    }
+    if (game.act === 4) {
+      if (game.listing.listed) {
+        return {
+          goal: `Trade the week out. One piece of you is $${game.listing.price.toFixed(2)}.`,
+          day: stageDay,
+        };
+      }
+      const worth = listingOffer(game.stand.history, game.ownership).worthAnything;
+      return {
+        goal: worth
+          ? 'Find out what the whole thing is worth.'
+          : 'Nobody buys a business that loses money. Get a good week together first.',
+        day: stageDay,
+      };
+    }
+    return undefined;
+  }, [game, stageDay]);
 
   /* ---------------- Starting and resuming ---------------- */
 
   const start = useCallback(() => {
     if (!game) return;
-    if (game.act === 4) {
+    if (game.act === 5) {
       // A Saturday left half-finished is still a Saturday: the float is sitting
       // in the cash box, so send them back to the stand rather than stranding
       // it there.
@@ -424,10 +588,48 @@ export default function Page() {
       setPhase(game.portfolio?.status === 'closed' ? 'finale' : 'market');
       return;
     }
-    if (game.act === 3) {
-      setPhase(game.ownership.equityOfferSeen ? 'plan' : 'equity');
+    /*
+     * The listing stage always resumes at the stand.
+     *
+     * This read `comparisonAnswered ? 'plan' : 'plan'` — a ternary whose two
+     * branches were the same phase. It is a leftover: the comment below it
+     * once promised "to the offer if it has not [been seen]", and the offer
+     * had its own screen until it moved into the shop's three-way funding
+     * choice and `EquityOfferScreen` was deleted. There is no offer phase left
+     * to route to, so the honest version is the unconditional one. Whether a
+     * kid who has not answered the comparison should instead resume on the
+     * deal board is a game-design question, recorded in PRODUCT.md rather than
+     * decided here.
+     */
+    if (game.act === 4) {
+      setPhase('plan');
       return;
     }
+
+    /*
+     * A week that is already over must not reopen as a morning.
+     *
+     * The phase is not persisted, so closing the game is the same as
+     * reloading it — and the end of a week is the most natural moment in the
+     * whole product to put it down. Resuming sent every Act 1 save to the
+     * morning screen regardless, so a kid with seven days already banked was
+     * walked to a price dial whose only forward button calls `runDay`, and
+     * `runDay` refuses a finished week by throwing. React does not route a
+     * throw from an event handler to an error boundary, so `error.tsx` never
+     * appeared: the button was simply dead, and the run could not be
+     * recovered from inside the game.
+     *
+     * Only Act 1 and a duel can reach it — every later stage passes
+     * `lastDay: null` and never finishes a week — which puts it on the first
+     * week every child plays. Found by playing the game in a browser: every
+     * unit test reached the week-end screen through the close screen, which
+     * is the one path that cannot hit this.
+     */
+    if (game.act === 1 && act1Complete(game.stand, game.challenge?.spec.days ?? ECON.TOTAL_DAYS)) {
+      setPhase('week-end');
+      return;
+    }
+
     setPhase(game.act === 1 ? 'morning' : 'plan');
   }, [game]);
 
@@ -438,6 +640,27 @@ export default function Page() {
   const openStand = useCallback(
     (price: number, cups: number, ranByManager = false) => {
       if (!game) return;
+
+      /*
+       * Never hand `runDay` a week that is already over.
+       *
+       * `start` closes the route that got a kid here, and every stage past the
+       * first resets the stand to `playing`, so this should now be
+       * unreachable. It stays because of *how* it failed rather than how
+       * often: `runDay` enforces the invariant by throwing, this is an event
+       * handler, and React sends a throw from an event handler nowhere — not
+       * to `error.tsx`, not to the console a child can see. The failure was a
+       * button that did nothing, which a nine-year-old cannot tell apart from
+       * a game that has stopped working, and which no amount of tapping
+       * escapes.
+       *
+       * So it refuses towards the screen the kid should have been on instead
+       * of towards a stack trace.
+       */
+      if (game.stand.status === 'finished') {
+        setPhase('week-end');
+        return;
+      }
 
       /*
        * The Saturday stand is a folding table again.
@@ -453,7 +676,7 @@ export default function Page() {
           // rather than from ECON. Everything else about the day is identical.
           game.act === 1
           ? { ...DEFAULT_DAY_PARAMS, lastDay: game.challenge?.spec.days ?? ECON.TOTAL_DAYS }
-          : { ...deriveDayParams(game.business, price), equityShare: game.ownership.equitySoldPct };
+          : { ...deriveDayParams(game.business, price), equityShare: outsideShare };
 
       const order = orderForTargetCups(game.stand, cups);
       const result = runDay(game.stand, { ...order, price }, params);
@@ -461,6 +684,10 @@ export default function Page() {
       const act1Insights = deriveInsights(result, result.nextState.history);
       const act2Insights =
         game.act >= 2 ? deriveAct2Insights(result, game.business, result.nextState.history) : [];
+      // Break-even and interest, and only for a kid who has a rent or a
+      // repayment to be taught them by. Both derivers are filtered against
+      // what has already been handed over, so nothing repeats.
+      const act3Insights = game.act >= 3 ? deriveAct3Insights(result, game.business) : [];
       // The round earns its word the first day somebody on it is served, and
       // the copy leans on a cold day if that is what happened — because turning
       // up when nobody else did is the entire point of recurring revenue.
@@ -472,7 +699,7 @@ export default function Page() {
       // word waiting its turn would be earned again tomorrow and end up in the
       // queue twice.
       const earned = unrecorded(
-        [...act1Insights, ...act2Insights, ...roundInsights],
+        [...act1Insights, ...act2Insights, ...act3Insights, ...roundInsights],
         [...game.learned, ...game.pendingInsights.map((insight) => insight.id)],
       );
 
@@ -487,18 +714,36 @@ export default function Page() {
       setOutcome(result);
       setNewInsights(today);
 
+      /*
+       * Everything the day changes about the business, in one place.
+       *
+       * The order matters only in that each of these reads the *pre-day* state
+       * and none of them reads another's output: the hands-off streak, the
+       * two-stand streak, the shop's run of good days and a day off the loan.
+       * The Saturday stand is excluded from all four, because a folding table
+       * out of an investment account is not the business any of them are about.
+       */
+      const businessAfter = game.weekend
+        ? game.business
+        : {
+            ...updateHandsOff(game.business, ranByManager, result.profit),
+            twoStandDays: updateTwoStandDays(game.business, result.profit).twoStandDays,
+            shop: updateShopDays(game.business.shop, result.profit),
+            loan: repayLoan(game.business.loan),
+          };
+
       setGame({
         ...game,
         // Only what was actually handed over counts as learned; that is what
         // gates the harder panels and fills the words tab.
         learned: [...game.learned, ...today.map((i) => i.id)],
         pendingInsights: waiting,
-        business: updateHandsOff(game.business, ranByManager, result.profit),
+        business: businessAfter,
         ownership: recordInvestorCut(game.ownership, result.investorCut),
       });
       setPhase('run');
     },
-    [game],
+    [game, outsideShare],
   );
 
   /** The manager runs a sensible day so the kid can genuinely step away. */
@@ -511,6 +756,28 @@ export default function Page() {
     );
   }, [game, openStand]);
 
+  const [lastMove, setLastMove] = useState<PriceMove | null>(null);
+
+  /**
+   * One week of being public, marked.
+   *
+   * Called from the close of every seventh day of the stage. Two numbers move
+   * and both are shown: what the market expects a week, and how many weeks of
+   * it the market will pay. The kid then carries on running the shop, which is
+   * the whole point — a share price is something that happens *to* a business
+   * that is otherwise having an ordinary Tuesday.
+   */
+  const markTheWeek = useCallback(
+    (current: Game) => {
+      const weekly = trailingWeeklyProfit(current.stand.history);
+      const { listing, move } = markListedWeek(current.listing, weekly);
+      setLastMove(move);
+      setGame(handOverOne({ ...current, listing }, deriveListingInsights(listing, move)));
+      setPhase('listed');
+    },
+    [handOverOne],
+  );
+
   const closeDay = useCallback(() => {
     if (!game || !outcome) return;
 
@@ -519,7 +786,7 @@ export default function Page() {
     const nextStand = outcome.nextState;
     const business = {
       ...game.business,
-      rival: advanceRival(game.business, act2Day, outcome.price),
+      rival: advanceRival(game.business, stageDay, outcome.price),
       daysAtPark:
         game.business.location === 'park' ? game.business.daysAtPark + 1 : game.business.daysAtPark,
     };
@@ -555,27 +822,67 @@ export default function Page() {
       return;
     }
     if (advanced.act === 2) {
-      if (act2Complete(advanced.business, act2Day)) {
+      if (act2Complete(advanced.business, stageDay)) {
         setGame(beginAct3(advanced));
         setPhase('act-intro');
         return;
       }
       // Every seventh day of the act, the reinvest-or-take-it-out fork.
-      if (act2Day % 7 === 0) {
+      if (stageDay % 7 === 0) {
         setPhase('weekly-choice');
         return;
       }
     }
-    if (advanced.act === 3 && !advanced.ownership.comparisonAnswered) {
-      setPhase('deals');
-      return;
+    if (advanced.act === 3) {
+      if (act3Complete(advanced.business, stageDay)) {
+        setGame(beginAct4(advanced));
+        setPhase('act-intro');
+        return;
+      }
+      // The same weekly fork as the stands stage. A shop makes the choice
+      // sharper rather than redundant: the rent is owed either way, so money
+      // taken out of a business with a lease is money it may need on Tuesday.
+      if (stageDay % 7 === 0) {
+        setPhase('weekly-choice');
+        return;
+      }
     }
-    if (advanced.act === 3 && advanced.ownership.comparisonAnswered) {
-      setPhase('buyout');
-      return;
+    /*
+     * The listing stage, in the order the beats have to arrive.
+     *
+     * The deal board first, because ranking three stands by what they cost per
+     * dollar of profit is what makes a multiple mean anything — and it has to
+     * happen before the kid is handed one for their own company, or the number
+     * on their own offer is the first multiple they have ever seen and they
+     * have nothing to judge it against.
+     *
+     * Then the two ways out. Then, once listed, a week at a time: the day loop
+     * carries on and the price is marked every seventh day, because that is
+     * what being public is — you keep running the shop and somebody re-prices
+     * it while you do.
+     */
+    if (advanced.act === 4) {
+      if (!advanced.ownership.comparisonAnswered) {
+        setPhase('deals');
+        return;
+      }
+      if (!advanced.listing.listed) {
+        // Nothing to price yet. The goal strip says why, and the day loop
+        // carries on — one decent week is all it takes.
+        if (listingOffer(advanced.stand.history, advanced.ownership).worthAnything) {
+          setPhase('listing');
+          return;
+        }
+        setPhase('plan');
+        return;
+      }
+      if (stageDay % 7 === 0) {
+        markTheWeek(advanced);
+        return;
+      }
     }
     setPhase('plan');
-  }, [game, outcome, act2Day]);
+  }, [game, outcome, stageDay, markTheWeek]);
 
   /* ---------------- Act 2 actions ---------------- */
 
@@ -609,6 +916,213 @@ export default function Page() {
     [game],
   );
 
+  /* ---------------- Stage 2: another stand ---------------- */
+
+  const handleOpenStand = useCallback(
+    (location: LocationId) => {
+      if (!game) return;
+      const result = openStandAt(game.business, location, game.stand.cash);
+      if (!result.opened) return;
+      setGame({
+        ...game,
+        stand: { ...game.stand, cash: result.cash },
+        business: result.business,
+      });
+    },
+    [game],
+  );
+
+  /**
+   * Shutting one down.
+   *
+   * Not an undo — the table is paid for and that money is gone. What comes
+   * back is the pitch fee and the wage, which is the honest shape of the
+   * decision: a site that loses money every day is one you are allowed to
+   * close, and closing it does not refund what it cost to open.
+   */
+  const handleCloseStand = useCallback(
+    (location: LocationId) => {
+      if (!game) return;
+      const target = game.business.stands.find((stand) => stand.location === location);
+      if (!target) return;
+      setGame({ ...game, business: closeStandAt(game.business, target.id) });
+    },
+    [game],
+  );
+
+  /* ---------------- Stage 3: the shop ---------------- */
+
+  /**
+   * Opens the shop, having been paid for one of the three ways.
+   *
+   * The fit-out leaves the cash box here rather than inside each funding
+   * handler, so there is exactly one place that can spend it and exactly one
+   * place that can set `shop.open`. The three routes differ only in where the
+   * money came from, and that difference is already recorded — a loan on the
+   * business, a slice on the ownership, or neither.
+   */
+  const openTheShop = useCallback(
+    (extraCash: number, patch: Partial<Game> = {}) => {
+      if (!game) return;
+      const cash = game.stand.cash + extraCash;
+      if (cash < SHOP.fitOut) return;
+      const opened: Game = {
+        ...game,
+        ...patch,
+        stand: { ...game.stand, cash: round2(cash - SHOP.fitOut) },
+        business: {
+          ...(patch.business ?? game.business),
+          shop: { ...game.business.shop, open: true, goodDays: 0 },
+        },
+      };
+      setGame(opened);
+      setPhase('plan');
+    },
+    [game],
+  );
+
+  /*
+   * Paying for it yourself, or borrowing, is *also* a decision about the
+   * investor: it is turning her down.
+   *
+   * `declineEquity` records that, and it has to be recorded somewhere or the
+   * badge for keeping the whole company becomes unearnable — which is what
+   * happened the moment the offer moved out of its own screen and into the
+   * three-way choice. A badge nothing can produce is the §40 defect exactly.
+   */
+  const handlePayCash = useCallback(
+    () => openTheShop(0, { ownership: declineEquity(game?.ownership ?? createGame(0).ownership) }),
+    [openTheShop, game],
+  );
+
+  /**
+   * Another pair of hands behind the counter, or one fewer.
+   *
+   * A wage, so it costs nothing today and everything tomorrow — the same shape
+   * as the helper, and the only reason it lives on the shop rather than in the
+   * crew row is that the shop is the one place that can hold two of them.
+   */
+  const handleShopStaff = useCallback(
+    (delta: 1 | -1) => {
+      if (!game) return;
+      const shop = delta === 1 ? hireShopStaff(game.business.shop) : letShopStaffGo(game.business.shop);
+      if (shop === game.business.shop) return;
+      setGame({ ...game, business: { ...game.business, shop } });
+    },
+    [game],
+  );
+
+  const handleBorrow = useCallback(() => {
+    if (!game) return;
+    const loan = loanQuote();
+    openTheShop(loan.principal, {
+      business: { ...game.business, loan },
+      ownership: declineEquity(game.ownership),
+    });
+  }, [game, openTheShop]);
+
+  /**
+   * Selling a slice, which is a real thing to do whether or not it buys a shop.
+   *
+   * The offer is priced at five weeks of the slice and deliberately in the
+   * investor's favour, so on a young business it often does *not* cover the
+   * fit-out on its own. The first version of this handed the cash to
+   * `openTheShop`, which bailed out silently when it was short — the kid tapped
+   * a button, gave away a fifth of their company and got nothing at all.
+   *
+   * So the two things are separate, in the order they actually happen: she pays
+   * and takes her slice, and then the shop opens if that covered it. If it did
+   * not, the money is in the till and the kid can trade for a few more days and
+   * come back — which is the honest answer and is a better lesson than a
+   * disabled button.
+   */
+  const handleSellSliceForShop = useCallback(
+    (slice: number) => {
+      if (!game) return;
+      /*
+       * Checked before the cash goes in the box. The funding screen only
+       * offers slices that fit under `MAX_EQUITY_SOLD`, so this is the second
+       * lock on the same door — and the door matters, because `acceptEquity`
+       * refuses a slice that will not fit and this line is what would
+       * otherwise pay for it anyway.
+       */
+      if (!canSellSlice(game.ownership, slice)) return;
+      const offer = equityOffer(game.stand.history, slice);
+      const cash = round2(game.stand.cash + offer.cash);
+      const sold: Game = {
+        ...game,
+        stand: { ...game.stand, cash },
+        ownership: acceptEquity(game.ownership, offer),
+      };
+      const withWord = queueWords(sold, [equityInsight(offer.slice, offer.cash)]);
+
+      if (cash >= SHOP.fitOut) {
+        setGame({
+          ...withWord,
+          stand: { ...withWord.stand, cash: round2(cash - SHOP.fitOut) },
+          business: {
+            ...withWord.business,
+            shop: { ...withWord.business.shop, open: true, goodDays: 0 },
+          },
+        });
+      } else {
+        setGame(withWord);
+      }
+      setPhase('plan');
+    },
+    [game, queueWords],
+  );
+
+  /* ---------------- Stage 4: going public ---------------- */
+
+  const handleList = useCallback(
+    (fraction: number) => {
+      if (!game) return;
+      const offer = listingOffer(game.stand.history, game.ownership);
+      const plan = floatPlan(offer, fraction, game.ownership);
+      const listing = listCompany(offer, plan);
+
+      /*
+       * The float raises cash and the public keeps a share of every profit from
+       * now on, exactly the way the single investor already did.
+       *
+       * It is deliberately *not* written into `ownership.equitySoldPct`, which
+       * was the first attempt and was wrong in a way that only showed up in the
+       * parent report: that field means "the slice Auntie Ro bought", and half
+       * the game reads it as such. A kid who borrowed for the shop and then
+       * floated 30% was reported as having *"taken $0.00 up front in exchange
+       * for 30% of every future profit"* — a sale that never happened, in the
+       * one screen that has to be trustworthy.
+       *
+       * The two are added where they are actually used, in the day's params, so
+       * a kid who sold Auntie Ro 20% and then floated 30% watches half of every
+       * close screen leave. That is the correct and slightly alarming answer.
+       */
+      const listed: Game = {
+        ...game,
+        listing,
+        stand: { ...game.stand, cash: round2(game.stand.cash + plan.cashRaised) },
+      };
+      setLastMove(null);
+      setGame(handOverOne(listed, deriveListingInsights(listing, null)));
+      setPhase('listed');
+    },
+    [game, handOverOne],
+  );
+
+  /**
+   * Leaving the listing stage for the market.
+   *
+   * Two doors arrive here: the listing, once a week has been lived through, and
+   * the buyout, which still exists and is still a respectable ending. Both hand
+   * over what the kid actually walked out with — see `beginAct5`.
+   */
+  const handleLeaveForMarket = useCallback(() => {
+    if (!game) return;
+    setGame(beginAct5({ ...game, stand: { ...game.stand, cash: 0 } }));
+    setPhase('act-intro');
+  }, [game]);
+
   const handleWeeklyChoice = useCallback(
     (cashOut: number, signUpRegulars: boolean) => {
       if (!game) return;
@@ -630,25 +1144,6 @@ export default function Page() {
 
   /* ---------------- Act 3 actions ---------------- */
 
-  const handleEquity = useCallback(
-    (accept: boolean) => {
-      if (!game) return;
-      const offer = equityOffer(game.stand.history);
-      if (accept) {
-        const sold: Game = {
-          ...game,
-          stand: { ...game.stand, cash: game.stand.cash + offer.cash },
-          ownership: acceptEquity(game.ownership, offer),
-        };
-        setGame(queueWords(sold, [equityInsight(offer.slice, offer.cash)]));
-      } else {
-        setGame({ ...game, ownership: declineEquity(game.ownership) });
-      }
-      setPhase('plan');
-    },
-    [game, queueWords],
-  );
-
   const handleDealChoice = useCallback(
     (choiceId: string) => {
       if (!game) return;
@@ -664,7 +1159,7 @@ export default function Page() {
           ),
         ]),
       );
-      setPhase('buyout');
+      setPhase('listing');
     },
     [game, queueWords],
   );
@@ -687,7 +1182,7 @@ export default function Page() {
       }
 
       setGame(
-        queueWords(beginAct4({ ...sold, stand: { ...sold.stand, cash: 0 } }), words),
+        queueWords(beginAct5({ ...sold, stand: { ...sold.stand, cash: 0 } }), words),
       );
       setPhase('act-intro');
     },
@@ -866,6 +1361,35 @@ export default function Page() {
     setPhase('morning');
   }, [game]);
 
+  /**
+   * A parent deleting their child's data.
+   *
+   * Nothing else in the product may call this. `restart` above is the game's
+   * reset and deliberately keeps the trophy case; this is the privacy one and
+   * deliberately does not, because a promise that a child's data is theirs is
+   * not kept by a function that leaves most of it behind.
+   *
+   * The four in-memory slots are set to `null` rather than to fresh objects,
+   * and that is load-bearing: each one has a save effect that writes on
+   * change, so handing them `createGame()` here would re-create the keys we
+   * had just removed and make the confirmation screen a lie. `board` is left
+   * alone for the same reason from the other direction — its effect writes
+   * unconditionally, and not touching the state means it does not re-run.
+   *
+   * Then the page reloads rather than navigating on, so what a parent gets
+   * back is a process that booted from empty storage instead of one we have
+   * talked into looking empty.
+   */
+  const eraseAll = useCallback(() => {
+    setErasedKeys(eraseEverything());
+    setGame(null);
+    setCareer(null);
+    setLive(null);
+    setGuideSeen(null);
+    setHasSave(false);
+    setPhase('erased');
+  }, []);
+
   /* ---------------- Playing with other people ---------------- */
 
   /** Starts a fresh stand on somebody else's weather. Trophies are untouched. */
@@ -890,17 +1414,18 @@ export default function Page() {
       const before = game.club;
       let updatedCareer = career;
 
+      // Through `career.ts` rather than by reaching into the fields. Both
+      // helpers existed and both were dead, because this incremented the
+      // counters itself — so the only place that knew a club week had happened
+      // was a component, and the function named for it was never called.
       if (next && before && next.portfolio.week > before.portfolio.week) {
-        updatedCareer = { ...updatedCareer, clubWeeks: updatedCareer.clubWeeks + 1 };
+        updatedCareer = recordClubWeek(updatedCareer);
       }
       const passedByMe = (club: ClubState | null) =>
         club?.proposals.filter((p) => p.by === me && p.status === 'passed').length ?? 0;
       const gained = passedByMe(next) - passedByMe(before);
-      if (gained > 0) {
-        updatedCareer = {
-          ...updatedCareer,
-          clubProposalsPassed: updatedCareer.clubProposalsPassed + gained,
-        };
+      for (let i = 0; i < gained; i += 1) {
+        updatedCareer = recordClubWin(updatedCareer);
       }
 
       if (updatedCareer !== career) setCareer(updatedCareer);
@@ -910,6 +1435,16 @@ export default function Page() {
   );
 
   /* ---------------- Render ---------------- */
+
+  /*
+   * The one screen that renders with no game and no career, because that is
+   * precisely the state it reports. It sits above the guard for the same
+   * reason: after a deletion there is nothing to fall back to, and the blue
+   * rectangle below is not an acceptable receipt for a destructive action.
+   */
+  if (phase === 'erased') {
+    return <ErasedScreen removed={erasedKeys} onStart={() => window.location.reload()} />;
+  }
 
   if (!game || !career) return <div className="min-h-[100dvh] bg-[#8ED6F6]" />;
 
@@ -959,9 +1494,10 @@ export default function Page() {
           {
             act: game.act,
             daysPlayed: game.stand.history.length,
-            act2Day,
+            act2Day: stageDay,
             hasManager: game.business.staff.manager,
             inMarket: phase === 'market',
+            listed: game.listing.listed,
           },
           guideSeen,
         );
@@ -1053,7 +1589,7 @@ export default function Page() {
     thesisReport.scores.length,
     game.playbook,
     game.portfolio
-      ? summarisePortfolio(game.portfolio, game.ownership.buyoutProceeds).gainPercent * 100
+      ? summarisePortfolio(game.portfolio, seededWith(game)).gainPercent * 100
       : 0,
   );
 
@@ -1144,13 +1680,24 @@ export default function Page() {
       return (
         <ActIntroScreen
           act={game.act}
-          guide={guideOn('act2-open', 'act3-open', 'act4-open')}
-          wall={ACT_WALLS[game.act] ?? ''}
-          cash={game.act === 4 ? (game.portfolio?.cash ?? 0) : game.stand.cash}
+          guide={guideOn('act2-open', 'act3-open', 'act4-open', 'act5-open')}
+          wall={game.act === 5 ? marketWall(game) : (ACT_WALLS[game.act] ?? '')}
+          cash={game.act === 5 ? (game.portfolio?.cash ?? 0) : game.stand.cash}
+          /*
+           * Every stage opens on the screen where its first decision lives.
+           *
+           * The stands and the shop both open on the yard, because both begin
+           * with something to buy that is standing in the front garden already.
+           * The listing stage opens on the deal board — three stands for sale
+           * at three multiples — because a kid handed a multiple for their own
+           * company without ever having ranked one has nothing to judge it
+           * against.
+           */
           onBegin={() => {
-            if (game.act === 2) setPhase('invest');
-            else if (game.act === 3) setPhase('equity');
-            else setPhase('market');
+            if (game.act === 2 || game.act === 3) setPhase('invest');
+            else if (game.act === 4) {
+              setPhase(game.ownership.comparisonAnswered ? 'listing' : 'deals');
+            } else setPhase('market');
           }}
         />
       );
@@ -1206,25 +1753,21 @@ export default function Page() {
              2's line is the same string the shop has always shown — it was
              just only on the shop. */
           guide={guideOn('act2-stall')}
-          stage={
-            game.weekend
-              ? undefined
-              : game.act === 2
-                ? {
-                    goal: act2Progress(game.business, act2Day).nextStep,
-                    day: act2Day,
-                    total: ACT2_DAYS,
-                  }
-                : game.act === 3
-                  ? { goal: 'Find out what the whole stand is worth.' }
-                  : undefined
-          }
+          stage={stage}
           note={
             game.weekend
               ? `$${WEEKEND_FLOAT.toFixed(2)} out of your investing money to buy lemons. Everything in the cash box goes back in tonight.`
               : undefined
           }
-          onInvest={game.act === 2 ? () => setPhase('invest') : undefined}
+          /*
+             The yard stays reachable for as long as the kid still runs the
+             business — which is every stage before the market, not just the two
+             with something new to buy. There is nothing left to *buy* at the
+             listing, but there is still a helper to let go and a stand to shut,
+             and a kid watching a rent bleed with no way to reach the controls is
+             a dead end rather than a lesson.
+          */
+          onInvest={game.act >= 2 && game.act <= 4 ? () => setPhase('invest') : undefined}
           onOpen={(cups, price) => {
             setTargetCups(cups);
             openStand(price, cups);
@@ -1235,6 +1778,7 @@ export default function Page() {
     case 'invest':
       return (
         <InvestScreen
+          goal={stage?.goal ?? ''}
           cash={game.stand.cash}
           business={game.business}
           marginPerCup={recentMargin}
@@ -1242,6 +1786,10 @@ export default function Page() {
           onBuyUpgrade={handleBuyUpgrade}
           onToggleStaff={handleToggleStaff}
           onMove={handleMove}
+          onOpenStand={handleOpenStand}
+          onCloseStand={handleCloseStand}
+          onOpenShop={() => setPhase('funding')}
+          onShopStaff={handleShopStaff}
           onDone={() => setPhase('plan')}
         />
       );
@@ -1257,7 +1805,13 @@ export default function Page() {
           outcome={outcome}
           insights={newInsights}
           planned={planned}
-          managerAvailable={game.act === 2 && game.business.staff.manager}
+          /* Only when there is more than one counter to split the day across.
+             The Saturday stand is a folding table again, so it does not get
+             the business it was sold out of. */
+          business={game.weekend ? undefined : game.business}
+          managerAvailable={
+            game.act >= 2 && game.act <= 4 && game.business.staff.manager && !game.weekend
+          }
           onManagerRuns={letManagerRun}
           nextUp={
             isUnlocked('whats-next', settledGame ?? game, career) ? (
@@ -1353,26 +1907,60 @@ export default function Page() {
         <WeeklyChoiceScreen
           cash={game.stand.cash}
           savings={game.business.savings}
-          weekNumber={Math.floor(act2Day / 7)}
+          weekNumber={Math.floor(stageDay / 7)}
           regulars={game.business.regulars}
           expectedSignups={signUpRegulars(game.business, game.stand.history).added}
           onChoose={handleWeeklyChoice}
         />
       );
 
-    /* ---- Act 3 ---- */
-    case 'equity':
+    /* ---- Stage 3: the shop ---- */
+    case 'funding':
       return (
-        <EquityOfferScreen
-          offer={equityOffer(game.stand.history)}
+        <FundingScreen
+          cash={game.stand.cash}
+          history={game.stand.history}
           weeklyProfit={trailingWeeklyProfit(game.stand.history)}
-          onAccept={() => handleEquity(true)}
-          onDecline={() => handleEquity(false)}
+          alreadySold={game.ownership.equitySoldPct}
+          onPayCash={handlePayCash}
+          onBorrow={handleBorrow}
+          onSellSlice={handleSellSliceForShop}
+          onBack={() => setPhase('plan')}
         />
       );
 
+    /* ---- Stage 4: going public ---- */
     case 'deals':
       return <DealBoardScreen onChoose={(choiceId) => handleDealChoice(choiceId)} />;
+
+    case 'listing':
+      return (
+        <ListingScreen
+          offer={listingOffer(game.stand.history, game.ownership)}
+          ownership={game.ownership}
+          onList={handleList}
+          onSellInstead={() => setPhase('buyout')}
+          onBack={() => setPhase('plan')}
+        />
+      );
+
+    case 'listed':
+      return (
+        <ListedScreen
+          listing={game.listing}
+          move={lastMove}
+          onContinue={() => {
+            // A week lived through is what ends the stage. Before that, back to
+            // the shop — being public is something that happens while you are
+            // still running the business, and the day loop is where that is.
+            if (act4Complete(game.ownership, game.listing)) {
+              handleLeaveForMarket();
+              return;
+            }
+            setPhase('plan');
+          }}
+        />
+      );
 
     case 'buyout':
       return (
@@ -1383,7 +1971,7 @@ export default function Page() {
         />
       );
 
-    /* ---- Act 4 ---- */
+    /* ---- Act 5: the market ---- */
     case 'market':
       return game.portfolio ? (
         <MarketScreen
@@ -1505,9 +2093,24 @@ export default function Page() {
     case 'finale':
       return game.portfolio ? (
         <FinaleScreen
-          summary={summarisePortfolio(game.portfolio, game.ownership.buyoutProceeds)}
+          /*
+           * Seeded with what the kid actually walked out with, whichever door
+           * they came through. It was `buyoutProceeds` for everybody, so a
+           * founder who listed was told they "started with $0.00" and shown a
+           * flat return on a portfolio that had grown.
+           */
+          summary={summarisePortfolio(game.portfolio, seededWith(game))}
           portfolio={game.portfolio}
-          buyoutMultiple={game.ownership.buyoutMultiple}
+          ending={{
+            stands: standCount(game.business),
+            hadShop: game.business.shop.open,
+            borrowed: game.business.loan !== null,
+            listed: game.listing.listed,
+            shares: game.listing.shares,
+            sharePrice: game.listing.ipoPrice,
+            floated: game.listing.floated,
+            buyoutMultiple: game.ownership.buyoutMultiple,
+          }}
           onParent={openParent}
           onRestart={restart}
           seasonNumber={game.season}
@@ -1528,6 +2131,7 @@ export default function Page() {
         <ParentScreen
           report={parentReport(game, career, thesisReport.scores)}
           onClassroom={() => setPhase('classroom')}
+          onEraseAll={eraseAll}
           onBack={() => setPhase(returnPhase)}
         />
       );
@@ -1623,7 +2227,6 @@ export default function Page() {
       {!KID_FREE_SCREENS.has(phase) && badgeQueue.length > 0 && (
         <BadgeToast
           badges={badgeQueue}
-          raised={phase === 'plan' || phase === 'market'}
           onDismiss={() => setBadgeQueue((queue) => queue.slice(1))}
         />
       )}

@@ -34,7 +34,7 @@ export function ActIntroScreen({
   const title = ACT_TITLES[act];
 
   return (
-    <Sky mood={act === 4 ? 'night' : 'dawn'}>
+    <Sky mood={act === 5 ? 'night' : 'dawn'}>
       <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col items-center justify-center px-6 text-center">
         <div className="font-body text-xs font-extrabold uppercase tracking-[0.3em] text-ink/50">
           Act {act}
@@ -47,20 +47,20 @@ export function ActIntroScreen({
             stage, and only the register changes. */}
         <p
           className={`mt-2 font-body text-sm font-extrabold ${
-            act === 4 ? 'text-lemon-light' : 'text-wood-deep'
+            act === 5 ? 'text-lemon-light' : 'text-wood-deep'
           }`}
         >
           {title.question}
         </p>
         <SignHeading
-          className={`mt-1 text-6xl leading-[0.9] ${act === 4 ? '!text-lemon-light' : ''}`}
+          className={`mt-1 text-6xl leading-[0.9] ${act === 5 ? '!text-lemon-light' : ''}`}
         >
           {title.name}
         </SignHeading>
 
         <p
           className={`mt-4 font-body text-base font-extrabold ${
-            act === 4 ? 'text-white/85' : 'text-ink/75'
+            act === 5 ? 'text-white/85' : 'text-ink/75'
           }`}
         >
           {title.promise}
@@ -68,19 +68,19 @@ export function ActIntroScreen({
 
         <div
           className={`mt-6 rounded-2xl border-[3px] px-4 py-3 ${
-            act === 4 ? 'border-white/30 bg-white/10' : 'border-wood-dark bg-lemon-light'
+            act === 5 ? 'border-white/30 bg-white/10' : 'border-wood-dark bg-lemon-light'
           }`}
         >
           <div
             className={`font-body text-[11px] font-extrabold uppercase tracking-[0.16em] ${
-              act === 4 ? 'text-lemon-light' : 'text-wood-deep'
+              act === 5 ? 'text-lemon-light' : 'text-wood-deep'
             }`}
           >
             The problem
           </div>
           <p
             className={`mt-1 font-body text-sm font-extrabold ${
-              act === 4 ? 'text-white' : 'text-ink'
+              act === 5 ? 'text-white' : 'text-ink'
             }`}
           >
             {wall}
@@ -96,7 +96,7 @@ export function ActIntroScreen({
         </div>
 
         <div className="mt-8 w-full">
-          <ChunkyButton variant={act === 4 ? 'mint' : 'lemon'} full onClick={onBegin}>
+          <ChunkyButton variant={act === 5 ? 'mint' : 'lemon'} full onClick={onBegin}>
             Let&apos;s go →
           </ChunkyButton>
         </div>

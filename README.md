@@ -1,14 +1,16 @@
 # Lemonade
 
 A browser game where a kid runs a lemonade stand, finds the price that actually
-makes money, scales it, sells it, and then buys slices of real companies with
-the proceeds — reading them with exactly the same four numbers they used on
-their own stand.
+makes money, opens a second one, takes a lease on a shop, cuts the company into
+a thousand shares and sells some of them — and then buys slices of real
+companies with the proceeds, reading them with exactly the same four numbers
+they used on their own stand.
 
 The thesis the whole thing hangs on: **every stock is somebody else's lemonade
-stand.**
+stand.** Which is why the kid gets a share price of their own before they ever
+see anybody else's.
 
-The arc is twelve weeks of real market history, replayed at speed, and it
+Five stages, then twelve weeks of real market history replayed at speed. It
 finishes in a sitting. Finishing it opens the same market **live** — anchored to
 this week's closes, marked to whatever happened while they were away, with no
 last week and no button that makes time pass.
@@ -16,6 +18,8 @@ last week and no button that makes time pass.
 - [`PRODUCT.md`](PRODUCT.md) — what we are building and why. Read it first.
 - [`LEARNING.md`](LEARNING.md) — an honest assessment of what a kid actually
   knows at the end, and what they don't.
+- [`FRAMEWORK.md`](FRAMEWORK.md) — the Level 1 gameplay arc, the audit that
+  found the two stages it was missing, and what shipped.
 
 No real money is ever involved. No accounts, no backend, no analytics, and
 nothing loaded from anybody else's domain: the whole game is a static bundle,
@@ -42,7 +46,7 @@ mobile-first.
 | --- | --- |
 | `npm run dev` | Dev server |
 | `npm run build` | Production build |
-| `npm test` | 641 unit tests over the simulation, valuation and market logic |
+| `npm test` | 793 tests over the simulation, valuation, market logic and the reward layer |
 | `npm run data` | Re-fetch real fundamentals and prices |
 | `npm run data:check` | Report what is in the bundled data, and fail if stale |
 
@@ -59,8 +63,8 @@ provider:
 - **Prices — five years of real weekly adjusted closes**, on one shared date axis
   so a market-wide fall lands on every company in the same week.
 
-Act 4 replays a real twelve-week stretch of that history, picked from the kid's
-own seed, and they are never told which one. Each fiscal year is stored with the
+The market replays a real twelve-week stretch of that history, picked from the
+kid's own seed, and they are never told which one. Each fiscal year is stored with the
 date its 10-K became public, so the accounts shown are the ones that were
 actually public that week — a price from one year over earnings from another is a
 multiple nobody ever quoted.

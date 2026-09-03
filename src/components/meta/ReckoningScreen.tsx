@@ -2,7 +2,7 @@
 
 import type { ThesisReport, ThesisScore } from '@/lib/thesis';
 import { quantClaim, qualClaim } from '@/lib/thesis';
-import { ChunkyButton, SignHeading, Sky } from '../ui';
+import { ChunkyButton, clearsBar, PinnedBar, SignHeading, Sky } from '../ui';
 
 /**
  * Solid fills, not translucent ones.
@@ -46,7 +46,7 @@ export function ReckoningScreen({
 }) {
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pb-28 pt-8">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pt-8" style={clearsBar()}>
         <div className="text-center">
           <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">
             Twelve weeks later
@@ -115,11 +115,11 @@ export function ReckoningScreen({
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t-[3px] border-white/15 bg-[#16203A] px-4 pb-5 pt-8">
+      <PinnedBar className="z-20 mx-auto max-w-md border-t-[3px] border-white/15 bg-[#16203A] px-4 pb-5 pt-8">
         <ChunkyButton variant="lemon" full onClick={onContinue}>
           See where you ended up →
         </ChunkyButton>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }

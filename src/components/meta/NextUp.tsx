@@ -32,10 +32,14 @@ export function NextUp({
           Next up
         </div>
         {onOpenTrophies && (
+          /* The text stays small — it is a side door, not the point of the
+             screen — but the box it sits in does not. At eleven pixels of type
+             with no padding this was a 17-pixel-tall tap target on a phone,
+             which is half what a thumb needs and most of a miss. */
           <button
             type="button"
             onClick={onOpenTrophies}
-            className="font-body text-[11px] font-extrabold text-ink/50 underline"
+            className="-mr-2 -my-3 flex h-11 items-center px-2 font-body text-[11px] font-extrabold text-ink/50 underline"
           >
             trophy case
           </button>

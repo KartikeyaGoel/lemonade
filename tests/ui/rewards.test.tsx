@@ -58,13 +58,43 @@ describe('a badge landing', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('lifts clear of a screen with a pinned button underneath it', () => {
-    // Found by playing: the toast landed squarely on "Open the stand!", which
-    // turns a reward into an obstacle.
-    const { container } = render(
-      <BadgeToast badges={badges} onDismiss={() => {}} raised />,
-    );
-    expect(container.firstElementChild?.className).toMatch(/pb-32/);
+  it('lifts clear of whatever the screen has at the bottom of it', () => {
+    /*
+     * Found by playing, twice. The toast landed on "Open the stand!", and then
+     * — after a fix that took a list of screen names — on "Open up today" and
+     * on "Trade a week as a public company", because the list was not kept up
+     * to date and could not be.
+     *
+     * There is no list any more and no distance either. `PinnedBar` and
+     * `ActionFooter` publish their own height as `--pinned-bar`; this reads it.
+     */
+    const { container } = render(<BadgeToast badges={badges} onDismiss={() => {}} />);
+    const frame = container.firstElementChild as HTMLElement;
+    expect(frame.style.paddingBottom).toMatch(/var\(--pinned-bar/);
+  });
+
+  it('does not swallow taps on the button it is sitting above', () => {
+    /*
+     * The half of that bug which a screenshot cannot show. The toast is a
+     * full-width fixed button, and the padding that lifts its card clear is
+     * still part of the button — so it went on eating taps on the bar beneath
+     * it, and a child aiming at "Open the stand!" dismissed a rosette and
+     * nothing happened. Worse than an overlap, and invisible until you
+     * hit-test it.
+     */
+    const { container } = render(<BadgeToast badges={badges} onDismiss={() => {}} />);
+    const frame = container.firstElementChild as HTMLElement;
+    expect(frame.className).toMatch(/pointer-events-none/);
+    // And the card itself is still tappable, or it could not be dismissed.
+    expect(frame.querySelector('.pointer-events-auto')).not.toBeNull();
+  });
+
+  it('falls back to a low resting position on a screen with nothing at the bottom', () => {
+    // The fallback is inside the `var()`, so a screen that publishes nothing
+    // gets the small value and the toast sits where it always did.
+    const { container } = render(<BadgeToast badges={badges} onDismiss={() => {}} />);
+    const frame = container.firstElementChild as HTMLElement;
+    expect(frame.style.paddingBottom).toMatch(/0\.25rem/);
   });
 });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import type { Readiness } from '@/lib/progress';
-import { ChunkyButton, SignHeading, Sky } from '../ui';
+import { ActionFooter, ChunkyButton, SignHeading, Sky } from '../ui';
 
 /**
  * The readiness gate, shown as a checklist of things the kid has actually
@@ -68,11 +68,11 @@ export function GateScreen({
           ))}
         </div>
 
-        <div className="mt-auto pt-6">
+        <ActionFooter className="mt-auto pt-6">
           <ChunkyButton variant="lemon" full onClick={onBack}>
             Back to the market →
           </ChunkyButton>
-        </div>
+        </ActionFooter>
       </div>
     </Sky>
   );

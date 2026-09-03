@@ -2,12 +2,12 @@
 
 import { SNAPSHOT } from '@/lib/companies';
 import { type WeekReport } from '@/lib/market';
-import { ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { ActionFooter, ChunkyButton, SignHeading, Sky, money } from '../ui';
 
 /**
  * A week of the market passing.
  *
- * The scare week gets its own framing, because the point of Act 4 is that a
+ * The scare week gets its own framing, because the point of the market is that a
  * kid meets a falling market inside a game rather than for the first time with
  * their own savings. We name what happened and ask the only useful question,
  * without telling them what to do about it.
@@ -119,11 +119,11 @@ export function WeekReportScreen({
           </p>
         )}
 
-        <div className="mt-auto pt-6">
+        <ActionFooter className="mt-auto pt-6">
           <ChunkyButton variant="lemon" full onClick={onContinue}>
             Back to the market →
           </ChunkyButton>
-        </div>
+        </ActionFooter>
       </div>
     </Sky>
   );

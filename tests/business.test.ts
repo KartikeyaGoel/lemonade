@@ -5,6 +5,7 @@ import {
   COOLER_CAPACITY,
   HANDS_OFF_DAYS_REQUIRED,
   HELPER_CAPACITY,
+  TWO_STAND_DAYS_REQUIRED,
   LOCATIONS,
   RIVAL_APPEARS_ON_DAY,
   RIVAL_PRICE_FLOOR,
@@ -20,11 +21,13 @@ import {
   growthRate,
   marketShareAgainstRival,
   moveTo,
+  openStand,
   serviceCapacity,
   standAppeal,
   toggleStaff,
   trailingWeeklyProfit,
   updateHandsOff,
+  updateTwoStandDays,
   type BusinessState,
 } from '../src/lib/business';
 import {
@@ -246,17 +249,39 @@ describe('reinvest or take it out', () => {
 });
 
 describe('a manager turns work into ownership', () => {
-  it('is not complete until a manager is running it profitably', () => {
+  it('asks for good days run by the manager before anything else', () => {
     expect(act2Progress(business(), 5).complete).toBe(false);
     const managed = toggleStaff(business(), 'manager');
     expect(act2Progress(managed, 5).complete).toBe(false);
-    expect(act2Progress(managed, 5).nextStep).toContain('more profitable days');
+    expect(act2Progress(managed, 5).nextStep).toContain('run by your manager');
   });
 
-  it('completes after enough profitable hands-off days', () => {
+  it('then asks for the second stand, because that is what the manager bought', () => {
+    /*
+     * Proving the manager works used to end the act. It is now the unlock: the
+     * wage buys the kid's own hands back, and there is exactly one thing worth
+     * doing with a spare pair of hands.
+     */
     let managed = toggleStaff(business(), 'manager');
     for (let i = 0; i < HANDS_OFF_DAYS_REQUIRED; i++) {
       managed = updateHandsOff(managed, true, 20);
+    }
+    expect(act2Progress(managed, 10).complete).toBe(false);
+    expect(act2Progress(managed, 10).nextStep).toMatch(/second stand/i);
+
+    const two = openStand(managed, 'park', 200).business;
+    expect(act2Progress(two, 10).complete).toBe(false);
+    expect(act2Progress(two, 10).nextStep).toMatch(/both stands/i);
+  });
+
+  it('completes once two stands have traded at a profit together', () => {
+    let managed = toggleStaff(business(), 'manager');
+    for (let i = 0; i < HANDS_OFF_DAYS_REQUIRED; i++) {
+      managed = updateHandsOff(managed, true, 20);
+    }
+    managed = openStand(managed, 'park', 200).business;
+    for (let i = 0; i < TWO_STAND_DAYS_REQUIRED; i++) {
+      managed = updateTwoStandDays(managed, 20);
     }
     expect(act2Progress(managed, 10).complete).toBe(true);
   });

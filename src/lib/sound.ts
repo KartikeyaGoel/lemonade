@@ -51,6 +51,7 @@ export type Cue =
   | 'badge'
   | 'unlock'
   | 'fanfare'
+  | 'bell'
   | 'tick';
 
 /**
@@ -121,6 +122,22 @@ export const SCORES: Record<Cue, Note[]> = {
     { hz: 784, at: 0.46, secs: 0.1, gain: 0.11, wave: 'square' },
     { hz: 1047, at: 0.56, secs: 0.44, gain: 0.16, wave: 'triangle' },
     { hz: 1319, at: 0.56, secs: 0.44, gain: 0.09, wave: 'sine' },
+  ],
+
+  /**
+   * The opening bell, for the one moment in the game that has a real one.
+   *
+   * A bell rather than another triad, because a listing is not the same kind of
+   * event as an act ending and should not sound like one. It still rises — the
+   * rule in PRODUCT.md §32 is that everything meaning good rises and everything
+   * meaning no falls, and the one thing a child has to learn about this sound
+   * design is the thing they should not have to be told.
+   */
+  bell: [
+    { hz: 880, at: 0, secs: 0.5, gain: 0.15, wave: 'sine' },
+    { hz: 1318, at: 0.02, secs: 0.48, gain: 0.07, wave: 'sine' },
+    { hz: 1760, at: 0.06, secs: 0.44, gain: 0.05, wave: 'sine' },
+    { hz: [880, 1760], at: 0.34, secs: 0.36, gain: 0.1, wave: 'triangle' },
   ],
 
   /** A number counting up. Quiet on purpose: it fires many times in a row. */
@@ -222,6 +239,7 @@ export const BUZZ_MS: Partial<Record<Cue, number | number[]>> = {
   badge: 18,
   unlock: [18, 60, 18],
   fanfare: [24, 60, 24, 60, 40],
+  bell: [30, 80, 30],
   sad: 32,
 };
 

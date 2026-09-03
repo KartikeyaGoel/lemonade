@@ -10,7 +10,23 @@ import {
   type PortfolioState,
   type PortfolioSummary,
 } from '@/lib/market';
-import { ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
+import { plural } from '@/lib/copy';
+
+/** How Level 1 finished, in the few facts this screen needs to tell it. */
+export interface FinaleEnding {
+  /** Stands trading at the end, the first one included. */
+  stands: number;
+  hadShop: boolean;
+  borrowed: boolean;
+  listed: boolean;
+  /** Only meaningful when they listed. */
+  shares: number;
+  sharePrice: number;
+  floated: number;
+  /** Only meaningful when they sold up. */
+  buyoutMultiple: number;
+}
 
 /**
  * The end of the arc.
@@ -23,7 +39,7 @@ import { ChunkyButton, SignHeading, Sky, money } from '../ui';
 export function FinaleScreen({
   summary,
   portfolio,
-  buyoutMultiple,
+  ending,
   onParent,
   onRestart,
   onTrophies,
@@ -32,7 +48,18 @@ export function FinaleScreen({
 }: {
   summary: PortfolioSummary;
   portfolio: PortfolioState;
-  buyoutMultiple: number;
+  /**
+   * How Level 1 ended, because there are two ways and they are not the same
+   * story.
+   *
+   * This screen took a `buyoutMultiple` and told everybody they had sold the
+   * business. A kid who went public instead was shown *"Sold the business:
+   * someone paid 0 times what it earned in a week"* — a sale that did not
+   * happen, at a multiple of nothing, on the screen that recaps their whole
+   * run. It also lost the two stages in the middle, so a shop and a listing
+   * simply did not appear in "the whole story".
+   */
+  ending: FinaleEnding;
   onParent: () => void;
   onRestart: () => void;
   onTrophies?: () => void;
@@ -56,7 +83,7 @@ export function FinaleScreen({
 
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pb-28 pt-8">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pt-8" style={clearsBar()}>
         <div className="text-center">
           <div className="font-body text-xs font-extrabold uppercase tracking-[0.25em] text-lemon-light">
             {MARKET_WEEKS} weeks later
@@ -71,15 +98,41 @@ export function FinaleScreen({
           <div className="mb-2 font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/50">
             The whole story
           </div>
+          {/* The five stages, and the middle two only appear if they happened.
+              A recap that lists a shop nobody opened is a recap of somebody
+              else's run. */}
           <Step n={1} label="Sold lemonade" detail="Found the price that made the most money." />
-          <Step n={2} label="Grew it" detail="Spent profit on capacity, and outlasted a rival." />
           <Step
-            n={3}
-            label="Sold the business"
-            detail={`Someone paid ${buyoutMultiple} times what it earned in a week.`}
+            n={2}
+            label={ending.stands > 1 ? 'Opened another stand' : 'Grew it'}
+            detail={
+              ending.stands > 1
+                ? `Paid somebody to mind one stand and went and worked ${ending.stands - 1} more.`
+                : 'Spent profit on capacity, and outlasted a rival.'
+            }
+          />
+          {ending.hadShop && (
+            <Step
+              n={3}
+              label="Took a lease"
+              detail={
+                ending.borrowed
+                  ? 'Borrowed for a shop with a door, and paid the rent on the quiet days.'
+                  : 'Got a shop with a door, and paid the rent on the quiet days.'
+              }
+            />
+          )}
+          <Step
+            n={ending.hadShop ? 4 : 3}
+            label={ending.listed ? 'Took it public' : 'Sold the business'}
+            detail={
+              ending.listed
+                ? `Cut it into ${ending.shares} pieces at ${money(ending.sharePrice)} each and sold ${Math.round(ending.floated * 100)}% of them.`
+                : `Someone paid ${plural(ending.buyoutMultiple, 'time')} what it earned in a week.`
+            }
           />
           <Step
-            n={4}
+            n={ending.hadShop ? 5 : 4}
             label="Bought other businesses"
             detail={`Put ${money(summary.startingValue)} into ${summary.holdingsCount} real companies.`}
           />
@@ -158,6 +211,12 @@ export function FinaleScreen({
           <ul className="mt-1.5 space-y-1 font-body text-[13px] font-bold text-white/90">
             <li>· Work out what a business keeps from every dollar it sells.</li>
             <li>· Divide a price by a profit and say whether it is dear or cheap.</li>
+            {/* Only for a founder who has one. It is the claim the whole arc
+                was rebuilt to be able to make, and it would be a lie to a kid
+                who sold up before ever having a price of their own. */}
+            {ending.listed && (
+              <li>· Say why a share price moved, from the two numbers that moved it.</li>
+            )}
             <li>· Tell the difference between a bad business and a good one at a bad price.</li>
             <li>· Sit still when the price of something good goes down.</li>
           </ul>
@@ -176,7 +235,7 @@ export function FinaleScreen({
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/70 to-transparent pb-5 pt-8">
+      <PinnedBar className="z-30 bg-gradient-to-t from-black/70 to-transparent pb-5 pt-8">
         <div className="mx-auto w-full max-w-md space-y-2.5 px-4">
           {onNewSeason ? (
             <ChunkyButton variant="lemon" full onClick={onNewSeason}>
@@ -210,7 +269,7 @@ export function FinaleScreen({
             </p>
           )}
         </div>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }

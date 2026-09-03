@@ -12,7 +12,7 @@ import {
   type Playbook,
   type RuleKind,
 } from '@/lib/playbook';
-import { ChunkyButton, CodeBox, CodeInput, SignHeading, Sky } from '../ui';
+import { ChunkyButton, clearsBar, CodeBox, CodeInput, PinnedBar, SignHeading, Sky } from '../ui';
 
 /**
  * The deck builder.
@@ -54,11 +54,11 @@ export function PlaybookScreen({
 
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-28 pt-5">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-5" style={clearsBar()}>
         <button
           type="button"
           onClick={onBack}
-          className="self-start font-body text-sm font-extrabold text-lemon-light"
+          className="-m-2 self-start p-2 font-body text-sm font-extrabold text-lemon-light"
         >
           ← Back
         </button>
@@ -245,7 +245,7 @@ export function PlaybookScreen({
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/60 to-transparent pb-5 pt-8">
+      <PinnedBar className="z-30 bg-gradient-to-t from-black/60 to-transparent pb-5 pt-8">
         <div className="mx-auto w-full max-w-md px-4">
           <ChunkyButton
             variant="mint"
@@ -260,7 +260,7 @@ export function PlaybookScreen({
                 : '🧪 Test it on real history'}
           </ChunkyButton>
         </div>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }

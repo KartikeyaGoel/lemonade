@@ -2,10 +2,11 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { ECON, type DayOutcome, type DayProjection, type Insight, weekSummary } from '@/lib/simulation';
+import { sellingPoints, splitCups, type BusinessState } from '@/lib/business';
 import { closingLine, ledgerNoveltyOf, ledgerStartsOpen } from '@/lib/guide';
 import { play } from '@/lib/sound';
 import { PipSays } from './Pip';
-import { ChunkyButton, SignHeading, Sky, money, useCountUp } from './ui';
+import { ChunkyButton, SignHeading, Sky, money, plural, useCountUp } from './ui';
 
 /** Long enough for the headline to finish arriving before the till rings. */
 const COUNT_SETTLE_MS = 760;
@@ -45,6 +46,7 @@ export function CloseScreen({
   outcome,
   insights,
   planned,
+  business,
   managerAvailable,
   onManagerRuns,
   nextUp,
@@ -52,6 +54,14 @@ export function CloseScreen({
 }: {
   outcome: DayOutcome;
   insights: Insight[];
+  /**
+   * The business, once there is more than one counter in it.
+   *
+   * Only used to split the day's cups across the places that poured them, so
+   * it is optional: Act 1 and the Saturday stand are one table and have nothing
+   * to split.
+   */
+  business?: BusinessState;
   /** What the planning screen told them before they opened, if they used it. */
   planned?: DayProjection | null;
   /** Act 2: a manager is on the payroll, so stepping away is a real option. */
@@ -66,6 +76,8 @@ export function CloseScreen({
   nextUp?: ReactNode;
   onNext: () => void;
 }) {
+  const sites = business ? sellingPoints(business) : [];
+  const split = business ? splitCups(business, outcome.cupsSold) : [];
   const summary = weekSummary(outcome.nextState.history);
   const isLastDay = outcome.nextState.status === 'finished';
   const madeMoney = outcome.profit > 0;
@@ -91,6 +103,31 @@ export function CloseScreen({
    */
   const history = outcome.nextState.history;
   const novelty = ledgerNoveltyOf(outcome, history);
+  /*
+   * What the pantry did to the cash box, in money.
+   *
+   * Everything the P&L charged today that was *not* paid for today, less
+   * whatever was paid for today and not used. Three terms, and all three
+   * matter:
+   *
+   *  - `ingredients.total` — what today's cups drank
+   *  - `spoilageCost` — what went in the bin, bought on some earlier day
+   *  - `purchases.cost.total` — what actually left the cash box this morning
+   *
+   * The first version of this line had only two of them, and so it closed the
+   * cash box on every day except one with spoiled lemons — where it was short
+   * by exactly the value of the fruit thrown away. Nothing noticed: the case
+   * is uncommon, the figure is small, and it looks like rounding. A fuzz over
+   * three thousand randomised days found it on the eighth.
+   *
+   * Derived here rather than plumbed through the simulation because the
+   * simulation already reports all three halves, and `tests/fuzz.test.ts`
+   * holds the identity this arithmetic is claiming.
+   */
+  const pantryShift =
+    Math.round(
+      (outcome.ingredients.total + outcome.spoilageCost - outcome.purchases.cost.total) * 100,
+    ) / 100;
   const [ledgerOpen, setLedgerOpen] = useState(() => ledgerStartsOpen(outcome, history));
 
   useEffect(() => {
@@ -122,7 +159,7 @@ export function CloseScreen({
               Profit and loss
             </span>
             <span className="font-body text-xs font-bold text-ink/40">
-              {outcome.cupsSold} of {outcome.cupsMakeable} cups sold
+              {outcome.cupsSold} of {plural(outcome.cupsMakeable, 'cup')} sold
             </span>
           </div>
 
@@ -136,7 +173,7 @@ export function CloseScreen({
             <button
               type="button"
               onClick={() => setLedgerOpen(true)}
-              className="flex w-full items-center justify-between rounded-xl border-2 border-ink/15 bg-ink/[0.04] px-3 py-2 font-body text-xs font-extrabold uppercase tracking-widest text-ink/60"
+              className="flex min-h-11 w-full items-center justify-between rounded-xl border-2 border-ink/15 bg-ink/[0.04] px-3 py-2 font-body text-xs font-extrabold uppercase tracking-widest text-ink/60"
             >
               <span>See every number</span>
               <span aria-hidden>+</span>
@@ -153,12 +190,12 @@ export function CloseScreen({
             <>
               <Line
                 label="Regulars"
-                detail={`${outcome.subscriberCups} cups × ${money(outcome.subscriberPrice)} — they came whatever the weather`}
+                detail={`${plural(outcome.subscriberCups, 'cup')} × ${money(outcome.subscriberPrice)} — they came whatever the weather`}
                 amount={outcome.subscriberRevenue}
               />
               <Line
                 label="Walk-ups"
-                detail={`${outcome.cupsSold - outcome.subscriberCups} cups × ${money(outcome.price)}`}
+                detail={`${plural(outcome.cupsSold - outcome.subscriberCups, 'cup')} × ${money(outcome.price)}`}
                 amount={outcome.walkupRevenue}
               />
               <Subtotal label="Revenue" amount={outcome.revenue} />
@@ -166,7 +203,7 @@ export function CloseScreen({
           ) : (
             <Line
               label="Revenue"
-              detail={`${outcome.cupsSold} cups × ${money(outcome.price)}`}
+              detail={`${plural(outcome.cupsSold, 'cup')} × ${money(outcome.price)}`}
               amount={outcome.revenue}
             />
           )}
@@ -228,9 +265,108 @@ export function CloseScreen({
             </div>
           </div>
 
+          {/*
+            Where the cups actually went, once there is more than one counter.
+
+            The framework this stage was built from asks for exactly this beat:
+            *"both stands' takings on one screen the next day, and the first
+            one's crowd is visibly thinner"*. Without it, opening a second stand
+            on a pitch you already work looks identical to opening one somewhere
+            new — and half a crowd for a whole pitch fee is the one mistake in
+            the stage a kid can make without ever being told.
+
+            Attribution, not simulation: the day is run once for the whole
+            business and divided by the crowd each place brought, capped by what
+            each could pour. The parts sum to the whole exactly.
+          */}
+          {sites.length > 1 && (
+            <div className="mt-3 rounded-xl border-[3px] border-ink/12 bg-white px-3 py-2">
+              <div className="mb-1 font-body text-[11px] font-extrabold uppercase tracking-[0.14em] text-ink/45">
+                Where it sold
+              </div>
+              {sites.map((site, i) => (
+                <div key={site.id} className="ledger-row text-[13px]">
+                  <span className="text-ink/65">
+                    <span aria-hidden>{site.emoji}</span> {site.name}
+                    {site.capacity > 0 && split[i] >= site.capacity && (
+                      <span className="text-berry"> · full</span>
+                    )}
+                  </span>
+                  <span>
+                    {split[i]} {split[i] === 1 ? 'cup' : 'cups'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Cash reconciliation: profit and cash are not the same thing, and
               pretending otherwise would be the first lie we ever told. */}
           <div className="mt-3 rounded-xl bg-ink/5 p-3">
+            {/*
+              The pantry, in money.
+
+              This is the last unnamed number on the screen a child is told
+              they can check by hand. Profit charges the lemons *used*; cash
+              pays for the lemons *bought*, and those are different on any day
+              the pantry is not empty at both ends. Found by playing: a $10.02
+              loss took the cash box from $250.00 to $240.90, and the ninety
+              two cents in between were a lot of sugar bought the day before.
+              Pennies on a one-table business; not pennies with three pitches
+              and a shop.
+
+              So it gets a name and a sign. Add it to the profit above and the
+              two cash figures below close exactly — which is the whole promise
+              of §4, and the reason cash-is-not-profit is worth teaching here
+              rather than asserting.
+            */}
+            {Math.abs(pantryShift) >= 0.01 && (
+              <>
+                {/* Short label, long reason underneath — the same grammar as
+                    every other line in this ledger, and the only shape that
+                    survives a 320-pixel phone. Spelled out on one line it
+                    wrapped, and the figure stayed up with the first half of
+                    its own label. */}
+                <div className="ledger-row text-[13px] text-ink/70">
+                  <span>{pantryShift > 0 ? 'From the pantry' : 'Into the pantry'}</span>
+                  <span>
+                    {pantryShift > 0 ? '+' : '-'}
+                    {money(Math.abs(pantryShift))}
+                  </span>
+                </div>
+                <p className="mb-1 font-body text-[11px] font-bold leading-snug text-ink/50">
+                  {pantryShift > 0
+                    ? 'Some of what you used today was bought on an earlier day.'
+                    : 'You bought more than today\u2019s cups used. The rest keeps.'}
+                </p>
+              </>
+            )}
+            {/*
+              The top-up is its own row, and it has to be.
+              The floor is a retention rule, but it creates money, and while it
+              was hidden behind a sentence the two figures on this line did not
+              reconcile with the profit above them: a $52.86 loss took the cash
+              box from $66.80 to $20.00 and the arithmetic did not close. On a
+              one-table business the gap was pennies. With a rent and a loan it
+              was most of the day. This is the one screen a kid is meant to
+              check by hand, so the gap gets a name and a number.
+            */}
+            {outcome.cashFloored && (
+              <>
+                <div className="ledger-row text-[13px] text-ink/70">
+                  <span>Cash after the day</span>
+                  {/* The real figure before the floor caught it. Not
+                      `cashBefore + profit`: cash and profit are deliberately
+                      different stories here — cash pays for every lemon bought,
+                      profit counts only the ones sold. */}
+                  <span>{money(outcome.cashAfter - outcome.cashTopUp)}</span>
+                </div>
+                <div className="ledger-row text-[13px] text-wood-deep">
+                  <span>Topped up so you can open tomorrow</span>
+                  <span>+{money(outcome.cashTopUp)}</span>
+                </div>
+              </>
+            )}
             <div className="ledger-row text-[13px] text-ink/70">
               <span>Cash</span>
               <span>
@@ -239,7 +375,8 @@ export function CloseScreen({
             </div>
             {outcome.cashFloored && (
               <p className="mt-1 font-body text-[11px] font-extrabold text-wood-deep">
-                Your original {money(ECON.STARTING_CASH)} is protected. You can never go below it.
+                You never go below {money(ECON.STARTING_CASH)}, so there is always a tomorrow. It
+                is not free money — it is the game keeping you open.
               </p>
             )}
             {(outcome.nextState.lemonLots.length > 0 ||
@@ -247,8 +384,9 @@ export function CloseScreen({
               outcome.nextState.cupsInStock > 0) && (
               <p className="mt-1 font-body text-[11px] font-bold text-ink/55">
                 Still in the pantry for tomorrow:{' '}
-                {outcome.nextState.lemonLots.reduce((s, l) => s + l.lemons, 0)} lemons,{' '}
-                {outcome.nextState.sugarServings} sugar, {outcome.nextState.cupsInStock} cups.
+                {plural(outcome.nextState.lemonLots.reduce((s, l) => s + l.lemons, 0), 'lemon')},{' '}
+                {outcome.nextState.sugarServings} sugar,{' '}
+                {plural(outcome.nextState.cupsInStock, 'cup')}.
               </p>
             )}
           </div>
@@ -337,7 +475,7 @@ export function CloseScreen({
           </ChunkyButton>
 
           {/*
-            * Stepping away, which is the whole point of Act 2's last stretch.
+            * Stepping away, which is what a manager is actually for.
             *
             * This was a sentence — "Your manager can run tomorrow without you"
             * — and nothing else. The function that does it existed, the counter
@@ -437,13 +575,13 @@ function describeGap(outcome: DayOutcome, planned: DayProjection): string {
     return `You sold every cup and ${outcome.turnedAwaySoldOut} more people still wanted one. You could have made more.`;
   }
   if (unsold > 0 && outcome.walkedAwayOnPrice > outcome.cupsSold) {
-    return `${unsold} cups went unsold and most people walked past without stopping. More people said no than yes.`;
+    return `${plural(unsold, 'cup')} went unsold and most people walked past without stopping. More people said no than yes.`;
   }
   if (unsold > 0) {
-    return `You made ${outcome.cupsMakeable} cups and sold ${outcome.cupsSold}. The ${unsold} you did not sell were already paid for.`;
+    return `You made ${plural(outcome.cupsMakeable, 'cup')} and sold ${outcome.cupsSold}. The ${unsold} you did not sell were already paid for.`;
   }
   if (outcome.cupsSold === planned.cupsMakeable) {
     return 'Everything you made, you sold. Exactly the good case.';
   }
-  return `You sold ${outcome.cupsSold} cups today.`;
+  return `${plural(outcome.cupsSold, 'cup')} sold today.`;
 }

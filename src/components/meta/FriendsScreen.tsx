@@ -1,7 +1,7 @@
 'use client';
 
 import type { Desk } from '@/lib/friends';
-import { ChunkyButton, SignHeading, Sky } from '../ui';
+import { ActionFooter, ChunkyButton, SignHeading, Sky } from '../ui';
 
 /**
  * The friends desk.
@@ -30,7 +30,7 @@ export function FriendsScreen({
         <button
           type="button"
           onClick={onBack}
-          className="self-start font-body text-sm font-extrabold text-ink/70"
+          className="-m-2 self-start p-2 font-body text-sm font-extrabold text-ink/70"
         >
           ← Back
         </button>
@@ -97,11 +97,11 @@ export function FriendsScreen({
           ))}
         </div>
 
-        <div className="mt-auto pt-6">
+        <ActionFooter className="mt-auto pt-6">
           <ChunkyButton variant="ghost" full onClick={onBack}>
             Back to the stand
           </ChunkyButton>
-        </div>
+        </ActionFooter>
       </div>
     </Sky>
   );

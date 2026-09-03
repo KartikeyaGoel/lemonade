@@ -7,14 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run && node scripts/check-reading-level.mjs && node scripts/check-contrast.mjs",
+    "test": "vitest run && node scripts/check-reading-level.mjs && node scripts/check-contrast.mjs && node scripts/check-dead-code.mjs",
     "test:watch": "vitest",
     "data": "node scripts/fetch-market-data.mjs",
     "data:check": "node scripts/check-market-data.mjs",
     "test:unit": "vitest run",
     "reading": "node scripts/check-reading-level.mjs --worst --words",
     "a11y": "node scripts/check-contrast.mjs",
-    "check": "tsc --noEmit && eslint . && npm test"
+    "dead": "node scripts/check-dead-code.mjs",
+    "check": "tsc --noEmit && eslint . && npm test",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "next": "15.1.11",
@@ -29,6 +31,7 @@
     "@types/node": "^22.10.7",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
+    "@vitest/coverage-v8": "^3.2.7",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.1.6",

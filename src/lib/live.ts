@@ -1,7 +1,7 @@
 /**
  * The live market.
  *
- * Act 4 replays twelve weeks of the past, chosen at random from five years of
+ * The market replays twelve weeks of the past, chosen at random from five years of
  * real closes, and finishes in a sitting. That is the right shape for a story
  * and the wrong shape for the thing the product is actually for. A market a kid
  * has already finished gives them no reason to open the app on Tuesday, and the
@@ -42,6 +42,8 @@ import {
   type PortfolioState,
   type WeekReport,
 } from './market';
+import { toCents } from './simulation';
+import { plural } from './copy';
 
 /** The index of the newest week we have closes for. */
 export const LATEST_WEEK = HISTORY_WEEKS - 1;
@@ -87,12 +89,22 @@ export function createLivePortfolio(startingCash: number, seed = LATEST_WEEK): P
   };
 }
 
-/** Read straight from the dataset, so this does not depend on a portfolio. */
+/**
+ * Read straight from the dataset, so this does not depend on a portfolio.
+ *
+ * `toCents` for the same reason `realClose` does it: a share price is a price
+ * somebody paid, and prices are quoted in cents. The raw file carries values
+ * like `325.315`, and this used to hand them over unrounded — so a live
+ * account's *first* week was seeded with a sub-cent price and every week after
+ * it was rounded. The gap showed up as a first weekly report claiming a move of
+ * a fraction of a percent on a week where the data says nothing happened, in
+ * the one list whose whole job is to say what actually moved.
+ */
 function closeAt(ticker: string, weekIndex: number): number {
   const series = SERIES[ticker];
   if (!series || series.length === 0) return 0;
   const index = Math.min(series.length - 1, Math.max(0, weekIndex));
-  return series[index];
+  return toCents(series[index]);
 }
 
 /**
@@ -350,7 +362,7 @@ export function runningFor(portfolio: PortfolioState): string {
   );
   if (weeks === 0) return 'Opened this week.';
   if (weeks === 1) return 'One week in.';
-  if (weeks < 52) return `${weeks} weeks in.`;
+  if (weeks < 52) return `${plural(weeks, 'week')} in.`;
   const years = Math.floor(weeks / 52);
   return years === 1 ? 'A year in.' : `${years} years in.`;
 }

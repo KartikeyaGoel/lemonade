@@ -3,7 +3,9 @@ import {
   BASE_MULTIPLE,
   EQUITY_OFFER_WEEKS,
   EQUITY_SLICE,
+  EQUITY_SLICES,
   GROWING_MULTIPLE,
+  MAX_EQUITY_SOLD,
   HOLD_WEEKS,
   SHRINKING_MULTIPLE,
   STANDS_FOR_SALE,
@@ -270,3 +272,104 @@ describe('the PE bridge is generated from the kid\'s own sale', () => {
     expect(bridge.ratioLine).toContain('÷');
   });
 });
+
+describe('selling a slice more than once', () => {
+  /*
+   * The kid can reach this beat twice, and on the ordinary path they must.
+   * The shop's fit-out is $600; the largest slice of a modest week raises
+   * about $36. `page.tsx` is deliberate about it — "come back, which is the
+   * honest answer and is a better lesson than a disabled button".
+   *
+   * `acceptEquity` used to write `offer.slice` over the stored slice while the
+   * funding screen filtered the slices on offer *additively*. So a second,
+   * smaller sale paid the kid again and shrank what they owed: 30% for $36,
+   * then 20% for $24, and the investor held 20% having paid $60 for it. The
+   * cash accumulated and the obligation did not.
+   *
+   * Asserted as a property, not as that instance, because the instance was
+   * only reachable through one screen and the identity is what matters: what
+   * the investor holds is the sum of what was sold to them.
+   */
+  it('adds the slices up instead of writing over the last one', () => {
+    const history = steadyHistory(20);
+    let own = acceptEquity(createOwnershipState(), equityOffer(history, 0.3));
+    expect(own.equitySoldPct).toBeCloseTo(0.3, 5);
+
+    own = acceptEquity(own, equityOffer(history, 0.2));
+    expect(own.equitySoldPct).toBeCloseTo(0.5, 5);
+  });
+
+  it('never lets a sale make the investor’s share smaller', () => {
+    /*
+     * The general form of the bug. Every ordering of every pair of slices —
+     * big then small is the case that used to go backwards.
+     */
+    const history = steadyHistory(20);
+    for (const first of EQUITY_SLICES) {
+      for (const second of EQUITY_SLICES) {
+        const once = acceptEquity(createOwnershipState(), equityOffer(history, first));
+        const twice = acceptEquity(once, equityOffer(history, second));
+        expect(
+          twice.equitySoldPct,
+          `sold ${first} then ${second} and the investor's share fell`,
+        ).toBeGreaterThanOrEqual(once.equitySoldPct);
+      }
+    }
+  });
+
+  it('always charges for a slice it hands over, and hands over one it charged for', () => {
+    /*
+     * The two ledgers have to move together. Cash going up while the slice
+     * stays put is the shape of the original defect, and it is the shape a
+     * clamp could reintroduce at the ceiling.
+     */
+    const history = steadyHistory(20);
+    let own = createOwnershipState();
+    for (const slice of [0.3, 0.3, 0.3]) {
+      const before = own;
+      own = acceptEquity(own, equityOffer(history, slice));
+      const gaveMore = own.equitySoldPct > before.equitySoldPct;
+      const paidMore = own.equityCashReceived > before.equityCashReceived;
+      expect(gaveMore, 'took cash without handing over any more of the business').toBe(paidMore);
+    }
+  });
+
+  it('never sells the kid out of their own majority', () => {
+    /*
+     * The buyout in Beat 2 splits the price between the kid and the investor
+     * and calls the remainder "what you walked away with". A kid holding a
+     * minority makes that sentence a lie, so the ceiling is load-bearing well
+     * beyond this screen.
+     */
+    let own = createOwnershipState();
+    const history = steadyHistory(20);
+    for (let i = 0; i < 12; i++) own = acceptEquity(own, equityOffer(history, 0.3));
+    expect(own.equitySoldPct).toBeLessThanOrEqual(MAX_EQUITY_SOLD);
+    expect(1 - own.equitySoldPct).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it('offers only slices that fit under the ceiling', () => {
+    /*
+     * The funding screen's filter and the ceiling are now the same constant.
+     * This is the assertion that stops them drifting apart again, which is
+     * how the defect existed in the first place.
+     */
+    for (const sold of [0, 0.1, 0.2, 0.3, 0.4, 0.5]) {
+      const offered = EQUITY_SLICES.filter((option) => option + sold <= MAX_EQUITY_SOLD);
+      for (const option of offered) {
+        const own = acceptEquity(
+          { ...createOwnershipState(), equitySoldPct: sold },
+          equityOffer(steadyHistory(20), option),
+        );
+        // Nothing the screen offers can be clamped, so nothing it offers can
+        // charge for a slice it does not deliver.
+        expect(own.equitySoldPct).toBeCloseTo(round(sold + option), 5);
+      }
+    }
+  });
+});
+
+/** Two decimal places, the way the module rounds. */
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
+}

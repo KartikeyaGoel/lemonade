@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { MODELS, metricsFor, type Company } from '@/lib/companies';
 import { QUAL_CLAIMS, QUANT_CLAIMS, checkQuant } from '@/lib/thesis';
-import { ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
 
 /**
  * Write the reason before the money moves.
@@ -57,7 +57,7 @@ export function ThesisScreen({
 
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-32 pt-6">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         <div className="flex items-center gap-3">
           <span aria-hidden className="text-4xl">
             {company.emoji}
@@ -181,7 +181,7 @@ export function ThesisScreen({
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t-[3px] border-white/15 bg-[#16203A] px-4 pb-5 pt-8">
+      <PinnedBar className="z-20 mx-auto max-w-md border-t-[3px] border-white/15 bg-[#16203A] px-4 pb-5 pt-8">
         {needsOverride ? (
           <>
             <div className="mb-2 rounded-xl border-[3px] border-berry/50 bg-berry/15 px-3 py-2 font-body text-[12px] font-bold text-white">
@@ -202,14 +202,15 @@ export function ThesisScreen({
             {ready ? `${actionLabel} — ${money(dollars)} →` : 'Pick both halves of the reason'}
           </ChunkyButton>
         )}
+        {/* The way out of a decision about money, at 44 rather than 26. */}
         <button
           type="button"
           onClick={onCancel}
-          className="mt-2 w-full py-1 font-body text-xs font-extrabold uppercase tracking-wide text-white/50"
+          className="mt-1 h-11 w-full font-body text-xs font-extrabold uppercase tracking-wide text-white/50"
         >
           Cancel
         </button>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }

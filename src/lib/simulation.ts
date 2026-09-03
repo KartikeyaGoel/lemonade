@@ -8,6 +8,9 @@
  * The public entry point is `runDay(state, decisions) => DayOutcome`.
  */
 
+import { plural } from './copy';
+
+
 /* ------------------------------------------------------------------ *
  * Economics
  *
@@ -354,6 +357,22 @@ export interface DayOutcome {
   cashAfter: number;
   /** True when the $20 starting float caught a loss that would go below it. */
   cashFloored: boolean;
+  /**
+   * What the floor put in, so the cash line reconciles on paper.
+   *
+   * The floor is a retention rule and a good one: a nine-year-old who goes
+   * broke on day three quits. But it quietly *creates money*, and while the
+   * whole business was one table and a $5 fee that was small enough to hide.
+   * With a shop, two pitches, a manager and a loan the daily costs are over a
+   * hundred dollars, and a bad day was printing fifty of them into the cash box
+   * behind a sentence that said only "your original $20 is protected".
+   *
+   * Two figures on screen that do not reconcile with the third is the one thing
+   * PRODUCT.md §4 does not allow, and it was happening in the ledger — the
+   * screen whose entire job is to be checkable by hand. So the top-up is a
+   * number now, and the close screen prints it as its own line.
+   */
+  cashTopUp: number;
 
   nextState: GameState;
 }
@@ -427,7 +446,10 @@ function buildCustomers(
    * different number of times depending on a decision silently breaks both.
    */
   const passersby = Math.round(
-    params.demandIntercept * WEATHER_MULTIPLIER[weather] * params.demandMultiplier * params.marketShare,
+    params.demandIntercept *
+      weatherFactor(weather, params.indoorShare) *
+      params.demandMultiplier *
+      params.marketShare,
   );
   const willing = Math.min(passersby, Math.round(cupsWanted));
 
@@ -579,6 +601,19 @@ export interface DayParams {
   subscribers: number;
   /** The discount a punch card buys, as a fraction of the day's list price. */
   subscriberDiscount: number;
+  /**
+   * The share of this business that sits behind a door, from 0 to 1.
+   *
+   * A stand on a pavement lives and dies by the sky: on a cold day six in ten
+   * people who would have bought simply are not there. A room with a door does
+   * not work like that, and that difference is the whole reason a shop is worth
+   * its rent. So the weather a day is run at is blended — the pavement gets the
+   * real sky and the indoor part gets a floor under it.
+   *
+   * Zero everywhere until a shop is open, which is what keeps every stand day,
+   * every challenge and every classroom week arithmetically identical to before.
+   */
+  indoorShare: number;
 }
 
 export const DEFAULT_DAY_PARAMS: DayParams = {
@@ -593,6 +628,7 @@ export const DEFAULT_DAY_PARAMS: DayParams = {
   cashFloor: ECON.STARTING_CASH,
   subscribers: 0,
   subscriberDiscount: 0,
+  indoorShare: 0,
 };
 
 export function resolveDayParams(params?: Partial<DayParams>): DayParams {
@@ -603,10 +639,37 @@ export function totalFixedCost(lines: FixedCostLine[]): number {
   return round2(lines.reduce((sum, line) => sum + line.amount, 0));
 }
 
+/**
+ * The floor the sky cannot get under, once you are trading indoors.
+ *
+ * Not 1: a shop is quieter when it is freezing, because fewer people are out at
+ * all. It is nothing like a pavement, which loses four customers in ten.
+ */
+export const INDOOR_WEATHER_FLOOR = 0.95;
+
+/**
+ * How much the sky is worth today, given how much of the business is indoors.
+ *
+ * One number, used by both the demand curve and the footfall, so the two can
+ * never drift apart.
+ */
+export function weatherFactor(weather: Weather, indoorShare = 0): number {
+  const outside = WEATHER_MULTIPLIER[weather];
+  if (indoorShare <= 0) return outside;
+  const inside = Math.max(outside, INDOOR_WEATHER_FLOOR);
+  const share = Math.min(1, indoorShare);
+  return outside * (1 - share) + inside * share;
+}
+
 /** The demand curve, generalised over the day's parameters. */
 export function cupsWantedWith(price: number, weather: Weather, params: DayParams): number {
   const raw = params.demandIntercept - params.demandSlope * price;
-  return Math.max(0, raw) * WEATHER_MULTIPLIER[weather] * params.demandMultiplier * params.marketShare;
+  return (
+    Math.max(0, raw) *
+    weatherFactor(weather, params.indoorShare) *
+    params.demandMultiplier *
+    params.marketShare
+  );
 }
 
 /**
@@ -634,11 +697,11 @@ export function runDay(
 
   const price = clampPrice(decisions.price);
 
-  // Never let a mistyped order overdraw the account.
+  // Never let a mistyped order overdraw the account — or poison the day.
   const requested = {
-    buyLemons: Math.max(0, Math.floor(decisions.buyLemons)),
-    buySugarPacks: Math.max(0, Math.floor(decisions.buySugarPacks)),
-    buyCupPacks: Math.max(0, Math.floor(decisions.buyCupPacks)),
+    buyLemons: whole(decisions.buyLemons),
+    buySugarPacks: whole(decisions.buySugarPacks),
+    buyCupPacks: whole(decisions.buyCupPacks),
   };
   const affordable = clampPurchaseToCash(requested, state.cash);
   const cost = purchaseCost(affordable);
@@ -702,6 +765,7 @@ export function runDay(
   const rawCash = round2(state.cash - cost.total - fixedCost + revenue - investorCut);
   const cashAfter = params.cashFloor === null ? rawCash : Math.max(rawCash, params.cashFloor);
   const cashFloored = cashAfter > rawCash;
+  const cashTopUp = round2(cashAfter - rawCash);
 
   const record: DayRecord = {
     day: state.day,
@@ -778,6 +842,7 @@ export function runDay(
     cashBefore: state.cash,
     cashAfter,
     cashFloored,
+    cashTopUp,
     nextState,
   };
 }
@@ -830,6 +895,32 @@ export function rehearseDay(
   return runDay(asItWas, decisions, params);
 }
 
+/**
+ * A count of things, from whatever arrived.
+ *
+ * `Math.max(0, Math.floor(x))` is `NaN` for `NaN`, and that was the shape this
+ * used, one line under a comment promising a mistyped order could not hurt
+ * anything. A single `NaN` in the order makes the ingredient cost `NaN`, then
+ * the profit, then the cash — and the close screen prints "You made $NaN" with
+ * a ledger of blanks. Nothing in the UI can produce it today because every dial
+ * is numeric; a decoded share code and a hand-edited save both can.
+ *
+ * Also caps the count. `1e12` lemons is not an overdraft, it is a hang: the
+ * purchase clamp walks the order down one unit at a time.
+ */
+function whole(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(MAX_ORDER_UNITS, Math.max(0, Math.floor(n)));
+}
+
+/**
+ * More than anybody could sell in a season, and small enough to loop over.
+ *
+ * The number itself is arbitrary. What matters is that it exists, because the
+ * order clamp is iterative.
+ */
+const MAX_ORDER_UNITS = 100_000;
+
 export function clampPrice(price: number): number {
   if (!Number.isFinite(price)) return 0;
   return round2(Math.min(ECON.MAX_PRICE, Math.max(ECON.MIN_PRICE, price)));
@@ -866,14 +957,6 @@ export function clampPurchaseToCash(
   return result;
 }
 
-/** The most cups the kid could fund today, used to size the shopping helper. */
-export function suggestedShoppingList(cash: number, targetCups: number) {
-  const budget = Math.max(0, cash - ECON.STAND_FEE);
-  const lemons = lemonsNeededFor(targetCups);
-  const sugarPacks = Math.ceil(targetCups / ECON.SUGAR_SERVINGS_PER_PACK);
-  const cupPacks = Math.ceil(targetCups / ECON.CUPS_PER_CUP_PACK);
-  return clampPurchaseToCash({ buyLemons: lemons, buySugarPacks: sugarPacks, buyCupPacks: cupPacks }, budget);
-}
 
 /* ------------------------------------------------------------------ *
  * "How many cups do you want to make today?"
@@ -993,7 +1076,7 @@ export function batchPlan(state: GameState, targetCups: number): BatchPlan {
  * the evidence. Everything is derived from real history, so the game can
  * never claim a lesson the kid did not actually live through.
  *
- * These are also the exact habits that decide whether Act 4 is investing or
+ * These are also the exact habits that decide whether the market is investing or
  * a bloodbath — margin, operating leverage, signal versus noise, and
  * return on money put in. Same ideas, bigger numbers, later.
  * ------------------------------------------------------------------ */
@@ -1024,7 +1107,18 @@ export type InsightId =
   | 'diversification'
   | 'drawdown'
   | 'thesis'
-  | 'luck-vs-skill';
+  | 'luck-vs-skill'
+  // Stage 2 — more than one stand
+  | 'marketing'
+  | 'delegation'
+  // Stage 3 — the shop
+  | 'break-even'
+  | 'interest'
+  // Stage 4 — going public
+  | 'shares'
+  | 'share-price'
+  | 'market-cap'
+  | 'going-public';
 
 export interface Insight {
   id: InsightId;
@@ -1050,7 +1144,7 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     found.push({
       id: 'revenue',
       term: 'Revenue',
-      evidence: `${outcome.cupsSold} cups x ${money(outcome.price)} = ${money(outcome.revenue)}. That is revenue: all the money that came in.`,
+      evidence: `${plural(outcome.cupsSold, 'cup')} x ${money(outcome.price)} = ${money(outcome.revenue)}. That is revenue: all the money that came in.`,
       carriesForward: 'Every company reports this number. It is the top line.',
     });
     found.push({
@@ -1061,12 +1155,45 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     });
   }
 
+  /*
+   * Unit cost, from the receipt.
+   *
+   * This word existed in the glossary, was counted in the total the words tab
+   * shows a child, and was read by `PriceScreen` to decide whether to show the
+   * margin row — and nothing anywhere awarded it. PRODUCT.md §53. It is the
+   * third instance of §40's class, and the only one found by a guard rather
+   * than by a person reading a diff.
+   *
+   * `ShopScreen` had said where it belonged for a long time: "on day one the
+   * receipt *is* the unit-cost lesson". So it lands on the first day anything
+   * sells, which is almost always day one.
+   *
+   * Not inside the `day === 1` block, deliberately. A day one that sells
+   * nothing has no per-cup cost to talk about, and putting it there would lose
+   * the word for good rather than for a day — which is the failure this whole
+   * section is about.
+   *
+   * "About", because lemons come whole and the division rarely lands on a
+   * round cent. §4 asks that any two figures shown together reconcile with the
+   * third on paper; a rounded number a kid can check beats an exact one they
+   * cannot.
+   */
+  if (outcome.cupsSold > 0) {
+    found.push({
+      id: 'unit-cost',
+      term: 'Unit cost',
+      evidence: `The lemons, sugar and cups came to ${money(outcome.ingredients.total)} for ${plural(outcome.cupsSold, 'cup')}. So each cup cost about ${money(outcome.ingredients.perCup)} to make.`,
+      carriesForward:
+        'What one more of a thing costs to make. It is the number a price has to beat, and the first thing to check when a busy day still made no money.',
+    });
+  }
+
   // The stand fee bites hardest on a quiet day.
   if (outcome.cupsSold > 0 && outcome.grossProfit < outcome.standFee * 1.5 && outcome.day <= 3) {
     found.push({
       id: 'fixed-cost',
       term: 'Fixed cost',
-      evidence: `The ${money(outcome.standFee)} stand fee was the same today as on any day, whether you sold ${outcome.cupsSold} cups or a hundred.`,
+      evidence: `The ${money(outcome.standFee)} stand fee was the same today as on any day, whether you sold ${plural(outcome.cupsSold, 'cup')} or a hundred.`,
       carriesForward: 'Costs that do not move with sales are why a slow month hurts. They are also why a busy one pays so well.',
     });
   }
@@ -1077,7 +1204,7 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     found.push({
       id: 'elasticity',
       term: 'Price elasticity',
-      evidence: `${outcome.walkedAwayOnPrice} people looked at ${money(outcome.price)} and kept walking. ${outcome.cupsSold} paid it.`,
+      evidence: `${plural(outcome.walkedAwayOnPrice, 'person', 'people')} looked at ${money(outcome.price)} and kept walking. ${outcome.cupsSold} paid it.`,
       carriesForward: 'Raising a price always loses some customers. The question is whether the ones who stay more than make up for it.',
     });
   }
@@ -1113,7 +1240,7 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     found.push({
       id: 'spoilage',
       term: 'Spoilage',
-      evidence: `${outcome.spoiledLemons} lemons went bad before you could use them. That is ${money(outcome.spoilageCost)} of your money in the bin.`,
+      evidence: `${plural(outcome.spoiledLemons, 'lemon')} went bad before you could use them. That is ${money(outcome.spoilageCost)} of your money in the bin.`,
       carriesForward: 'Stock sitting unsold is money doing nothing, and some of it rots. Real businesses obsess over this.',
     });
   }
@@ -1125,7 +1252,7 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     found.push({
       id: 'signal-vs-noise',
       term: 'Signal vs noise',
-      evidence: `Your best day was ${money(bestSoFar)} and your worst ${money(worst)}, but your average across ${history.length} days is ${money(avg)}.`,
+      evidence: `Your best day was ${money(bestSoFar)} and your worst ${money(worst)}, but your average across ${plural(history.length, 'day')} is ${money(avg)}.`,
       carriesForward: 'One day tells you almost nothing, because weather moves it. The average is the thing that is actually true about your business.',
     });
   }
@@ -1137,7 +1264,7 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
       found.push({
         id: 'operating-leverage',
         term: 'Operating leverage',
-        evidence: `Split across ${outcome.cupsSold} cups, the ${money(outcome.standFee)} fee cost you ${money(feePerCup)} a cup. On a 10 cup day it would be ${money(round2(outcome.standFee / 10))} a cup.`,
+        evidence: `Split across ${plural(outcome.cupsSold, 'cup')}, the ${money(outcome.standFee)} fee cost you ${money(feePerCup)} a cup. On a 10 cup day it would be ${money(round2(outcome.standFee / 10))} a cup.`,
         carriesForward: 'Selling more does not just add profit, it makes every cup more profitable. This is why growth is worth so much.',
       });
     }
@@ -1155,27 +1282,27 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
       found.push({
         id: 'demand-bet',
         term: 'Your call was too cautious',
-        evidence: `The forecast said ${forecastCopy}. You made ${outcome.cupsMakeable} cups and could have sold ${outcome.cupsSold + outcome.turnedAwaySoldOut}.`,
+        evidence: `The forecast said ${forecastCopy}. You made ${plural(outcome.cupsMakeable, 'cup')} and could have sold ${outcome.cupsSold + outcome.turnedAwaySoldOut}.`,
         carriesForward: 'You had the right read and did not back it hard enough. Being right is only worth something if you acted on it.',
       });
     } else if (soldShare < 0.55) {
       found.push({
         id: 'demand-bet',
         term: 'Your call was too optimistic',
-        evidence: `The forecast said ${forecastCopy}, so you made ${outcome.cupsMakeable} cups. You sold ${outcome.cupsSold}. The rest was money already spent.`,
+        evidence: `The forecast said ${forecastCopy}, so you made ${plural(outcome.cupsMakeable, 'cup')}. You sold ${outcome.cupsSold}. The rest was money already spent.`,
         carriesForward: 'A good story about the future is not the same as a good result. You committed real money to a guess, and the guess was rich.',
       });
     } else if (soldShare >= 0.8) {
       found.push({
         id: 'demand-bet',
         term: 'You judged the day well',
-        evidence: `You made ${outcome.cupsMakeable} cups and sold ${outcome.cupsSold} of them.`,
+        evidence: `You made ${plural(outcome.cupsMakeable, 'cup')} and sold ${outcome.cupsSold} of them.`,
         carriesForward: 'You read a hint about the future, put money behind it, and got it about right. Do that repeatedly and it stops being luck.',
       });
     }
   }
 
-  // Return on cash: the bridge to Act 4.
+  // Return on cash: the bridge to the market.
   if (history.length >= ECON.TOTAL_DAYS) {
     const spent = round2(outcome.purchases.cost.total + outcome.standFee);
     if (spent > 0) {
@@ -1323,7 +1450,7 @@ export function closingTakeaway(history: DayRecord[]): string {
 
   // The strongest lesson: a day that sold more cups for less money.
   if (mostCups.day !== best.day && mostCups.profit < best.profit) {
-    return `On day ${mostCups.day} you sold ${mostCups.cupsSold} cups and made ${money(mostCups.profit)}. On day ${best.day} you sold ${best.cupsSold} and made ${money(best.profit)}. Selling more is not the same as earning more.`;
+    return `On day ${mostCups.day} you sold ${plural(mostCups.cupsSold, 'cup')} and made ${money(mostCups.profit)}. On day ${best.day} you sold ${best.cupsSold} and made ${money(best.profit)}. Selling more is not the same as earning more.`;
   }
 
   // Next best: they found a peak between their cheapest and dearest.

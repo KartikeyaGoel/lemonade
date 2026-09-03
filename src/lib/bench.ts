@@ -31,6 +31,7 @@ import {
   type DayRecord,
   type Weather,
 } from './simulation';
+import { plural } from './copy';
 
 /** How many tries are kept. See the note above on why this is small. */
 export const MAX_TRIES = 6;
@@ -173,7 +174,7 @@ export function compareTries(from: Try, to: Try): TryDiff {
     lines.push({
       label: wasteEffect < 0 ? 'More thrown away' : 'Less thrown away',
       amount: wasteEffect,
-      detail: `${to.spoiledLemons} lemons went off instead of ${from.spoiledLemons}`,
+      detail: `${plural(to.spoiledLemons, 'lemon')} went off instead of ${from.spoiledLemons}`,
     });
   }
   if (investorEffect !== 0) {
@@ -220,7 +221,7 @@ function headlineFor(
       : 'You charged less and sold more, and still ended up with less.';
   }
   if (to.turnedAway > 0 && to.turnedAway > from.turnedAway) {
-    return `You ran out. ${to.turnedAway} people wanted one and you had nothing to sell them.`;
+    return `You ran out. ${plural(to.turnedAway, 'person', 'people')} wanted one and you had nothing to sell them.`;
   }
   if (to.spoiledLemons > from.spoiledLemons) {
     return 'You made more than the street wanted, and paid for the difference in lemons.';

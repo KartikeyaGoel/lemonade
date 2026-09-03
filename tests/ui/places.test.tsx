@@ -111,6 +111,7 @@ describe('the plot of land', () => {
 
 describe('buying something in Act 2', () => {
   const props = {
+    goal: 'Hire a manager so the first stand runs without you.',
     business: createBusinessState(),
     onBuyUpgrade: vi.fn(),
     onToggleStaff: vi.fn(),

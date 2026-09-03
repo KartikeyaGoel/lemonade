@@ -53,6 +53,21 @@ export function YardScene({
   const squeeze = find('freshSqueeze');
   const helper = find('helper');
   const manager = find('manager');
+  /*
+   * Down the road: the places that are not this place.
+   *
+   * Drawn along the horizon rather than on the table, because that is what
+   * they are — the fourth kind of spending is the first one that is somewhere
+   * else, and §33's rule is that where a thing stands says what kind of
+   * spending it is. A stand you already have on the pitch you are standing on
+   * is hidden: it would be a second dashed circle labelled with the ground
+   * under the kid's feet, which reads as a bug rather than an option.
+   */
+  const road = plots.filter(
+    (plot) =>
+      plot.kind === 'site' &&
+      !(plot.id === (atPark ? 'stand-park' : 'stand-sidewalk') && !plot.owned),
+  );
 
   return (
     /* A fixed aspect rather than the leftover height on the screen. The scene
@@ -149,6 +164,24 @@ export function YardScene({
         </div>
       </div>
 
+      {/* Down the road: another stand, and then a shop with a door.
+          Its own strip, below the pitches and hard right, because the first
+          version put all four in one row and a kid could not tell which label
+          owned which circle. They are over there and not here — the same
+          reason the rival is drawn small across the road. */}
+      {road.length > 0 && (
+        <div className="absolute right-1.5 top-[30%] flex flex-col items-end gap-1">
+          <span className="font-body text-[9px] font-extrabold uppercase leading-none tracking-[0.1em] text-ink/45">
+            Down the road
+          </span>
+          <div className="flex items-start gap-1.5">
+            {road.map((plot) => (
+              <PlotButton key={plot.id} plot={plot} active={active} onSelect={select} size="sm" />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Crew, on the pavement either side, wearing their wages. */}
       {helper && (
         <PlotButton
@@ -199,7 +232,7 @@ function PlotButton({
       type="button"
       onClick={() => onSelect(plot.id)}
       aria-label={plot.owned ? plot.name : `${plot.name}, ${money(plot.cost)} ${plot.costLabel}`}
-      className={`${className ? 'absolute' : ''} flex flex-col items-center transition-transform active:translate-y-[2px] ${className}`}
+      className={`${className ? 'absolute' : ''} flex min-w-11 flex-col items-center transition-transform active:translate-y-[2px] ${className}`}
     >
       <span
         className={`flex items-center justify-center rounded-full border-[3px] ${

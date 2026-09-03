@@ -10,6 +10,7 @@ import {
   joinClub,
   openProposal,
   pass,
+  reviveClub,
   propose,
   vote,
   whoseTurn,
@@ -330,5 +331,56 @@ describe('passing the club between phones', () => {
   it('rejects something that is not a club code at all', () => {
     expect(decodeClub('SKY-ABCD-EFGH-IJ')).toBeNull();
     expect(decodeClub('')).toBeNull();
+  });
+});
+
+/**
+ * A club coming back out of this kid's own device.
+ *
+ * `decodeClub` has always checked a club arriving from a friend's code, with a
+ * comment about doctored tickers explaining why. A club arriving from
+ * `localStorage` was passed straight through, and that is the one that broke:
+ * a stored club missing its `portfolio` takes the friends screen down with
+ * `totalValue(undefined)` — the error boundary, on a screen reachable from the
+ * title, with nothing to do about it but clear the browser's site data.
+ *
+ * Both doors go through `reviveClub` now. These are the shapes that must not
+ * get through it.
+ */
+describe('reviving a club from storage', () => {
+  const good = createClub('The Lemon Club', 'Ada', 300, 7);
+
+  it('lets a real club through unchanged in substance', () => {
+    const back = reviveClub(good);
+    expect(back?.name).toBe('The Lemon Club');
+    expect(back?.portfolio.cash).toBe(300);
+  });
+
+  it.each([
+    ['nothing at all', null],
+    ['undefined', undefined],
+    ['a club from a future version', { ...good, version: 2 }],
+    ['a club with no portfolio', { ...good, portfolio: undefined }],
+    ['a club whose portfolio has no cash', { ...good, portfolio: { ...good.portfolio, cash: undefined } }],
+    ['a club whose portfolio has no week', { ...good, portfolio: { ...good.portfolio, week: undefined } }],
+    ['a club with no members', { ...good, members: [] }],
+    ['a club whose members are not a list', { ...good, members: 'Ada' }],
+    ['a club with no turn', { ...good, turn: undefined }],
+    ['a club holding a company that does not exist', {
+      ...good,
+      portfolio: { ...good.portfolio, holdings: { NOPE: { ticker: 'NOPE', shares: 1, costBasis: 1 } } },
+    }],
+  ])('drops %s rather than half-restoring it', (_label, broken) => {
+    expect(reviveClub(broken as never)).toBeNull();
+  });
+
+  /*
+   * Dropping rather than repairing, deliberately, and for the same reason the
+   * live account is dropped: a half-restored club would print a pot and a vote
+   * count that are not true, and a wrong number here is worse than a missing
+   * feature.
+   */
+  it('does not invent a portfolio to keep the club alive', () => {
+    expect(reviveClub({ ...good, portfolio: undefined } as never)).toBeNull();
   });
 });

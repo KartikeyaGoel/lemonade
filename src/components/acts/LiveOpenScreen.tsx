@@ -5,7 +5,8 @@ import { play } from '@/lib/sound';
 import { SNAPSHOT } from '@/lib/companies';
 import { totalValue, type PortfolioState } from '@/lib/market';
 import { lastWeekOnTheMarket, runningFor, type CatchUp } from '@/lib/live';
-import { ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
+import { plural } from '@/lib/copy';
 
 /**
  * Opening the live account.
@@ -52,7 +53,7 @@ export function LiveOpenScreen({
 
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pb-28 pt-8">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pt-8" style={clearsBar()}>
         <div className="font-body text-xs font-extrabold uppercase tracking-[0.25em] text-lemon-light">
           The real market
         </div>
@@ -161,7 +162,7 @@ export function LiveOpenScreen({
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/70 to-transparent pb-5 pt-8">
+      <PinnedBar className="z-30 bg-gradient-to-t from-black/70 to-transparent pb-5 pt-8">
         <div className="mx-auto w-full max-w-md space-y-2.5 px-4">
           <ChunkyButton variant="lemon" full onClick={onEnter}>
             Go to the market →
@@ -170,7 +171,7 @@ export function LiveOpenScreen({
             Back
           </ChunkyButton>
         </div>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }
@@ -184,10 +185,10 @@ export function LiveOpenScreen({
  * be the sort of small wrongness that makes a child stop reading the words.
  */
 function sinceYouWereHere(days: number, weeks: number): string {
-  if (weeks >= 2) return `${weeks} weeks went by.`;
+  if (weeks >= 2) return `${plural(weeks, 'week')} went by.`;
   if (weeks === 1) return 'A week went by.';
   if (days === 1) return 'A day went by.';
-  return `${days} days went by.`;
+  return `${plural(days, 'day')} went by.`;
 }
 
 function Row({

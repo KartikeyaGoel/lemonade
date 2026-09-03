@@ -14,7 +14,7 @@
  * the summary says out loud that you cannot have both. A lower P/E is not
  * better; it is cheaper, and cheap usually means somebody thinks it will
  * shrink. Faster growth is not better; it is faster, and fast usually costs
- * more. A kid who leaves Act 4 believing "low P/E good" has learned something
+ * more. A kid who leaves the market believing "low P/E good" has learned something
  * false, and would have been better off learning nothing.
  *
  * Pure module. No React, no I/O.

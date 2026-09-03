@@ -9,7 +9,7 @@ import {
   paybackWeeks,
   type StandForSale,
 } from '@/lib/ownership';
-import { ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { ActionFooter, ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
 
 /**
  * Comparison shopping. This is where PE actually lands.
@@ -86,11 +86,11 @@ export function DealBoardScreen({
             </p>
           </div>
 
-          <div className="mt-auto pt-6">
+          <ActionFooter className="mt-auto pt-6">
             <ChunkyButton variant="lemon" full onClick={() => onChoose(picked!, verdict.correct)}>
               Back to your own stand →
             </ChunkyButton>
-          </div>
+          </ActionFooter>
         </div>
       </Sky>
     );
@@ -98,7 +98,7 @@ export function DealBoardScreen({
 
   return (
     <Sky mood="probably-hot">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-28 pt-6">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         <SignHeading className="text-center text-4xl">Three stands for sale</SignHeading>
         <p className="mt-2 text-center font-body text-sm font-bold text-ink/70">
           All three make <strong>$100 a week</strong> right now. Which is the best buy?
@@ -116,13 +116,13 @@ export function DealBoardScreen({
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/25 to-transparent pb-5 pt-8">
+      <PinnedBar className="z-30 bg-gradient-to-t from-black/25 to-transparent pb-5 pt-8">
         <div className="mx-auto w-full max-w-md px-4">
           <ChunkyButton variant="mint" full disabled={!picked} onClick={() => setRevealed(true)}>
             {picked ? 'That one' : 'Pick one'}
           </ChunkyButton>
         </div>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }

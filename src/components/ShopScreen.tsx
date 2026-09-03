@@ -9,7 +9,7 @@ import {
   totalLemons,
 } from '@/lib/simulation';
 import { PipBubble } from './Pip';
-import { ChunkyButton, HeaderBar, SignHeading, Sky, money } from './ui';
+import { ActionFooter, ChunkyButton, HeaderBar, SignHeading, Sky, money, plural } from './ui';
 
 /**
  * Shopping, as one decision.
@@ -128,9 +128,26 @@ export function ShopScreen({
             </div>
           )}
 
+          {/*
+            A receipt, and it has to read as one.
+
+            A first-time player looked at this and asked where the slider for
+            the lemons and the sugar was. There isn't one, and there should not
+            be: the recipe is fixed — one lemon is four cups — so the batch is
+            the single bet, and a second and third dial for ingredients that
+            follow from it would be three taps to say one thing. §4: reduce
+            taps aggressively, never the rigour.
+
+            But the question was fair, because these rows used the exact visual
+            grammar of every *tappable* row in the game — bold name on the left,
+            price on the right, same as the plots in the yard and the companies
+            in the market. So the heading names the slider as the cause, an
+            arrow points down from it, and the names are no longer set in the
+            weight that means "you can press this".
+          */}
           <div className="mt-3 border-t-2 border-dashed border-ink/20 pt-2">
             <div className="mb-1 font-body text-xs font-extrabold uppercase tracking-widest text-ink/50">
-              What you are buying
+              <span aria-hidden>↓ </span>So the slider buys
             </div>
               <ReceiptLine
                 emoji="🍋"
@@ -153,19 +170,19 @@ export function ShopScreen({
 
               {hasPantry && (
                 <p className="mt-3 font-body text-xs font-bold text-ink/60">
-                  Using what you already have first: {pantryLemons} lemons,{' '}
-                  {state.sugarServings} sugar, {state.cupsInStock} cups.
+                  Using what you already have first: {plural(pantryLemons, 'lemon')},{' '}
+                  {state.sugarServings} sugar, {plural(state.cupsInStock, 'cup')}.
                 </p>
               )}
               {plan.cupsMakeable > plan.targetCups && plan.targetCups > 0 && (
                 <p className="mt-2 font-body text-xs font-bold text-ink/60">
-                  Lemons come whole and packs come in tens, so you get {plan.cupsMakeable} cups.
+                  Lemons come whole and packs come in tens, so you get {plural(plan.cupsMakeable, 'cup')}.
                 </p>
               )}
           </div>
         </div>
 
-        <div className="mt-auto flex gap-3 pt-6">
+        <ActionFooter className="mt-auto flex gap-3 pt-6">
           <ChunkyButton variant="ghost" onClick={onBack} className="!px-5 !text-xl">
             ←
           </ChunkyButton>
@@ -177,7 +194,7 @@ export function ShopScreen({
           >
             Set my price →
           </ChunkyButton>
-        </div>
+        </ActionFooter>
       </div>
     </Sky>
   );
@@ -197,11 +214,15 @@ function ReceiptLine({
   return (
     <div className="ledger-row py-1">
       <span className="flex items-baseline gap-2">
-        <span aria-hidden>{emoji}</span>
-        <span className="font-body font-extrabold">{label}</span>
+        <span aria-hidden className="opacity-60">
+          {emoji}
+        </span>
+        {/* Not `font-extrabold`: that weight is what a pressable row looks
+            like everywhere else in this game, and these are consequences. */}
+        <span className="font-body font-bold text-ink/70">{label}</span>
         <span className="font-body text-xs font-bold text-ink/40">{note}</span>
       </span>
-      <span>{money(amount)}</span>
+      <span className="text-ink/70">{money(amount)}</span>
     </div>
   );
 }

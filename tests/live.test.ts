@@ -25,6 +25,7 @@ import {
   type PortfolioState,
 } from '../src/lib/market';
 import { SNAPSHOT } from '../src/lib/companies';
+import { toCents } from '../src/lib/simulation';
 
 /**
  * Rewinds a live account by `rows` of price data, so it looks like the kid
@@ -57,13 +58,41 @@ describe('the live account', () => {
     expect(currentDate(live)).toBe(latestDate());
   });
 
+  /*
+   * Rounded to cents, like every other price in the product.
+   *
+   * This used to compare against the raw file value, which is how the
+   * inconsistency hid: `createLivePortfolio` seeded week 0 unrounded while
+   * every week after it went through `realClose`, which rounds. A first weekly
+   * report then showed a fraction-of-a-percent move on a week where the data
+   * says nothing happened. The claim being made here is about *which week* the
+   * account is priced at, and that is unchanged.
+   */
   it('prices it at the real latest close, not the replay window', () => {
     const live = createLivePortfolio(500);
     for (const company of SNAPSHOT.slice(0, 4)) {
       expect(currentPrice(live, company.ticker)).toBeGreaterThan(0);
       expect(currentPrice(live, company.ticker)).toBe(
-        company.closes[company.closes.length - 1],
+        toCents(company.closes[company.closes.length - 1]),
       );
+    }
+  });
+
+  /*
+   * And the inconsistency itself, stated as the property rather than the
+   * instance: whichever way a live price is arrived at, it is a price in cents.
+   */
+  it('quotes every price in whole cents, seeded or advanced', () => {
+    let live = createLivePortfolio(500);
+    const cents = (n: number) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-9;
+    for (const company of SNAPSHOT) {
+      expect(cents(currentPrice(live, company.ticker)), `${company.ticker} seed`).toBe(true);
+    }
+    for (let i = 0; i < 4; i += 1) {
+      live = advanceWeek(live).portfolio;
+      for (const company of SNAPSHOT) {
+        expect(cents(currentPrice(live, company.ticker)), `${company.ticker} week ${i}`).toBe(true);
+      }
     }
   });
 

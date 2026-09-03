@@ -44,13 +44,13 @@ export interface Stage {
   outOf: number;
 }
 
-const ACTS: Act[] = [1, 2, 3, 4];
+const ACTS: Act[] = [1, 2, 3, 4, 5];
 
 /**
  * Where the kid is on the ladder, and what each rung has actually produced.
  *
  * A stage is `done`, `here` or `locked` from the act alone — never from how
- * much of it was demonstrated. A kid who moved to Act 3 having shown one skill
+ * much of it was demonstrated. A kid who moved to Stage 3 having shown one skill
  * out of three in Act 2 has finished Act 2 and shown one skill out of three,
  * and both of those are worth a parent knowing separately. Collapsing them
  * into a single "70% complete" would lose the only half that is true.

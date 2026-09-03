@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ROUND, UPGRADES } from '@/lib/business';
-import { ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { ActionFooter, ChunkyButton, SignHeading, Sky, money } from '../ui';
 
 /**
  * The end-of-week fork: take the money out, or leave it in.
@@ -14,7 +14,7 @@ import { ChunkyButton, SignHeading, Sky, money } from '../ui';
  * The round sits here too, because it is the same kind of decision: give up a
  * slice of every cup in exchange for customers who turn up when it is cold.
  * That trade is the whole reason a subscription business is priced above a shop
- * with the same profit, and Act 3 will pay them for it.
+ * with the same profit, and a buyer will pay them for it.
  */
 export function WeeklyChoiceScreen({
   cash,
@@ -125,7 +125,7 @@ export function WeeklyChoiceScreen({
           </div>
         </button>
 
-        <div className="mt-auto pt-6">
+        <ActionFooter className="mt-auto pt-6">
           <ChunkyButton variant="lemon" full onClick={() => onChoose(out, drive)}>
             {drive
               ? out === 0
@@ -135,7 +135,7 @@ export function WeeklyChoiceScreen({
                 ? 'Leave it all in →'
                 : `Move ${money(out)} to savings →`}
           </ChunkyButton>
-        </div>
+        </ActionFooter>
       </div>
     </Sky>
   );

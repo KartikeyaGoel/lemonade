@@ -30,8 +30,32 @@ export default {
          * game. So there is one pink, it passes everywhere, and nobody has to
          * remember which to reach for.
          */
-        berry: '#BF3F54',
-        mint: '#2ED9A0',
+        /*
+         * Two berries and two mints, and each pair is one colour for light
+         * backgrounds and one for dark.
+         *
+         * `mint-deep` and `berry-light` were already being used in three places
+         * — the reckoning verdict and two lines of the challenge comparison —
+         * and neither existed in this file, so Tailwind emitted nothing and the
+         * figures rendered in the inherited body colour. Green for good and
+         * pink for bad had silently stopped being either. Both are now real,
+         * both are measured by `scripts/check-contrast.mjs` against the
+         * backgrounds they actually sit on, and both stay separable from their
+         * opposite under the two common forms of colour blindness.
+         */
+        /*
+         * The panel the night screens put their figures on.
+         *
+         * Solid rather than `bg-white/10` over the gradient, and that is not a
+         * style choice: the night sky runs from #1E2A4A at the top to #6B7BA8
+         * at the bottom, so a tinted figure that reads at 5:1 against the top
+         * of the screen reads at 2.5:1 against the bottom of it. A fixed panel
+         * is the only surface a coloured number on a gradient can be measured
+         * against, which is why `check-contrast.mjs` measures this one.
+         */
+        night: { panel: '#3A4363' },
+        berry: { DEFAULT: '#BF3F54', light: '#FF9DAE' },
+        mint: { DEFAULT: '#2ED9A0', deep: '#0B7A59' },
       },
       boxShadow: {
         chunk: '0 6px 0 0 var(--chunk-shadow, rgba(0,0,0,0.28))',

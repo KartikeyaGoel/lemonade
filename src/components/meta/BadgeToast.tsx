@@ -28,20 +28,7 @@ const DISMISS_AFTER_MS = 5000;
  * its own after five seconds, it says "tap to close", and tapping anywhere on it
  * closes it. Without the label the only two ways out were waiting and guessing.
  */
-export function BadgeToast({
-  badges,
-  onDismiss,
-  raised,
-}: {
-  badges: Badge[];
-  onDismiss: () => void;
-  /**
-   * Lift it clear of a screen whose primary button is pinned to the bottom.
-   * On the planning screen the toast landed squarely on "Open the stand!",
-   * which turns a reward into an obstacle.
-   */
-  raised?: boolean;
-}) {
+export function BadgeToast({ badges, onDismiss }: { badges: Badge[]; onDismiss: () => void }) {
   const badge = badges[0];
 
   useEffect(() => {
@@ -60,11 +47,46 @@ export function BadgeToast({
       type="button"
       onClick={onDismiss}
       aria-label="Dismiss"
-      className={`fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md px-3 text-left ${
-        raised ? 'pb-32' : 'pb-3'
-      }`}
+      /*
+       * `pointer-events-none` on the frame, `auto` on the card, and this is the
+       * half of the fix that actually mattered.
+       *
+       * The toast is a full-width fixed button whose bottom padding lifts the
+       * card clear of the pinned action bar. Visually that worked. But the
+       * padding is still part of the button, so it went on *swallowing taps* on
+       * the bar underneath it — a child aiming at "Open the stand!" dismissed a
+       * rosette instead and nothing happened. A reward that eats the primary
+       * button is worse than one that merely sits on it, and it is invisible in
+       * a screenshot: only hit-testing finds it.
+       */
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md px-3 text-left"
+      /*
+       * Clears whatever is pinned, read from the bar itself.
+       *
+       * The fallback is what this used to be: a flat 128 pixels, right for a
+       * bar with one button in it and wrong the moment the planning screen
+       * grew a second. `PinnedBar` publishes its real height, so a third
+       * button changes the number without changing any code here.
+       */
+      /*
+       * Clears whatever the screen has at the bottom of it, read from the
+       * screen itself.
+       *
+       * This was a flag the caller passed — true for two named phases — and it
+       * was wrong twice for the same reason: a list of screens kept somewhere
+       * else has to be remembered, and it was not. It missed the yard, where a
+       * rosette for opening a second stand landed on "Open up today", and it
+       * missed the listing, where "Rang the bell" landed on "Trade a week as a
+       * public company".
+       *
+       * `PinnedBar` and `ActionFooter` publish their own height, so a screen
+       * with a bottom action is cleared whether or not anybody remembered it,
+       * and a screen without one gets the low resting position from the
+       * fallback. Nothing left to keep in sync.
+       */
+      style={{ paddingBottom: 'calc(var(--pinned-bar, 0.25rem) + 0.5rem)' }}
     >
-      <div className="space-y-1.5">
+      <div className="pointer-events-auto space-y-1.5">
         <div
           key={badge.id}
           className="animate-bubble-pop rounded-2xl border-[3px] border-ink/25 bg-lemon p-3 shadow-2xl"

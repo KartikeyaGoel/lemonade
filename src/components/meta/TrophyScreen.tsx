@@ -7,7 +7,7 @@ import { careerCard, standing, type Career } from '@/lib/career';
 import type { Game } from '@/lib/progress';
 import { collectionLine, progress, shelves } from '@/lib/collection';
 import { mastery, masteryLine, reachable, type Level } from '@/lib/mastery';
-import { ChunkyButton, Sky, money } from '../ui';
+import { ChunkyButton, clearsBar, money, PinnedBar, plural, Sky } from '../ui';
 
 const TIER_STYLE: Record<BadgeTier, string> = {
   bronze: 'border-[#C08552] bg-[#F6E2CE]',
@@ -73,7 +73,7 @@ export function TrophyScreen({
 
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-4 pb-28 pt-6">
+      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         {/* The card. Rank comes from badges, never from time played. */}
         <div className="rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">
           <div className="flex items-center gap-3">
@@ -97,7 +97,7 @@ export function TrophyScreen({
                 )}
               </div>
               <div className="font-body text-[10px] font-extrabold uppercase tracking-wide text-white/50">
-                {card.badges.held} badges
+                {plural(card.badges.held, 'badge')}
               </div>
             </div>
           </div>
@@ -112,7 +112,11 @@ export function TrophyScreen({
               key={option}
               type="button"
               onClick={() => setTab(option)}
-              className={`rounded-xl border-[3px] px-0.5 py-1.5 font-body text-[9px] font-extrabold uppercase leading-tight tracking-tight ${
+              /* `py-2.5`, not `py-1.5`: five tabs across a phone leaves each one
+                 65 pixels wide, so the only dimension available to make them
+                 hittable is the height. At 29 pixels they were under a thumb's
+                 worth, on the screen a kid opens to look at what they have. */
+              className={`rounded-xl border-[3px] px-0.5 py-2.5 font-body text-[9px] font-extrabold uppercase leading-tight tracking-tight ${
                 tab === option
                   ? 'border-lemon bg-lemon text-ink'
                   : 'border-white/25 bg-white/10 text-white/70'
@@ -339,7 +343,7 @@ export function TrophyScreen({
               label="Club"
               value={
                 career.clubWeeks > 0
-                  ? `${career.clubWeeks} weeks, ${career.clubProposalsPassed} proposals carried`
+                  ? `${plural(career.clubWeeks, 'week')}, ${plural(career.clubProposalsPassed, 'proposal')} carried`
                   : 'not in one yet'
               }
             />
@@ -347,11 +351,11 @@ export function TrophyScreen({
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t-[3px] border-white/15 bg-[#16203A] px-4 pb-5 pt-6">
+      <PinnedBar className="z-20 mx-auto max-w-md border-t-[3px] border-white/15 bg-[#16203A] px-4 pb-5 pt-6">
         <ChunkyButton variant="lemon" full onClick={onBack}>
           Back →
         </ChunkyButton>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }

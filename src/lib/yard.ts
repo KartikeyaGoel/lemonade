@@ -36,12 +36,18 @@ import {
   MANAGER_CAPACITY,
   STAFF,
   UPGRADES,
+  dailyFixedCosts,
   serviceCapacity,
+  standLines,
+  standOpening,
   type BusinessState,
   type LocationId,
   type StaffId,
   type UpgradeId,
 } from './business';
+import { SHOP, shopDailyCost } from './retail';
+import { totalFixedCost } from './simulation';
+import { plural } from './copy';
 
 /** Where a plot sits, which is also what kind of spending it is. */
 export type PlotKind =
@@ -50,10 +56,22 @@ export type PlotKind =
   /** Beside the stand, wearing a wage. */
   | 'crew'
   /** The ground itself. */
-  | 'pitch';
+  | 'pitch'
+  /**
+   * A whole other place, down the road.
+   *
+   * The fourth kind of spending, and it arrives with the fourth kind of wall.
+   * Kit makes this stand better, crew makes it faster, a pitch moves it — and
+   * a site is the first purchase that is somewhere *else*, which is why it is
+   * drawn along the horizon rather than on the table.
+   */
+  | 'site';
+
+/** The plots that are not kit, crew or a pitch. */
+export type SiteId = 'stand-sidewalk' | 'stand-park' | 'shop';
 
 export interface Plot {
-  id: UpgradeId | StaffId | LocationId;
+  id: UpgradeId | StaffId | LocationId | SiteId;
   kind: PlotKind;
   name: string;
   emoji: string;
@@ -63,6 +81,17 @@ export interface Plot {
   cost: number;
   /** Whether that cost lands once or every single day, in the kid's words. */
   costLabel: string;
+  /**
+   * What it goes on owing every day *after* the one-off, or null.
+   *
+   * Only a site has both, and leaving this out was a straight falsehood on the
+   * screen: a second stand costs $40 once and $14 a day for the pitch, and the
+   * sheet — which knew only about "once" and "a day" — printed *"after that it
+   * is free forever"* under it. PRODUCT.md §4 says every number on screen is
+   * true and reconciles. A plot that is both kinds of spending at once has to
+   * be able to say so.
+   */
+  dailyAfter: number | null;
   /** Can they pay for it right now? Always false for something already owned. */
   affordable: boolean;
   /** One line, in effects the kid can check tonight. */
@@ -94,6 +123,7 @@ export function plots(business: BusinessState, cash: number): Plot[] {
       owned,
       cost: item.cost,
       costLabel: 'once',
+      dailyAfter: null,
       affordable: !owned && cash >= item.cost,
       what: item.blurb,
       doing: owned ? kitDoing(id, capacity) : null,
@@ -111,6 +141,7 @@ export function plots(business: BusinessState, cash: number): Plot[] {
       owned,
       cost: item.wage,
       costLabel: 'a day',
+      dailyAfter: null,
       // A wage is owed tomorrow too, so the bar is a day's wage in hand.
       affordable: !owned && cash >= item.wage,
       what: item.blurb,
@@ -129,6 +160,7 @@ export function plots(business: BusinessState, cash: number): Plot[] {
       owned: here,
       cost: spot.fee,
       costLabel: 'a day',
+      dailyAfter: null,
       affordable: !here && cash >= spot.fee,
       what:
         spot.demandMultiplier > 1
@@ -138,13 +170,100 @@ export function plots(business: BusinessState, cash: number): Plot[] {
     };
   });
 
-  return [...pitch, ...kit, ...crew];
+  return [...pitch, ...kit, ...crew, ...sites(business, cash)];
+}
+
+/* ------------------------------------------------------------------ *
+ * Sites: another stand, and then a shop
+ * ------------------------------------------------------------------ */
+
+/**
+ * The places down the road, opened or not.
+ *
+ * Both are visible from the first day of the act they belong to, greyed with a
+ * price on them, for the same reason every unbought plot is: PRODUCT.md §33 —
+ * a kid saves up for a thing that has been standing in their front garden all
+ * week. A padlocked shop on the horizon is what makes the second stand feel
+ * like a step rather than the end.
+ */
+export function sites(business: BusinessState, cash: number): Plot[] {
+  const out: Plot[] = [];
+
+  for (const location of Object.keys(LOCATIONS) as LocationId[]) {
+    const opening = standOpening(business, location, cash);
+    const mine = business.stands.filter((stand) => stand.location === location).length;
+    const spot = LOCATIONS[location];
+    out.push({
+      id: (location === 'park' ? 'stand-park' : 'stand-sidewalk') as SiteId,
+      kind: 'site',
+      name: `Another stand · ${spot.name.toLowerCase()}`,
+      /*
+       * Deliberately not the pitch's own emoji.
+       *
+       * It was, and in the scene that put two identical trees side by side —
+       * one meaning "move to the park for $14 a day" and one meaning "open a
+       * second stand at the park for $40 once". Two different decisions with
+       * the same picture on them, touching, is worse than no picture: a kid who
+       * taps the wrong one has been misled by us rather than by the game.
+       */
+      emoji: '\u{26F1}\u{FE0F}',
+      owned: mine > 0,
+      cost: opening.setup,
+      costLabel: 'once',
+      dailyAfter: opening.daily,
+      affordable: opening.blocked === null,
+      what:
+        opening.blocked ??
+        `Serves ${opening.capacity} more cups a day. $${opening.daily.toFixed(2)} a day for the pitch${opening.runBy === 'minder' ? ' and a minder' : ''}.`,
+      doing: mine > 0 ? standDoing(business, location) : null,
+    });
+  }
+
+  const shopOpen = business.shop.open;
+  out.push({
+    id: 'shop',
+    kind: 'site',
+    name: SHOP.name,
+    emoji: SHOP.emoji,
+    owned: shopOpen,
+    cost: SHOP.fitOut,
+    costLabel: 'once',
+    dailyAfter: shopOpen ? shopDailyCost(business.shop) : SHOP.rent,
+    /*
+     * Openable whether or not the money is in the cash box, and that is the
+     * whole point of the stage.
+     *
+     * Every other plot in the yard is a straight purchase, so `affordable`
+     * means "can they pay for it". The shop is the first thing in the game a
+     * kid cannot buy out of profit, and tapping it opens the three-way choice
+     * about *how* to pay — borrow, sell a slice, or wait. Gating the tap on
+     * having the cash made the one screen that answers that question
+     * unreachable by the only kid who needs it.
+     */
+    affordable: !shopOpen,
+    what: `Serves ${SHOP.capacity} cups a day indoors, and the weather stops mattering. $${SHOP.rent} a day in rent, owed when nobody comes.`,
+    doing: shopOpen
+      ? `Open. $${shopDailyCost(business.shop).toFixed(2)} a day owed before the door does anything.`
+      : null,
+  });
+
+  return out;
+}
+
+function standDoing(business: BusinessState, location: LocationId): string {
+  const lines = standLines(business).filter((line) => line.location === location);
+  const mine = lines.filter((line) => line.id !== 0);
+  const doubled = lines.length > 1;
+  const cups = mine.reduce((sum, line) => sum + line.capacity, 0);
+  return doubled
+    ? `${cups} more cups a day here — but you already trade this pitch, so a new stand on it only finds about half a crowd.`
+    : `${cups} more cups a day, on a crowd that was not yours before.`;
 }
 
 function kitDoing(id: UpgradeId, capacity: number): string {
   switch (id) {
     case 'cooler':
-      return `Part of the ${capacity} cups a day you can serve. Worth nothing on a day you make fewer.`;
+      return `Part of the ${plural(capacity, 'cup')} a day you can serve. Worth nothing on a day you make fewer.`;
     case 'bigSign':
       return 'More people notice the stand, whatever you are charging.';
     case 'freshSqueeze':
@@ -174,11 +293,13 @@ function pitchDoing(id: LocationId): string {
  * whether a quiet day is survivable.
  */
 export function dailyBurn(business: BusinessState): number {
-  return (
-    LOCATIONS[business.location].fee +
-    (business.staff.helper ? STAFF.helper.wage : 0) +
-    (business.staff.manager ? STAFF.manager.wage : 0)
-  );
+  // Derived from the same lines the day is actually charged, rather than a
+  // hand-rolled copy of them. The copy was correct for one stand and no shop,
+  // and would have quietly under-reported the burn by a second pitch fee, a
+  // minder's wage, the rent and the loan the moment any of those existed —
+  // in the one number on the screen that tells a kid whether a quiet day is
+  // survivable.
+  return totalFixedCost(dailyFixedCosts(business));
 }
 
 /**

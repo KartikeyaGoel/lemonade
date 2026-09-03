@@ -69,6 +69,24 @@ if (HAS_DOM) {
   );
 }
 
+/*
+ * jsdom has no ResizeObserver, and `PinnedBar` uses one to publish its height
+ * so the badge toast can clear it. The component already tolerates its absence,
+ * but a stub that actually fires once is better than a no-op: it means the
+ * measurement path is the one under test rather than the fallback.
+ */
+if (HAS_DOM && typeof ResizeObserver === 'undefined') {
+  class ImmediateResizeObserver {
+    constructor(private readonly callback: () => void) {}
+    observe() {
+      this.callback();
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal('ResizeObserver', ImmediateResizeObserver);
+}
+
 afterEach(async () => {
   if (!HAS_DOM) return;
   const { cleanup } = await import('@testing-library/react');

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ECON, ingredientCostOf, type GameState } from '@/lib/simulation';
 import { PipBubble } from './Pip';
-import { ChunkyButton, HeaderBar, SignHeading, Sky, money } from './ui';
+import { ActionFooter, ChunkyButton, HeaderBar, SignHeading, Sky, money, plural } from './ui';
 import { Stand } from './Stand';
 
 /**
@@ -84,7 +84,7 @@ export function PriceScreen({
         />
 
         <div className="mt-4 flex flex-wrap justify-center gap-2">
-          <span className="stat-chip">🥤 {cupsMakeable} cups ready</span>
+          <span className="stat-chip">🥤 {plural(cupsMakeable, 'cup')} ready</span>
           {yesterday && <span className="stat-chip">Yesterday {money(yesterday.price)}</span>}
         </div>
 
@@ -111,14 +111,14 @@ export function PriceScreen({
           </div>
         )}
 
-        <div className="mt-auto flex gap-3 pt-6">
+        <ActionFooter className="mt-auto flex gap-3 pt-6">
           <ChunkyButton variant="ghost" onClick={onBack} className="!px-5 !text-xl">
             ←
           </ChunkyButton>
           <ChunkyButton variant="mint" full onClick={() => onConfirm(price)}>
             Open the stand!
           </ChunkyButton>
-        </div>
+        </ActionFooter>
       </div>
     </Sky>
   );

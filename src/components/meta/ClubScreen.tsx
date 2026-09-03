@@ -27,8 +27,9 @@ import {
   totalValue,
 } from '@/lib/market';
 import { reasoningSound, thesisLine } from '@/lib/thesis';
-import { ChunkyButton, CodeBox, CodeInput, SignHeading, Sky, money } from '../ui';
+import { ChunkyButton, clearsBar, CodeBox, CodeInput, money, PinnedBar, SignHeading, Sky } from '../ui';
 import { ThesisScreen } from './ThesisScreen';
+import { plural } from '@/lib/copy';
 
 /**
  * The investment club.
@@ -137,7 +138,7 @@ export function ClubScreen({
 
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-32 pt-6">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         <div className="flex items-baseline justify-between">
           <SignHeading className="!text-lemon-light text-3xl">{club.name}</SignHeading>
           {/* Weeks *elapsed*, not a week number. The counter starts at zero
@@ -390,11 +391,11 @@ export function ClubScreen({
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t-[3px] border-white/15 bg-[#16203A] px-4 pb-5 pt-6">
+      <PinnedBar className="z-20 mx-auto max-w-md border-t-[3px] border-white/15 bg-[#16203A] px-4 pb-5 pt-6">
         <ChunkyButton variant="lemon" full onClick={onBack}>
           Back →
         </ChunkyButton>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }
@@ -530,7 +531,7 @@ function PickView({
 }) {
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-24 pt-6">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         <SignHeading className="!text-lemon-light text-3xl">What should we buy?</SignHeading>
         <p className="mt-1 font-body text-[12px] font-bold text-white/60">
           {money(cash)} in the pot. You will have to say why.
@@ -566,11 +567,11 @@ function PickView({
           })}
         </div>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md px-4 pb-5 pt-4">
+      <PinnedBar className="z-20 mx-auto max-w-md px-4 pb-5 pt-4">
         <ChunkyButton variant="ghost" full onClick={onBack}>
           Back
         </ChunkyButton>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }
@@ -583,7 +584,7 @@ function LogView({ club, onBack }: { club: ClubState; onBack: () => void }) {
   const log = clubLog(club);
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-24 pt-6">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         <SignHeading className="!text-lemon-light text-3xl">The log</SignHeading>
         <p className="mt-1 font-body text-[12px] font-bold text-white/60">
           Every reason anybody gave, and what the club decided.
@@ -602,11 +603,11 @@ function LogView({ club, onBack }: { club: ClubState; onBack: () => void }) {
           ))}
         </div>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md px-4 pb-5 pt-4">
+      <PinnedBar className="z-20 mx-auto max-w-md px-4 pb-5 pt-4">
         <ChunkyButton variant="ghost" full onClick={onBack}>
           Back
         </ChunkyButton>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }
@@ -622,7 +623,7 @@ function ScoresView({ club, onBack }: { club: ClubState; onBack: () => void }) {
   const attribution = clubAttribution(club);
   return (
     <Sky mood="night">
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-24 pt-6">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         <SignHeading className="!text-lemon-light text-3xl">How are we doing</SignHeading>
 
         <div className="mt-3 rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">
@@ -662,7 +663,7 @@ function ScoresView({ club, onBack }: { club: ClubState; onBack: () => void }) {
               <div className="mt-0.5 font-body text-[11px] font-bold text-white/60">
                 {member.proposalsMade === 0
                   ? 'Has not proposed anything yet.'
-                  : `${member.proposalsPassed} of ${member.proposalsMade} carried · ${money(member.dollarsCommitted)} committed · reasons held up ${member.soundCount} of ${member.proposalsMade} times`}
+                  : `${member.proposalsPassed} of ${member.proposalsMade} carried · ${money(member.dollarsCommitted)} committed · reasons held up ${member.soundCount} of ${plural(member.proposalsMade, 'time')}`}
               </div>
             </div>
           ))}
@@ -672,11 +673,11 @@ function ScoresView({ club, onBack }: { club: ClubState; onBack: () => void }) {
           {attribution.verdict}
         </div>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md px-4 pb-5 pt-4">
+      <PinnedBar className="z-20 mx-auto max-w-md px-4 pb-5 pt-4">
         <ChunkyButton variant="ghost" full onClick={onBack}>
           Back
         </ChunkyButton>
-      </div>
+      </PinnedBar>
     </Sky>
   );
 }

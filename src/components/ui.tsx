@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Forecast, Weather } from '@/lib/simulation';
 import { isMuted, onMuteChange, play, setMuted, type Cue } from '@/lib/sound';
+
+/* Re-exported so screens can reach it from the same place as `money`. */
+export { plural } from '@/lib/copy';
 
 export function money(n: number): string {
   const sign = n < 0 ? '-' : '';
@@ -224,7 +227,7 @@ export function CodeBox({
       <button
         type="button"
         onClick={copy}
-        className="mt-2 w-full rounded-xl border-[3px] border-ink/15 bg-lemon/40 py-2 font-body text-xs font-extrabold uppercase tracking-wide text-ink"
+        className="mt-2 flex min-h-11 w-full items-center justify-center rounded-xl border-[3px] border-ink/15 bg-lemon/40 py-2 font-body text-xs font-extrabold uppercase tracking-wide text-ink"
       >
         {copied ? '✓ Copied' : 'Copy code'}
       </button>
@@ -328,6 +331,125 @@ function Nib({ direction }: { direction: 'up' | 'down' }) {
  * audience plays states the goal and keeps it visible — the factory builder in
  * the reference screenshot has it pinned to the top left corner all game.
  */
+/**
+ * The pinned action bar at the bottom of a screen, and the height it publishes.
+ *
+ * The badge toast has to sit above whatever is pinned, and for a while it did
+ * that with a fixed `pb-32` — 128 pixels, which was right for a bar with one
+ * button in it. The planning screen grows a second the moment there is a
+ * yesterday to rehearse against, and at that point the bar is 184 pixels tall
+ * and a rosette was landing squarely on "Open the stand!". A reward on top of
+ * the button it is rewarding is the §26 defect exactly.
+ *
+ * Measuring it from inside the toast looked like the fix and was not: it
+ * depends on the bar already being in the DOM when the toast's effect runs,
+ * which is a rendering-order coupling between two components that know nothing
+ * about each other. So the bar publishes its own height as a custom property on
+ * the root, and anything that needs to clear it reads that. Order stops
+ * mattering, and a third button changes the number without changing any code.
+ */
+/**
+ * Publishes an element's height as `--pinned-bar` on the root.
+ *
+ * Shared by the two kinds of bottom action area, because the badge toast does
+ * not care which kind it is looking at — it cares how much room is taken at the
+ * bottom of the screen. See `PinnedBar` and `ActionFooter`.
+ */
+function usePublishedHeight(ref: { current: HTMLElement | null }) {
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const publish = () =>
+      document.documentElement.style.setProperty('--pinned-bar', `${node.offsetHeight}px`);
+    publish();
+    // Measured once always, and again on resize where that is available. The
+    // guard is not defensive padding: `ResizeObserver` is missing in jsdom, and
+    // a component that throws in the test environment is a component nobody
+    // renders in a test.
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(publish);
+    observer?.observe(node);
+    return () => {
+      observer?.disconnect();
+      document.documentElement.style.removeProperty('--pinned-bar');
+    };
+  }, [ref]);
+}
+
+/**
+ * A bar pinned to the bottom of the screen that publishes its own height.
+ *
+ * It imposes the pinning and nothing else — every screen passes its own
+ * z-index, padding and background, because they genuinely differ (the night
+ * screens have a hard top border, the daylight ones a gradient) and a
+ * primitive that fought them with conflicting Tailwind classes would resolve
+ * by stylesheet order rather than by call site.
+ *
+ * The height is the whole point. Eleven screens used to pad their content by a
+ * hand-guessed `pb-28`, which is 112 pixels, and a bar with two stacked
+ * buttons is 182 — so on the live-market catch-up screen the last row of the
+ * week's prices sat 47 pixels under the bar with 2 pixels of scroll available
+ * to reach it. Not clipped, not faint: unreachable. Found by measuring rather
+ * than by looking, because the gradient makes it look intentional.
+ *
+ * Pad content with `calc(var(--pinned-bar) + <gap>)` and the guess is gone.
+ */
+export function PinnedBar({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  usePublishedHeight(ref);
+  return (
+    <div ref={ref} className={`fixed inset-x-0 bottom-0 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * What a screen should pad its scrolling content by to clear its own bar.
+ *
+ * A function rather than a constant so the gap is explicit at the call site,
+ * and a fallback so the very first paint — before the bar has measured itself —
+ * is roomy rather than clipped.
+ */
+export function clearsBar(gap = '1.5rem'): { paddingBottom: string } {
+  return { paddingBottom: `calc(var(--pinned-bar, 8rem) + ${gap})` };
+}
+
+/**
+ * A bottom action area that stays in the flow of the page.
+ *
+ * Most of the choice screens put their buttons at the end of a full-height
+ * flex column with `mt-auto`, which is the right layout — the content is short,
+ * the buttons sit at the bottom, and nothing needs to overlap. But "sits at the
+ * bottom of the screen" is exactly what the badge toast has to clear, and a
+ * toast at its low resting position landed straight on "Trade a week as a
+ * public company" the first time it was played.
+ *
+ * So these publish their height too. Same custom property, same reader, and the
+ * toast never has to know which kind of screen it is on.
+ */
+export function ActionFooter({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  usePublishedHeight(ref);
+  return (
+    <div ref={ref} className={className}>
+      {children}
+    </div>
+  );
+}
+
 export function GoalStrip({ children }: { children: ReactNode }) {
   return (
     <div className="mt-1 flex items-center gap-2 rounded-2xl border-[3px] border-ink/15 bg-white/70 px-3 py-1.5">
@@ -377,7 +499,7 @@ export function SoundToggle({ className = '' }: { className?: string }) {
         set(!off);
         if (off) play('coin');
       }}
-      className={`flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-white/60 bg-white/60 text-base leading-none ${className}`}
+      className={`flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-white/60 bg-white/60 text-base leading-none ${className}`}
     >
       <span aria-hidden>{off ? '🔇' : '🔊'}</span>
     </button>
@@ -410,14 +532,24 @@ export function Sheet({
       />
       <div className="relative z-10 max-h-[82dvh] overflow-y-auto rounded-t-[26px] border-t-[4px] border-ink/20 bg-[#FFF8E4] px-4 pb-8 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.25)] animate-riseFade">
         <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-ink/20" />
-        <div className="mb-3 flex items-baseline justify-between gap-2">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <span className="font-sign text-2xl leading-tight text-ink">{title}</span>
+          {/*
+            The pill is 24 pixels tall and the finger closing it belongs to a
+            nine-year-old. So the *button* is 44 and the pill is drawn inside
+            it, with the extra height pulled back out by a negative margin —
+            the header is the same size it was, the chip looks the same, and
+            the target is now the size a thumb needs. Every sheet in the game
+            closes through this one.
+          */}
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-full border-2 border-ink/25 px-2.5 py-0.5 font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/60"
+            className="-my-2.5 flex h-11 shrink-0 items-center px-1"
           >
-            Done
+            <span className="rounded-full border-2 border-ink/25 px-2.5 py-0.5 font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/60">
+              Done
+            </span>
           </button>
         </div>
         {children}
