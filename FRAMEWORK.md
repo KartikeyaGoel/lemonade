@@ -521,10 +521,17 @@ All twelve have a mechanic now. The four that did not:
    Sell the lot to one buyer at 8x, or a slice to a thousand people at 11x. Both
    endings are supported end to end, including the finale, the parent report and
    what the market gets seeded with.
-2. **How long is Level 1?** About an hour. Act 2 runs to 16 days and Act 3 to
-   12, both with a condition that ends them sooner and a clock that ends them
-   regardless — an arc with only one exit is an arc somebody gets stuck in.
-   Walked by a player who buys nothing: reachable, and the fallbacks fire.
+2. **How long is Level 1?** Act 2 runs to 16 days and Act 3 to 6, both with a
+   condition that ends them sooner and a clock that ends them regardless — an
+   arc with only one exit is an arc somebody gets stuck in. Walked by a player
+   who buys nothing: reachable, and the fallbacks fire.
+
+   Worst case is **36 days**: 7 + 16 + 6 + a week lived through as a listed
+   company. It was 42 when this section was first written, and the caps were
+   cut after the customer read "Start day 41" off a sweep and asked whether
+   forty days was a long time to spend before the part the game is actually
+   about. See §11 — the cut was measured against the vocabulary rather than
+   guessed, and one of the two proposed cuts was reverted for costing a word.
 3. **Does "Retail" mean a shop?** A shop. One location, a fit-out paid once, a
    rent owed on the day nobody comes, staff at a wage, and a demand floor under
    the weather — which is the mechanic that makes the rent worth owing.
@@ -560,3 +567,99 @@ suite:
 `tests/reachable.test.ts` exists because of a third: restructuring the arc made
 a badge unearnable and nothing noticed. It now asserts the property rather than
 the instance — every badge has some reachable state that earns it.
+
+---
+
+## 11. Checking §10's claims, rather than trusting them
+
+§10 was written the day the ladder shipped. This section is a later audit of
+whether it is still true, prompted by the customer asking exactly that. The
+short answer is yes on substance — every stage, every concept and the Level 1
+endpoint hold up — with one stale number, now corrected above, and one class
+of claim that had never been tested at all.
+
+### The stage ladder
+
+Four framework stages, four shipped acts, each with a real end condition in
+code: `ECON.TOTAL_DAYS` (7), `ACT2_DAYS` (16), `ACT3_DAYS` (6), and a listing
+that ends only once a week has been lived through as a public company. All
+four transitions are walked end to end by `tests/arc.test.ts`, including the
+two fallbacks and both endings — sold to one buyer, or floated.
+
+### The twelve concepts
+
+All twelve still have a glossary word behind them. Five are taught under a
+name a nine-year-old can use rather than the framework's own term, and that
+mapping had only ever existed in this document's prose:
+
+| Framework concept | Taught as |
+|---|---|
+| capital | `capex-vs-opex`, `return-on-cash` |
+| value | `market-cap`, `multiple` |
+| ownership | `equity`, `going-public` |
+| growth | `compounding`, `operating-leverage` |
+| stock price | `share-price` |
+
+`tests/frameworkwords.test.ts` now asserts that mapping, so renaming a
+glossary id cannot quietly disconnect a framework concept from the word that
+teaches it.
+
+### The claim that had never been tested
+
+`wordsreachable.test.ts` proves every Act 1–3 word has a state that produces
+it. It says plainly why it stops there — Acts 4 and 5 "earn their words from
+the listing, the buyout, the thesis and the market — none of which run a day —
+and those are covered where they happen."
+
+They were not. Of the twelve Act 4/5 words, **`going-public` and `market-cap`
+were produced in `listing.ts` and named by no test anywhere.** That is the
+same signature as the `unit-cost` defect in PRODUCT.md §53: a full glossary
+entry, counted in the total a child is shown, with a reader and no proof its
+producer ever fires.
+
+This matters more here than anywhere else in the glossary, because §2 of this
+document argues that **shares** and **stock price** are "the two that the whole
+product is pointing at" — the seam where a kid stops meeting share prices only
+on Apple and gets one of their own. The claim that the seam is closed rested
+on two untested words either side of it.
+
+Neither was broken. Both fire, from a company really taken public. That is the
+point: *"nothing asserts it"* and *"it does not work"* are indistinguishable
+from outside, and only one of them is acceptable in the concepts the product
+exists to teach. Six tests now cover it, including that the listing words
+survive `markListedWeek` — the event that satisfies the Level 1 endpoint — and
+that none of them arrive before the company is listed.
+
+### The stale number
+
+§10 answer 2 said Act 3 runs to 12 days. It runs to 6. The cut came out of the
+customer reading "Start day 41" off a sweep and asking whether forty days was
+a long time to spend before the part the game is about — a fair question, and
+the honest answer was no.
+
+Worth recording *how* it was cut, because the instruction was to tighten "as
+much as possible without compromising on learning" and those pull against each
+other. `WORDS_PER_DAY` is 1, so days are a hard ceiling on vocabulary: cutting
+a cap can only be free if the words still land. Measured by replaying the
+ladder ten times at two skill levels and diffing the words delivered:
+
+- **Act 3, 12 → 6.** Worst measured run is 5 days at both skill levels, and
+  the words delivered are byte-identical at every cap down to 5. Free.
+- **Act 2, 16 → 13.** Not free. It costs careless players `delegation`.
+  **Reverted to 16.**
+
+A tightening that costs a word is not a tightening, and the second one was
+only caught by measuring instead of reasoning about it. PRODUCT.md §51 has the
+tables.
+
+### What this audit did not check
+
+Two of §10's claims are still taken on the word of the browser playthrough
+that produced them, because no automated check can hold them:
+
+- that the arc *reads* as four stages to a child, rather than as one stand
+  with three sets of extra buttons;
+- that an hour is the right length. 36 days is measured; whether 36 days is
+  **fun** is not the kind of thing a test knows, and §41 records that the one
+  piece of real pacing feedback the project has came from a parent, not a
+  spreadsheet.
