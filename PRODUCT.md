@@ -2645,3 +2645,117 @@ same operation.
 That is the shape to watch for: **a test whose fixture makes two different
 implementations indistinguishable.** It is not a coverage hole and no
 threshold will find it. Only asking "what must always be true?" does.
+
+## 55. The gate that failed on the truth
+
+CI failed on "Market data is sane". Six companies, all flagged as possibly
+carrying an unadjusted stock split:
+
+```
+RBLX: shares went 182M → 506M between 2020 and 2021 (2.8x)
+DASH: shares went  62M → 337M between 2020 and 2021 (5.4x)
+DUOL: shares went  13M →  23M between 2020 and 2021 (1.8x)
+DUOL: shares went  23M →  39M between 2021 and 2022 (1.7x)
+ABNB: shares went 284M → 616M between 2020 and 2021 (2.2x)
+UBER: shares went 479M → 1248M between 2018 and 2019 (2.6x)
+```
+
+The check was right to look and wrong to conclude. Uber listed in May 2019.
+Airbnb and DoorDash in December 2020. Roblox in March 2021. Duolingo in July
+2021. At a flotation the share count genuinely multiplies, because preferred
+stock converts to common and a pre-IPO 10-K counts only the common. Every
+figure above is correct.
+
+### It had been failing since the data arrived
+
+Neither the script nor `market-data.json` was in the branch under review; the
+gate fails identically on `main`. So this was not a regression, it was a gate
+that had never passed on this data and had been red long enough to stop being
+read — which is worse than no gate, because a permanently red check trains
+everybody to merge past it.
+
+The cause was in the check's own comment, which was honest about what it was:
+
+> A real company changing its share count by half in one year would also trip
+> this, and that is fine: **it is exactly as worth a human look.**
+
+That is a fair description of a heuristic. It is not a description of
+something that should `exit 1` in CI. A rule written to prompt a look had been
+wired up as a blocking gate, and blocking gates have to be right, not
+suggestive.
+
+### One rule, two files, two answers
+
+`tests/market.test.ts` asserted the same property — and already knew:
+
+> The first two transitions of a company's series are skipped, because a
+> flotation moves a share count by more than any split does and is not a
+> mistake: Roblox went from 182M shares to 506M the year it listed.
+
+The test started at `i = 3`. The gate started at `i = 1`. **The same rule was
+written out twice and the two copies disagreed**, which is precisely the root
+cause behind §54's equity bug, found two hours earlier, in the same session.
+There it was a `0.5` ceiling living in `ownership.ts` and again as a literal in
+`FundingScreen`. Here it is a split heuristic living in a CI script and again
+in a test. Same shape, same fix: give the rule one home
+(`scripts/market-rules.mjs`) and have both callers import it.
+
+### The allowance was a proxy, and proxies drift
+
+`i >= 3` is not the rule. It is a positional stand-in for "this company had
+recently floated", and it is wrong in both directions: it waves through a
+genuine split in year four of a series, and it does not cover Duolingo's
+second jump, a lockup expiry sitting at index 2. §51 records the same mistake
+in `arc.test.ts`, where `days < ACT2_DAYS / 2` was written as caution and
+behaved as a constraint.
+
+The real discriminator is the definition of a split: **a split does not change
+revenue.** It re-slices one company into more pieces, so shares multiply and
+every income-statement line stays exactly where it was. A business that grew
+moves both.
+
+Measured against the six:
+
+| | shares | revenue |
+|---|---|---|
+| RBLX 2020→21 | 2.78x | 2.08x |
+| DASH 2020→21 | 5.44x | 1.69x |
+| DUOL 2020→21 | 1.77x | 1.55x |
+| DUOL 2021→22 | 1.70x | 1.47x |
+| ABNB 2020→21 | 2.17x | 1.77x |
+| UBER 2018→19 | 2.61x | 1.26x |
+| *an unadjusted split* | *any* | **1.00x** |
+
+Uber's 1.26x is the closest any real listing comes, and the threshold sits at
+1.15x — inside a gap with real room in it, rather than tuned to the data.
+
+### Proving a relaxed gate still bites
+
+Relaxing a gate and relaxing it into uselessness look identical from a green
+pipeline, so neither is allowed to be taken on trust. Two things now hold it
+shut:
+
+- a test that plants a 4-for-1 split — shares x4, revenue untouched — in real
+  company history and requires the rule to catch it;
+- the same fault planted directly in `market-data.json` and run through the
+  actual CI script, which reported
+  `AAPL: shares went 15408M → 61632M ... while revenue moved 1.00x` and exited
+  1.
+
+The gate's message now carries the revenue figure, because the evidence for
+the verdict is the thing a human needs to see when the gate is the one that
+is wrong.
+
+And the six real listings are asserted individually by ticker rather than as
+a count, so a data refresh that genuinely does drop a split adjustment on
+Uber cannot hide behind "still six".
+
+### The lesson worth keeping
+
+A gate that cannot distinguish the fault from the ordinary case is not a
+strict gate, it is a broken one, and its cost is not the false alarm — it is
+that everything it says gets discounted. **If a check is a heuristic, it
+belongs in a report a human reads. If it exits non-zero, it has to encode the
+actual rule.** The way to tell which you have is to ask what the fault does
+that the legitimate case does not, and assert *that*: not the share count, but
+the revenue standing still beside it.

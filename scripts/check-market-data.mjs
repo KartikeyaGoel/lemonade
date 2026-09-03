@@ -7,6 +7,7 @@
  * six-month-old file looks identical to a build with a fresh one.
  */
 import { readFile } from 'node:fs/promises';
+import { describeSuspectSplit, suspectSplits } from './market-rules.mjs';
 
 const MAX_AGE_DAYS = Number(process.env.MAX_DATA_AGE_DAYS ?? 14);
 
@@ -33,23 +34,13 @@ for (const company of data.companies ?? []) {
   /*
    * A split that did not get applied to the share counts.
    *
-   * Prices are adjusted for splits and 10-K share counts are not, so if the
-   * adjustment is ever missed the historical P/E comes out wrong by the split
-   * factor — Chipotle briefly showed a price-to-earnings ratio of 1. A real
-   * company changing its share count by half in one year would also trip this,
-   * and that is fine: it is exactly as worth a human look.
+   * The rule lives in `market-rules.mjs` because `tests/market.test.ts`
+   * asserts the same thing, and when this was written out twice the two copies
+   * disagreed — this one failed CI on six real flotations for as long as the
+   * data has been in the file. See PRODUCT.md §55.
    */
-  const years = company.annuals ?? [];
-  for (let i = 1; i < years.length; i++) {
-    const before = years[i - 1].sharesM;
-    const after = years[i].sharesM;
-    const jump = Math.max(after / before, before / after);
-    if (jump > 1.5) {
-      problems.push(
-        `${company.ticker}: shares went ${before}M → ${after}M between ${years[i - 1].fiscalYear} ` +
-          `and ${years[i].fiscalYear} (${jump.toFixed(1)}x) — an unadjusted split?`,
-      );
-    }
+  for (const suspect of suspectSplits(company)) {
+    problems.push(describeSuspectSplit(suspect));
   }
 }
 

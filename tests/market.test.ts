@@ -36,6 +36,12 @@ import {
   markResearched,
 } from '../src/lib/market';
 import { toCents } from '../src/lib/simulation';
+import {
+  REVENUE_STILL,
+  SHARE_JUMP,
+  describeSuspectSplit,
+  suspectSplits,
+} from '../scripts/market-rules.mjs';
 
 describe('a company is shown with the same four numbers as a lemonade stand', () => {
   it('computes EPS, PE and margin as plain division', () => {
@@ -499,26 +505,95 @@ describe('no hindsight: the accounts are the ones that were public that week', (
 
 describe('the historical figures are on the same footing as the prices', () => {
   it('has no unadjusted stock split hiding in a share count', () => {
-    // Closes are split-adjusted; 10-K share counts are not. If the adjustment
-    // is ever missed, every P/E before that split is wrong by the split factor
-    // — Chipotle once showed a price-to-earnings ratio of 1, which told a kid
-    // the company earns back its whole share price in a year.
-    //
-    // The first two transitions of a company's series are skipped, because a
-    // flotation moves a share count by more than any split does and is not a
-    // mistake: Roblox went from 182M shares to 506M the year it listed.
+    /*
+     * Closes are split-adjusted; 10-K share counts are not. If the adjustment
+     * is ever missed, every P/E before that split is wrong by the split factor
+     * — Chipotle once showed a price-to-earnings ratio of 1, which told a kid
+     * the company earns back its whole share price in a year.
+     *
+     * The rule now comes from `scripts/market-rules.mjs`, which the CI gate
+     * uses too. It used to be written out here *and* there, and the two copies
+     * disagreed: this one skipped each company's first two transitions to
+     * allow for a flotation, the gate did not, and so the gate failed on six
+     * real listings — Uber, Airbnb, DoorDash, Roblox and Duolingo twice — for
+     * as long as they have been in the file.
+     *
+     * Skipping the first two transitions was the wrong allowance anyway. It is
+     * a positional proxy for "this company had just floated", and it both
+     * over-allows (a split in year three of the series is waved through) and
+     * under-allows (Duolingo's second jump is a lockup expiry at index 2). The
+     * shared rule uses the fact that actually separates the two cases: a split
+     * does not change revenue.
+     */
     for (const company of SNAPSHOT) {
+      const suspects = suspectSplits(company);
+      expect(suspects.map(describeSuspectSplit)).toEqual([]);
+    }
+  });
+
+  it('still catches a split that was never applied to the share count', () => {
+    /*
+     * The assertion above passes on an empty list, so on its own it cannot
+     * tell "nothing is wrong" from "the rule stopped looking". This injects
+     * the exact fault the rule is for — a 4-for-1 split applied to the prices
+     * and not to the shares, which leaves revenue standing still — and
+     * requires it to be caught.
+     *
+     * Written because relaxing a failing gate and relaxing it into uselessness
+     * look identical from a green pipeline.
+     */
+    const real = SNAPSHOT.find((company) => (company.annuals ?? []).length >= 3);
+    expect(real, 'no company has enough history to plant a split in').toBeDefined();
+    if (!real) return;
+
+    const annuals = real.annuals.map((year) => ({ ...year }));
+    const split = annuals.length - 1;
+    annuals[split] = { ...annuals[split], sharesM: annuals[split - 1].sharesM * 4 };
+    // Revenue deliberately untouched: that is what makes it a split.
+    annuals[split] = { ...annuals[split], revenueM: annuals[split - 1].revenueM };
+
+    const caught = suspectSplits({ ...real, annuals });
+    expect(caught.length, 'a 4-for-1 split walked past the rule').toBeGreaterThan(0);
+    expect(describeSuspectSplit(caught[0])).toContain('4.0x');
+  });
+
+  it('does not mistake a flotation for a split, and says why', () => {
+    /*
+     * The six real cases, asserted individually rather than as a count, so
+     * that a future data refresh which genuinely does drop a split adjustment
+     * on one of these companies cannot hide behind "still six".
+     *
+     * Each of these moved revenue as well as shares, which is the whole
+     * argument: Roblox nearly doubled revenue the year it listed, and a
+     * company that splits its stock reports the same revenue it did the day
+     * before.
+     */
+    for (const ticker of ['UBER', 'ABNB', 'DASH', 'RBLX', 'DUOL']) {
+      const company = SNAPSHOT.find((c) => c.ticker === ticker);
+      expect(company, `${ticker} is no longer in the data`).toBeDefined();
+      if (!company) continue;
+
       const years = company.annuals ?? [];
-      for (let i = 3; i < years.length; i++) {
-        const jump = Math.max(
-          years[i].sharesM / years[i - 1].sharesM,
-          years[i - 1].sharesM / years[i].sharesM,
+      const jumps = years.flatMap((year, i) => {
+        if (i === 0) return [];
+        const before = years[i - 1];
+        const shares = Math.max(year.sharesM / before.sharesM, before.sharesM / year.sharesM);
+        return shares > SHARE_JUMP ? [{ before, year, shares }] : [];
+      });
+
+      expect(jumps.length, `${ticker} no longer has the share jump this test is about`)
+        .toBeGreaterThan(0);
+
+      for (const { before, year } of jumps) {
+        const revenue = Math.max(
+          year.revenueM / before.revenueM,
+          before.revenueM / year.revenueM,
         );
         expect(
-          jump,
-          `${company.ticker} ${years[i - 1].fiscalYear}→${years[i].fiscalYear}: ` +
-            `${years[i - 1].sharesM}M → ${years[i].sharesM}M`,
-        ).toBeLessThan(1.5);
+          revenue,
+          `${ticker} ${before.fiscalYear}→${year.fiscalYear}: shares jumped but revenue ` +
+            `moved only ${revenue.toFixed(2)}x, which looks like a split after all`,
+        ).toBeGreaterThanOrEqual(REVENUE_STILL);
       }
     }
   });
