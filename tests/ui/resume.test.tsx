@@ -166,7 +166,20 @@ describe('picking the game back up', () => {
       if (/sold|passed|Hurrying|Tap to speed up/i.test(body())) break;
 
       const before = body();
-      const forward = buttons().filter((b) => !/^←$/.test(b.textContent?.trim() ?? ''));
+      /*
+       * Back arrows are not forward controls, and neither is the reset.
+       *
+       * This walk takes the *last* button in the DOM, and the reset is mounted
+       * last on every screen — outside the phase switch, so that there is no
+       * screen it is missing from. Left in, it would be the only button this
+       * test ever pressed, and it would pass while measuring nothing: wiping
+       * the device does change the screen.
+       */
+      const forward = buttons().filter(
+        (b) =>
+          !/^←$/.test(b.textContent?.trim() ?? '') &&
+          b.getAttribute('aria-label') !== 'Start over on this device',
+      );
       if (forward.length === 0) break;
 
       const control = forward[forward.length - 1];

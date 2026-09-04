@@ -209,6 +209,7 @@ import { ThesisScreen } from '@/components/meta/ThesisScreen';
 import { UnlockCard } from '@/components/meta/UnlockCard';
 import { WordCard } from '@/components/meta/WordCard';
 import { BadgeToast } from '@/components/meta/BadgeToast';
+import { ResetButton } from '@/components/ResetButton';
 import { NextUp } from '@/components/meta/NextUp';
 import { ReckoningScreen } from '@/components/meta/ReckoningScreen';
 
@@ -1612,17 +1613,30 @@ export default function Page() {
    */
   const owedTheResult = phase === 'run' || phase === 'close';
   if (!owedTheResult) {
+    /*
+     * The reward cards carry the reset too.
+     *
+     * These return early, before the root fragment that mounts it, so they
+     * were the two screens it was missing from — and one of them is the *first*
+     * thing a new tester can see. Opening a link with somebody else's save on
+     * it queued an unlock card ahead of the title, so a tester who needed the
+     * reset most had to tap through a stranger's rewards to reach it.
+     */
     if (wordQueue.length > 0) {
       return (
-        <WordCard
-          insight={wordQueue[0]}
-          remaining={wordQueue.length - 1}
-          onDone={() => setWordQueue((queue) => queue.slice(1))}
-        />
+        <>
+          <WordCard
+            insight={wordQueue[0]}
+            remaining={wordQueue.length - 1}
+            onDone={() => setWordQueue((queue) => queue.slice(1))}
+          />
+          <ResetButton onReset={eraseAll} />
+        </>
       );
     }
     if (unlockQueue.length > 0) {
       return (
+        <>
         <UnlockCard
           unlock={unlockQueue[0]}
           onDone={() => setUnlockQueue((queue) => queue.slice(1))}
@@ -1635,6 +1649,8 @@ export default function Page() {
             setCareer((current) => (current ? { ...current, name, avatar } : current))
           }
         />
+        <ResetButton onReset={eraseAll} />
+        </>
       );
     }
   }
@@ -2353,6 +2369,21 @@ export default function Page() {
           onDismiss={() => setBadgeQueue((queue) => queue.slice(1))}
         />
       )}
+
+      {/*
+        The reset, on every screen, for as long as several testers share one
+        link and there are no accounts.
+
+        Deliberately outside the phase switch so there is no screen it is
+        missing from — the one that matters most is the title, where a new
+        tester is offered "Keep going" into somebody else's run.
+
+        Not shown on `run`, because that screen is a twelve-second animation
+        with nothing to decide and a floating button over it is just something
+        to fiddle with; and not on `parent`, which has the full version of this
+        with the same confirmation. A beta affordance — PRODUCT.md §61.
+      */}
+      {phase !== 'run' && phase !== 'parent' && <ResetButton onReset={eraseAll} />}
     </>
   );
 }

@@ -524,10 +524,21 @@ const ALL_KEYS = [
  * their own device — and a promise you can only keep by explaining browser
  * settings to somebody is not a promise, it is a shrug.
  *
- * So: reachable from the grown-up view, behind a confirmation that says what
- * goes, and nowhere a child can reach it. Nothing else in the codebase may
- * call this. If a *game* mechanic ever wants to clear a save, it wants
- * `clearGame`, which is the safe one and is why the two slots are separate.
+ * So: behind a confirmation that says what goes. If a *game* mechanic ever
+ * wants to clear a save, it wants `clearGame`, which is the safe one and is
+ * why the two slots are separate.
+ *
+ * **This used to say "and nowhere a child can reach it".** It has two callers
+ * now: the grown-up view, and `ResetButton`, which floats on every screen so
+ * the next beta tester in a queue can get a clean start — there are no
+ * accounts, so a browser holds exactly one child's progress and several
+ * people share one link.
+ *
+ * That is a real loosening and it is written down rather than quietly done: a
+ * child in a family's hands should not be two taps from deleting their own
+ * trophies. `ResetButton` is a beta affordance and the plan is that it goes
+ * back behind the grown-up screen before real families use this. PRODUCT.md
+ * §61 records the trade.
  *
  * Returns the keys it removed, so the screen that called it can say so
  * truthfully rather than asserting success it did not check.

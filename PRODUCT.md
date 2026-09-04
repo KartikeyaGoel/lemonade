@@ -3185,3 +3185,80 @@ accessible name, `"Got it"`, which cost this session two wrong readings before
 the driver was taught to disambiguate them. Harmless to a child, who sees two
 different bubbles in two different places. Worth knowing about for whoever
 drives this screen next.
+
+## 61. A reset on every screen, because there are no accounts
+
+Several people are testing from one link. There is no sign-in, so a browser
+holds exactly one child's progress — and the second tester opens the site to be
+offered "Keep going" into somebody else's half-built shop.
+
+The absence of accounts is deliberate and stays: `PRIVACY.md` promises a parent
+that nothing leaves the device, and the cheapest way to keep that promise is to
+have no account to leak. So the fix is not sign-in, it is a way out.
+
+### What was already there, and why it was not enough
+
+`eraseEverything` has existed since the privacy work, behind the grown-up
+screen, with a confirmation that names what goes and reports the keys it
+actually removed rather than asserting a success it did not check.
+
+That is the right home for it in a family's hands. A child should not be two
+taps from deleting their own trophies. It is the wrong home when the person who
+needs it is the next tester in a queue, who has no reason to look behind a door
+marked *"for a grown-up"*.
+
+So `ResetButton` is the same erase, with the same confirmation, reachable
+everywhere. **`src/lib/storage.ts` used to say `eraseEverything` was reachable
+"nowhere a child can reach it"; that comment has been corrected rather than
+quietly falsified.** This is a beta affordance and the plan is that it moves
+back behind the grown-up screen before real families use it.
+
+### Two things that make it safe rather than a footgun
+
+- **One tap asks, it does not wipe.** Verified in a browser: after the first
+  tap all four storage keys were still present.
+- **The safe answer is the easy one.** "Keep playing" is the mint button;
+  "Wipe it and start fresh" is the ghost. That is the reverse of how a primary
+  action is normally styled, and it is the point. A test asserts it, because a
+  destructive default is the whole difference between a testing tool and a
+  footgun.
+
+### Where it is, and two bugs found putting it there
+
+Mounted outside the phase switch so there is no screen it is missing from —
+except `run`, a twelve-second animation with nothing to decide, and `parent`,
+which already has the full version.
+
+**It was missing from the two screens that mattered most.** The word card and
+the unlock card `return` early, before the root fragment. Opening a link with
+somebody else's save on it queued *an unlock card ahead of the title* — so the
+first thing a new tester saw was a stranger's reward, with no reset on it. Both
+cards carry it now, and the test asserts "the first screen a tester sees",
+not "the title".
+
+**And it was unreachable where it was first put.** Bottom-left is where Next's
+dev-mode indicator mounts its own portal, which sits on top. That overlay does
+not ship, so the button worked in production and was dead under `next dev` —
+which is exactly where beta testing gets rehearsed. Hit-testing found it; a
+screenshot could not have, because the button is perfectly visible underneath.
+Same class as §44's badge toast swallowing taps.
+
+### One rule that was correct and still wrong
+
+The first placement rode above `--pinned-bar`, the height each screen publishes
+for its own footer, on the theory that a floating button must never cover a
+primary one. The morning screen pins **342px** — the stand, Pip and the button
+together — so the reset ended up hovering in the middle of the sky beside the
+lemonade stand. Correct by the rule, obviously wrong on the screen.
+
+The corner is measured instead. On every screen checked it covers no other
+button's centre and is itself hit-testable, which is the property that actually
+matters. jsdom has no layout engine, so that check cannot live in
+`tests/ui/layout.test.tsx` and lives in a browser pass instead.
+
+### Verified end to end
+
+Reset → confirm → all four keys gone → the erased screen naming each one
+truthfully → restart → a fresh install offering **"Start selling"** rather than
+"Keep going". Which is the whole requirement: the next tester gets a clean
+start without being taught about browser settings.
