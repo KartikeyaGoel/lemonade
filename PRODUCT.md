@@ -2811,3 +2811,111 @@ stale": **a document that makes a checkable claim about the build should have a
 test that fails when the claim stops being true.** Where that is cheap — a day
 count, an id mapping, an act tag — it is close to free, and it is the only
 thing that stops the write-up quietly becoming fiction.
+
+## 57. The day the game changes how it is played
+
+The customer played the first day, reached the second, and reported that the
+stand had tappable objects on it that he had not known were there. Then he
+named the real problem, which was bigger:
+
+> i think the onboarding experience is a broader symptom of me just being
+> confused on how to play the game
+
+He is right, and the cause is structural.
+
+### Two games, one arc
+
+**Day one** runs `morning → shop → price`. Three screens, one decision each, a
+slider in the middle and a button at the bottom. Guided, linear, impossible to
+get lost in.
+
+**Day two** goes straight to the stand — and the same two decisions are now
+hotspots on a picture of a lemonade stand. `ShopScreen`'s own comment records
+the split without noticing what it costs:
+
+> this screen is only ever reached on a run's first day — `morning → shop →
+> price` runs at the start of a run and every later day goes straight to the
+> stand
+
+So a child learns one way to play on Tuesday and is handed a different one on
+Wednesday, with nothing connecting them. The interaction model changes
+underneath them at the exact moment the training wheels come off.
+
+### The mitigation that was already there, and was not enough
+
+This was anticipated. `StandScene` renders "tap the sign" under the price.
+`PlanScreen` adds a Pip bubble reading "Tap the sign to change your price. Tap
+the lemons to make more." There is even a comment saying why:
+
+> The scene is a new kind of screen — a kid who does not know it is touchable
+> will read it as a picture and go looking for the sliders that are no longer
+> there.
+
+Both were on screen. The customer played through and still did not know the
+stand was touchable. **That is the evidence: a line of text beside a new
+interaction model does not teach the model.** The text competes with everything
+else on a busy screen and loses, because nothing marks it as the one thing to
+read first.
+
+### The spotlight
+
+Three steps. Everything dims except the thing being talked about, Pip says one
+sentence beside it, and the copy *bridges* rather than explains: "Yesterday you
+picked a price on its own screen. Now it lives on your sign. Tap it to change
+it." The third step is the rehearsal button — the mechanic that makes this a
+game a child can be curious in, and a button nobody pressed because nobody knew
+what it did.
+
+Three, and no more. The point is not to explain the stand; it is to establish
+that the stand is *made of controls*, after which a child finds the other four
+hotspots themselves. FRAMEWORK.md §13 is the argument for bounding the number
+of things asked of a child rather than the number drawn.
+
+### Four panels, not a hole
+
+Built as four dim panels *around* the target rather than one overlay with a
+hole cut in it, and the reason is this project's own history:
+
+- §44 shipped a badge toast whose transparent padding **swallowed taps on the
+  primary button underneath it** — visually clear, functionally dead, invisible
+  in a screenshot.
+- §50 lost most of a day to an auditor that could not tell a pointer-transparent
+  overlay from a real one, and reported 1,887 false positives.
+
+With four panels the target is never covered, so it stays tappable with no
+`pointer-events` reasoning at all. And a child who ignores the words and just
+taps the lit-up thing gets exactly what they expected — at which point the tour
+ends, because that *is* the lesson landing. `Pip.tsx` is explicit that a mascot
+must never stand between a kid and the button they were reaching for; a
+spotlight is the one shape that insists without blocking.
+
+### Three bugs, two of them mine
+
+- **A tour step pointing at nothing.** `ChunkyButton`'s props are a closed type
+  and it does not spread the rest, so `{...{'data-coach': 'try'}}` type-checked
+  and **silently dropped the attribute**. The last step would have highlighted
+  nothing. Caught by reading the component, which is the definition of a gap —
+  so `tests/ui/coach.test.tsx` now asserts every step has a real element to
+  point at. §40's defect class again: wired to nothing.
+- **A tour that could never start.** `tour` was read as initial state, and it is
+  false while a badge is waiting. A child who earned a badge on day one — which
+  is all of them — would never have seen the tour. Now started by an effect.
+- **Two things wanting the same tap.** Found in a browser and by nothing else:
+  the dim panels sat over the badge toast, so a child reaching for "tap to
+  close" hit a panel and skipped the tour instead. Badges go first now. They are
+  the reward for the day just played; the tour is about the day about to be
+  played.
+
+The dim also exposed a redundancy that had been invisible: the old Pip bubble
+saying the same sentence at the same time. Kept for afterwards, because a child
+who skips still needs to know the scene is touchable.
+
+### What it does not fix
+
+The tour teaches *how to press things*. It cannot teach what to press them
+**for**, and FRAMEWORK.md §14 is the finding that the game does not currently
+say: Act 1 has no profit target, and `act1Complete` is seven days elapsed.
+Seven days of sandbox with a clock is not a level, it is a toy with a timer.
+
+Half of "I don't know how to play" was the interaction model, and that half is
+now addressed. The other half is that there is nothing to aim at.

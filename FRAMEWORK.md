@@ -103,6 +103,34 @@ moves a kid between stages.
 | **New complexity** | Basic economics | Scale | Capital + ownership | Market valuation |
 | **Natural unlock** | Build another stand | Become a larger company | Raise capital / establish ownership | Enter investing world |
 
+### Stage 1, specified (given later still)
+
+A row-by-row specification for the first stage, given after §13. Recorded
+verbatim because §15 audits the build against it and the wording is the
+standard.
+
+| | Stage 1 — Single Stand |
+|---|---|
+| **Learning goal** | Understand how cost and selling price affect profit, and how customer willingness to pay depends partly on product quality. |
+| **Core mental model** | A profitable business balances cost + customer value + selling price + demand. Highest price or lowest cost isn't automatically best. |
+| **Primary objective** | Maximize profit / hit a defined profit target. |
+| **Lever 1: Product / Cost** | 2–3 simple choices such as organic vs. regular, fresh vs. store-bought, bulk vs. day-by-day purchasing. |
+| **Lever 2: Selling Price** | Player chooses the price per cup. Higher price can increase profit per sale but reduce demand. |
+| **Demand system** | Driven only by price + quality at this stage. No weather, competition, location, etc. |
+| **Quality effect** | Better quality costs more but can increase demand and support a higher selling price. Lower quality can reduce demand over time. |
+| **Bulk-purchase lesson** | Buying in larger quantities lowers cost per cup but requires more spending upfront. |
+| **Core loop** | Configure product → Set price → Sell → See results → Adjust → Replay |
+| **Hero feedback** | Revenue + Profit |
+| **Supporting feedback** | Total cost + Selling price |
+| **Visual feedback** | Customers visibly buy, hesitate, or walk away depending on quality/price. |
+| **Diagnostic feedback** | Short explanation such as "Customers liked the quality, but your price was too high." |
+| **Failure model** | No harsh failure. Experiment, understand what happened, change variables, and retry. |
+| **Opening** | 1–2 exploratory rounds without a target. |
+| **Challenge** | Introduce a clear profit goal after exploration. |
+| **Unlock** | Hit the profit goal in two separate rounds. |
+| **Desired feeling** | Experiment → Notice patterns → Optimize → Challenge → Mastery |
+| **Next unlock** | Multiple Stands |
+
 ---
 
 ## 2. The verdict
@@ -974,3 +1002,153 @@ bounded at 13.5 seconds and the yard is four chunks. Whether a nine-year-old
 finds the day satisfying and the yard legible is the one question that needs a
 nine-year-old, and `PITCH.md` is right to list it as the single biggest open
 risk.
+
+---
+
+## 14. Stage 1 against its own specification
+
+§1's Stage 1 table is the most specific thing this document has ever been given
+— nineteen rows, most of them checkable. Checked one at a time against the
+build, thirteen hold and six do not, and the six are not a scattering of
+polish. They are one coherent piece of the design that was never built.
+
+### What holds
+
+| Row | Where it lives |
+|---|---|
+| **Lever 2: Selling Price** | The price dial, and it is the first decision in the game |
+| **Core loop** | plan → price → run → close, and **Replay** is the rehearsal button — "try it on yesterday's crowd" |
+| **Hero feedback** | Revenue and Profit, the two largest numbers on the close screen |
+| **Supporting feedback** | Total cost and selling price, itemised on the receipt |
+| **Visual feedback** | Real sprites walk up, read the real sign, and buy or keep walking. One sprite per simulated customer, never decorative |
+| **Failure model** | Explicitly no harsh failure: the cash box is topped up to the floor with the top-up shown as its own line, and the screen says "you never go below $20, so there is always a tomorrow" |
+| **Opening** | No target — see below, because this one holds by accident |
+| **Next unlock** | Multiple Stands, as Act 2 |
+
+The visual-feedback row is worth singling out because it is the row most
+products fake. Every walking figure is one customer from the simulation, and
+the counters are that day's real result arriving in real time.
+
+### What does not
+
+**1. There is no product or cost lever.** The specification asks for two or
+three choices — organic versus regular, fresh versus store-bought, bulk versus
+day-by-day. Act 1 has one lever besides price: how many cups to make.
+`freshSqueeze` exists, and it is an **Act 2** upgrade, so the one quality choice
+in the game arrives a whole stage after the stage that is supposed to teach it.
+
+**2. There is no quality at all in Act 1's demand.** `DEFAULT_DAY_PARAMS`
+carries `demandIntercept`, `demandSlope`, `demandMultiplier`, `fixedCosts`,
+`serviceCapacity`, `marketShare`, `equityShare`, `subscribers`,
+`subscriberDiscount` and `indoorShare`. There is no quality term. So "willingness
+to pay depends partly on product quality" — half of the stage's stated learning
+goal — has no mechanic behind it.
+
+**3. There is no bulk-purchase lesson.** Measured, at $1.50 a cup:
+
+| Cups | Total cost | Cost per cup |
+|---|---|---|
+| 8 | $1.70 | $0.2125 |
+| 20 | $3.90 | $0.1950 |
+| 40 | $7.80 | $0.1950 |
+| 80 | $15.60 | $0.1950 |
+
+Flat from twenty cups upward. The higher figure at eight cups is not a volume
+discount working in reverse — it is pack lumpiness, because lemons and sugar
+come in whole units and a small batch wastes part of one. A child cannot
+discover "bigger orders make each cup cheaper" here, because it is not true.
+
+**4. Weather is in Stage 1, and the specification says it should not be.** The
+demand system is meant to be "driven only by price + quality at this stage. No
+weather, competition, location." Act 1 has a forecast on the planning screen,
+weather art on every screen, and a close screen that opens with "it turned out
+cool". This is the one divergence where the build is *more* complex than asked
+rather than less, and it is load-bearing elsewhere: the Same-Sky Challenge
+exists because two children get identical weather so the whole difference is
+decisions, and `signal-vs-noise` and `demand-bet` are Act 1 words that only
+mean anything because the weather can betray a good plan.
+
+So this one is a real conflict rather than a gap, and it is the customer's call.
+Removing weather from Stage 1 would cost two words, the forecast, and the
+premise of the challenge feature.
+
+**5. There is no profit target, and therefore no challenge.** This is the big
+one. The specification asks for a clear objective, introduced after one or two
+exploratory rounds. The build has:
+
+- a goal strip reading `N days left · $33.40 of $20.00 start` — a clock and a
+  comparison, not a target;
+- `act1Complete`, which is `stand.history.length >= 7`.
+
+Seven days pass and the stage ends. Nothing is aimed at, nothing is hit, and
+nothing is missed. The **Opening** row holds only because there is never a
+target to withhold, which means the "1–2 exploratory rounds" are indistinguishable
+from the other five.
+
+**6. The unlock is not "hit the profit goal in two separate rounds".** It is
+"seven days elapsed". There is no repetition requirement, so the **Desired
+feeling** — Experiment → Notice patterns → Optimize → Challenge → Mastery —
+stops after the third arrow. Experimenting, noticing and optimising are all
+supported. Challenge and mastery have nothing to attach to.
+
+### Why this is the same finding as the onboarding problem
+
+The customer's report was *"i think the onboarding experience is a broader
+symptom of me just being confused on how to play the game"*, and PRODUCT.md §57
+records the structural cause on the interaction side: day one is three guided
+screens and day two is a scene made of hotspots.
+
+Gap 5 is the same complaint on the *goal* side. A child who does not know what
+they are trying to achieve cannot tell whether what they just did was good.
+Seven days of sandbox with a clock is not a level; it is a toy with a timer.
+The spotlight tour now teaches *how to press things* — it cannot teach what to
+press them **for**, because the game does not currently say.
+
+That is why these six gaps are one piece and not six. Quality gives the
+product lever something to trade against price, bulk gives the batch slider a
+reason to be interesting above "enough", and the profit target gives all of it
+a scoreboard. Built separately they are three features; built together they are
+Stage 1 as specified.
+
+### The one deliberate divergence
+
+**Diagnostic feedback** is not missing — it was decided against. The
+specification asks for "Customers liked the quality, but your price was too
+high." `guide.ts`'s `closingLine` is explicit in its own comment:
+
+> Observation only, and never the profit on its own — that number is already
+> the largest thing on the screen, and repeating it would make Pip a substitute
+> for the ledger rather than a door into it.
+
+So Pip names a *line of the statement* with its real number — "nobody bought a
+cup at $3.00; the stand still cost you $5.00" — and lets the child draw the
+conclusion. The reasoning is that a duck who says "your price was too high"
+teaches the child to read the duck, and a duck who says "nobody bought a cup at
+$3.00" teaches them to read the day.
+
+Both positions are defensible and this is a real fork, not an oversight.
+Flagged rather than changed.
+
+### What implementing the six would cost
+
+Not offered as an argument against, only as the honest price. This is not a
+copy change:
+
+- **The word budget.** `WORDS_PER_DAY` is 1 and Act 1 owns ten words across
+  seven days. A quality lever wants a word; so does bulk. There is room for
+  two, and `tests/wordbudget.test.ts` is what would say so.
+- **Every economic invariant.** `tests/pnl.test.ts` holds twenty-odd identities
+  and `tests/fuzz.test.ts` nine, several of which — margin never above price,
+  ingredients summing to the total, per-cup display reconciling — are stated in
+  terms of a single ingredient cost per cup. Quality tiers and bulk pricing both
+  change that arithmetic.
+- **The arc.** `tests/arc.test.ts` walks the whole ladder, and a profit target
+  in Act 1 adds a gate that a careless player has to be able to pass — §51
+  records that 5 of 10 careless runs already fail to finish Act 2's objective
+  even at 16 days, and a target is only a challenge if failing it is survivable.
+- **The pacing.** §11's measurement is against the current seven days. A target
+  that must be hit twice may need more of them.
+
+The right order is the specification's own: the levers first, because a target
+with only one dial behind it is a guessing game, and the target last, once
+there is something to optimise.
