@@ -44,6 +44,29 @@ export function Spotlight({
     setBox(element ? element.getBoundingClientRect() : null);
   }, [step.target]);
 
+  /*
+   * Bring the target on screen before pointing at it.
+   *
+   * The rect is viewport-relative and the panels are `fixed`, so a target
+   * below the fold gets a ring drawn off screen — or, worse, drawn at a
+   * viewport position that something else occupies. Found on the market: the
+   * first company card sits under a pinned "next week" bar, so the ring
+   * appeared to be around that button while Pip said "tap one to read its real
+   * numbers".
+   *
+   * Scrolled once per step rather than on every measure, because re-centring
+   * the page on a resize would yank it under a child's thumb.
+   */
+  useEffect(() => {
+    const element = document.querySelector(`[data-coach="${step.target}"]`);
+    /*
+     * Optional call, because jsdom has no `scrollIntoView` — the tests render
+     * this component and would throw on a method the browser always has and
+     * the test environment never does.
+     */
+    element?.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+  }, [step.target]);
+
   useEffect(() => {
     /*
      * Measured after paint, not during. The plan screen sizes its scene from

@@ -399,7 +399,14 @@ export function MarketScreen({
                     <button
                       key={c.ticker}
                       type="button"
-                      {...(inTier[0]?.ticker === c.ticker ? { 'data-coach': 'company-card' } : {})}
+                      // The very first card on the screen, not the first of
+                      // each tier: three tiers render, so this used to put the
+                      // same anchor on two or three cards. Harmless, since the
+                      // tour takes the first match, but an attribute that
+                      // reads like an id should appear once.
+                      {...(tier === 1 && inTier[0]?.ticker === c.ticker
+                        ? { 'data-coach': 'company-card' }
+                        : {})}
                       onClick={() => {
                         if (comparing) {
                           setPicked((current) =>

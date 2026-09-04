@@ -190,6 +190,44 @@ describe('every tour, not just the first one', () => {
     expect(missing, `stages with no first-run tour: ${missing.join(', ')}`).toEqual([]);
   });
 
+  it('brings its target on screen before pointing at it', async () => {
+    /*
+     * The rect is viewport-relative and the dim panels are `fixed`, so a
+     * target below the fold gets a ring drawn somewhere else entirely.
+     *
+     * Found on the market at 375px: the first company card sits under a pinned
+     * "next week" bar, so the ring appeared to be around *that button* while
+     * Pip said "tap one to read its real numbers". A child following the
+     * instruction would have advanced a week instead.
+     *
+     * jsdom has no `scrollIntoView`, which is why the component calls it
+     * optionally and why this test has to install one.
+     */
+    const scrolled: string[] = [];
+    /*
+     * Assigned rather than spied on: `vi.spyOn` needs the method to exist
+     * first, and jsdom does not have this one at all — which is the whole
+     * reason the component calls it optionally.
+     */
+    const proto = Element.prototype as unknown as { scrollIntoView?: () => void };
+    const had = Object.prototype.hasOwnProperty.call(proto, 'scrollIntoView');
+    proto.scrollIntoView = function (this: Element) {
+      scrolled.push(this.getAttribute('data-coach') ?? this.tagName);
+    };
+    withLayout();
+    plan(true);
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Skip the tour' })).toHaveLength(4),
+    );
+    expect(
+      scrolled,
+      'the tour never scrolled its first target into view',
+    ).toContain(STAND_TOUR.steps[0].target);
+
+    if (!had) delete proto.scrollIntoView;
+  });
+
   it('gives every tour a unique id, because the career keys on it', () => {
     const ids = ALL_TOURS.map((tour) => tour.id);
     expect(new Set(ids).size, `duplicate tour ids: ${ids.join(', ')}`).toBe(ids.length);
