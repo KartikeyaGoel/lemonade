@@ -151,7 +151,9 @@ import {
   recordStudied,
   standing,
   type Career,
+  recordCoached,
 } from '@/lib/career';
+import { STAND_TOUR, toured } from '@/lib/coach';
 import { announceable, isFirstRun, isUnlocked, newlyUnlocked, type Unlock } from '@/lib/unlocks';
 import { road, roadLine } from '@/lib/journey';
 import { desks } from '@/lib/friends';
@@ -1733,6 +1735,33 @@ export default function Page() {
     case 'plan':
       return (
         <PlanScreen
+          /*
+           * The tour of the stand, once ever.
+           *
+           * Act 1 only, and only before it has been shown: this screen is
+           * where the game stops being three guided screens with a slider
+           * each and becomes a scene made of controls, and nothing had ever
+           * said so. See `src/lib/coach.ts`.
+           */
+          /*
+           * Not while a badge is still waiting to be tapped.
+           *
+           * Found in a browser, not by a test: the tour's dim panels sit over
+           * the badge toast, so a child reaching for "tap to close" hit a
+           * panel and skipped the tour instead. Two things asking for the same
+           * tap, and the wrong one winning — the same shape as the toast that
+           * swallowed taps on the button under it (PRODUCT.md §44).
+           *
+           * The badges go first. They are the reward for the day just played;
+           * the tour is about the day about to be played.
+           */
+          tour={
+            game.act === 1 &&
+            !game.weekend &&
+            badgeQueue.length === 0 &&
+            !toured(career?.coached ?? [], STAND_TOUR.id)
+          }
+          onToured={() => setCareer((current) => (current ? recordCoached(current, STAND_TOUR.id) : current))}
           state={game.stand}
           params={
             game.weekend

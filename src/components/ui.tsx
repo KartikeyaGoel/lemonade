@@ -103,6 +103,7 @@ export function ChunkyButton({
   className = '',
   full,
   cue = 'tap',
+  coach,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -112,6 +113,14 @@ export function ChunkyButton({
   full?: boolean;
   /** Buttons that commit something can say so. Defaults to a plain blip. */
   cue?: Cue;
+  /**
+   * Marks this button as a target of the first-run tour (`src/lib/coach.ts`).
+   *
+   * An explicit prop because this component's props are a closed type and it
+   * does not spread the rest — so `{...{ 'data-coach': 'try' }}` type-checks,
+   * silently drops the attribute, and leaves a tour step pointing at nothing.
+   */
+  coach?: string;
 }) {
   return (
     <button
@@ -127,6 +136,7 @@ export function ChunkyButton({
         })
       }
       disabled={disabled}
+      data-coach={coach}
       className={`${BUTTON_VARIANTS[variant]} ${full ? 'w-full' : ''} ${className}`}
     >
       {children}

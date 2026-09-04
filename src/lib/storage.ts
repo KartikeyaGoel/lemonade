@@ -392,6 +392,7 @@ export function loadCareer(): Career | null {
       badges: Array.isArray(parsed.badges) ? parsed.badges : [],
       words: Array.isArray(parsed.words) ? parsed.words : [],
       announced: Array.isArray(parsed.announced) ? parsed.announced : [],
+      coached: Array.isArray(parsed.coached) ? parsed.coached : [],
     };
   } catch {
     return null;

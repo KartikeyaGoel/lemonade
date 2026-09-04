@@ -152,6 +152,7 @@ export function StandScene({
           type="button"
           onClick={() => select('price')}
           aria-label="What to charge per cup"
+          data-coach="price"
           className={`relative z-10 mx-auto -mb-1 block w-[96%] rotate-[-1.5deg] rounded-[14px] border-[5px] bg-lemon-light px-2 py-2 text-center shadow-[0_5px_0_0_#9A5526] transition-transform active:translate-y-[2px] ${
             active === 'price' ? 'border-mint ring-4 ring-mint/40' : 'border-wood-dark'
           }`}
@@ -218,6 +219,10 @@ const TONES = {
  *
  * The badge under the art is doing the real work — it is why the plan can be
  * read at a glance instead of opened one panel at a time.
+ *
+ * `data-coach` is how the first-run tour finds these. An attribute rather than
+ * a class or the aria-label, because the first is styling a redesign will move
+ * and the second is copy translation will change. See `src/lib/coach.ts`.
  */
 function Spot({
   id,
@@ -246,6 +251,7 @@ function Spot({
       type="button"
       onClick={() => onSelect(id)}
       aria-label={label}
+      {...{ 'data-coach': id }}
       className={`absolute flex flex-col items-center transition-transform active:translate-y-[2px] ${className}`}
     >
       <span

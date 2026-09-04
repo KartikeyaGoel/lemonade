@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ECON,
   FORECAST_COPY,
@@ -32,6 +32,8 @@ import { STAFF, UPGRADES, type BusinessState } from '@/lib/business';
 import { ChunkyButton, clearsBar, GoalStrip, HeaderBar, money, PinnedBar, plural, Sheet, SignHeading, Sky, WeatherArt } from './ui';
 import { PipBubble, PipSays } from './Pip';
 import { StandScene, type SpotId } from './StandScene';
+import { Spotlight } from './Spotlight';
+import { STAND_TOUR, stepAt } from '@/lib/coach';
 
 /**
  * The stand, from day two onwards.
@@ -66,7 +68,19 @@ export function PlanScreen({
   note,
   onOpen,
   onInvest,
+  tour = false,
+  onToured,
 }: {
+  /**
+   * Run the first-run tour of the stand.
+   *
+   * The caller decides, because whether a child has seen it lives on the
+   * career and this component does not read storage. See `src/lib/coach.ts`
+   * for why the tour exists at all: day one is three screens with a slider
+   * each, and this screen is the same two decisions as hotspots on a picture.
+   */
+  tour?: boolean;
+  onToured?: () => void;
   state: GameState;
   /** Act 2 onwards: capacity, rent, wages and competition all live here. */
   params?: DayParams;
@@ -135,6 +149,35 @@ export function PlanScreen({
   const [repeat, setRepeat] = useState<Try | null>(null);
   /** Set the first time anything on the stand is opened. Retires the finger. */
   const [poked, setPoked] = useState(false);
+
+  /**
+   * Which step of the first-run tour is showing, or -1 for none.
+   *
+   * Ends for good the moment the child opens anything, in `onSelect` below.
+   * Tapping the highlighted thing *is* the lesson landing, so carrying on
+   * would be a mascot talking over a kid who already understood — the exact
+   * failure `Pip.tsx` warns about.
+   */
+  const [tourStep, setTourStep] = useState(-1);
+  const [tourOver, setTourOver] = useState(false);
+
+  /*
+   * Started by an effect rather than by initial state.
+   *
+   * `tour` is false while a badge is still waiting to be tapped, and becomes
+   * true once the queue drains — which happens after this component has
+   * mounted. Reading it once, as initial state, meant a child who earned a
+   * badge on day one never saw the tour at all.
+   */
+  useEffect(() => {
+    if (tour && !tourOver && tourStep < 0) setTourStep(0);
+  }, [tour, tourOver, tourStep]);
+
+  const endTour = () => {
+    setTourOver(true);
+    setTourStep(-1);
+    onToured?.();
+  };
 
   const plan = batchPlan(state, targetCups);
   const projection = projectDay(state, targetCups, price, params);
@@ -273,6 +316,7 @@ export function PlanScreen({
           active={spot}
           onSelect={(next) => {
             setPoked(true);
+            if (tourStep >= 0) endTour();
             setSpot((current) => (current === next ? null : next));
           }}
         />
@@ -281,7 +325,15 @@ export function PlanScreen({
             kind of screen — a kid who does not know it is touchable will read it
             as a picture and go looking for the sliders that are no longer
             there. */}
-        {!poked && (
+        {/*
+          Suppressed while the tour is running: the tour says this, one thing
+          at a time and pointing at each. Two Pips saying the same sentence at
+          once was visible the moment the dim went behind them.
+
+          Kept for afterwards, because a child who skipped the tour, or who
+          comes back next season, still needs to know the scene is touchable.
+        */}
+        {!poked && tourStep < 0 && (
           <PipBubble point="up" className="-mt-1">
             Tap the sign to change your price. Tap the lemons to make more.
           </PipBubble>
@@ -348,7 +400,13 @@ export function PlanScreen({
       <PinnedBar className="z-30 pb-5 pt-8 bg-gradient-to-t from-black/30 to-transparent">
         <div className="mx-auto w-full max-w-md space-y-2 px-4">
           {rehearsable && (
-            <ChunkyButton variant="wood" full onClick={runTry} className="!text-lg">
+            <ChunkyButton
+              variant="wood"
+              full
+              onClick={runTry}
+              className="!text-lg"
+              coach="try"
+            >
               🧪 Try it on yesterday&apos;s crowd
             </ChunkyButton>
           )}
@@ -362,6 +420,26 @@ export function PlanScreen({
           </ChunkyButton>
         </div>
       </PinnedBar>
+
+      {/* ---- The first-run tour ---- */}
+
+      {/*
+        Only while nothing is open. A sheet is a child doing the thing the tour
+        was asking for, and the spotlight would be arguing with them.
+      */}
+      {tourStep >= 0 && spot === null && stepAt(STAND_TOUR, tourStep) && (
+        <Spotlight
+          step={stepAt(STAND_TOUR, tourStep)!}
+          stepNumber={tourStep + 1}
+          total={STAND_TOUR.steps.length}
+          onNext={() => {
+            const next = tourStep + 1;
+            if (stepAt(STAND_TOUR, next)) setTourStep(next);
+            else endTour();
+          }}
+          onSkip={endTour}
+        />
+      )}
 
       {/* ---- Inside the objects ---- */}
 

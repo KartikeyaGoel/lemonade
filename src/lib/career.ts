@@ -43,6 +43,14 @@ export interface Career {
    * what stops it being shown twice.
    */
   announced: string[];
+  /**
+   * First-run tours already shown, so none is ever shown twice.
+   *
+   * Separate from `announced` rather than folded into it, because that list is
+   * keyed by `Feature` — a closed union the unlock cards read — and a tour is
+   * not a feature that unlocked. Same idea, different currency.
+   */
+  coached: string[];
   seasons: number;
   bestWeekProfit: number;
   bestBuyoutMultiple: number;
@@ -64,6 +72,7 @@ export function createCareer(name = '', avatar = AVATARS[0]): Career {
     words: [],
     companiesStudied: [],
     announced: [],
+    coached: [],
     seasons: 1,
     bestWeekProfit: 0,
     bestBuyoutMultiple: 0,
@@ -177,6 +186,12 @@ export function beginSeason(career: Career): Career {
 export function recordAnnounced(career: Career, features: string[]): Career {
   const announced = union(career.announced, features);
   return announced === career.announced ? career : { ...career, announced };
+}
+
+/** Remembers that a first-run tour has been shown. */
+export function recordCoached(career: Career, tour: string): Career {
+  const coached = union(career.coached, [tour]);
+  return coached === career.coached ? career : { ...career, coached };
 }
 
 export function recordChallenge(career: Career, won: boolean): Career {
