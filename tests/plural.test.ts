@@ -95,8 +95,15 @@ describe('no screen may disagree with its own count', () => {
      * Matches a closing brace followed by a counted noun — which is what both
      * `{n} cups` in JSX and `${n} cups` in a template literal look like by the
      * time they reach the file.
+     *
+     * `(?!\s*=)` excludes the noun being a **JSX attribute name** rather than
+     * prose. `<GradePicker grade={grade} lemons={n} />` closes a brace and is
+     * followed by the word "lemons", and no child will ever read it. Prose
+     * never contains `lemons=`, so the exclusion cannot hide a real offender —
+     * and without it the only way to pass this gate is to avoid naming a prop
+     * after the thing it counts.
      */
-    const pattern = new RegExp(`\\}\\s+(${NOUNS})\\b`, 'g');
+    const pattern = new RegExp(`\\}\\s+(${NOUNS})\\b(?!\\s*=)`, 'g');
     const offenders: string[] = [];
 
     for (const file of sourceFiles('src')) {

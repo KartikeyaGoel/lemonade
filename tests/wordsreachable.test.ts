@@ -42,7 +42,14 @@ import {
   type BusinessState,
 } from '../src/lib/business';
 import { loanQuote } from '../src/lib/retail';
-import { DEFAULT_DAY_PARAMS, batchPlan, deriveInsights, runDay, ECON } from '../src/lib/simulation';
+import {
+  DEFAULT_DAY_PARAMS,
+  GRADE_ORDER,
+  batchPlan,
+  deriveInsights,
+  runDay,
+  ECON,
+} from '../src/lib/simulation';
 import { createGame } from '../src/lib/progress';
 import type { DayOutcome, DayRecord, GameState } from '../src/lib/simulation';
 
@@ -141,15 +148,25 @@ function everyWordTheGameCanHandOver(): Set<string> {
    * shape of day.
    */
   const plain = createBusinessState();
-  for (const price of [0.4, 1, 1.6, 2.4, 3]) {
-    for (const cups of [8, 30, 90]) {
-      let state = createGame(2026).stand;
-      for (let day = 0; day < 4; day++) {
-        const params = { ...DEFAULT_DAY_PARAMS, lastDay: null };
-        const plan = batchPlan(state, cups);
-        const outcome = runDay(state, { ...plan.order, price }, params);
-        collect(outcome, plain);
-        state = outcome.nextState;
+  /*
+   * Every grade as well as every price, because two Act 1 words are about the
+   * *recipe* rather than the day: `quality` needs a child to buy something
+   * other than the normal lemon, and `bulk-discount` needs an order big enough
+   * to earn the discount. A sweep that always bought regular lemons in small
+   * batches reported both as unreachable — correctly, which is the whole point
+   * of this file.
+   */
+  for (const grade of GRADE_ORDER) {
+    for (const price of [0.4, 1, 1.6, 2.4, 3]) {
+      for (const cups of [8, 30, 90]) {
+        let state = createGame(2026).stand;
+        for (let day = 0; day < 4; day++) {
+          const params = { ...DEFAULT_DAY_PARAMS, lastDay: null };
+          const plan = batchPlan(state, cups, grade);
+          const outcome = runDay(state, { ...plan.order, price, grade }, params);
+          collect(outcome, plain);
+          state = outcome.nextState;
+        }
       }
     }
   }

@@ -1152,3 +1152,150 @@ copy change:
 The right order is the specification's own: the levers first, because a target
 with only one dial behind it is a guessing game, and the target last, once
 there is something to optimise.
+
+---
+
+## 15. Building the six
+
+§14 audited Stage 1 against §1's table and found six rows with no mechanic. All
+six are now built, plus a tour per stage. §14 stays as written — it is the gap
+analysis that justified the work, and rewriting it into the past tense would
+destroy the only record of why.
+
+### Lever 1 — the product
+
+Three lemons: **cheap**, **normal**, **posh**. The row asked for "2–3 simple
+choices such as organic vs. regular", and this is that axis. `fresh vs.
+store-bought` was left alone deliberately, because `freshSqueeze` already owns
+it in Act 2 and two mechanics for one idea is worse than one.
+
+| | Cost per lemon | Demand |
+|---|---|---|
+| Cheap | ×0.6 | ×0.85 |
+| Normal | ×1.0 | ×1.0 |
+| Posh | ×1.8 | ×1.25 |
+
+**Normal is exactly 1.0 on both axes, and it is the default for every caller
+that does not choose.** That single decision is what let this land without
+touching a single arithmetic identity: `tests/pnl.test.ts`'s twenty-odd
+assertions and `tests/fuzz.test.ts`'s nine invariants all still pass untouched,
+because a run that chooses nothing is bit-identical to the game as it was.
+`tests/stage1.test.ts` asserts that identity directly, day for day.
+
+The trade is real rather than a free win, which the row insists on — "highest
+price or lowest cost isn't automatically best". Measured over the week:
+
+| Recipe | Best day |
+|---|---|
+| Posh @ $2 | **$59** |
+| Normal @ $2 | $49 |
+| Cheap @ $1.50 | $46 |
+| Cheap @ $2.50 | $25 |
+
+Posh wins at $2 and loses at $0.75; cheap wins where the crowd is
+price-sensitive and collapses at $2.50. A test asserts that no single grade wins
+at every price, so a tuning pass cannot quietly make the decision a formality.
+
+### The quality effect, and word of mouth
+
+Demand answers to today's grade *and* yesterday's, half each. That is the
+smallest mechanic that makes the row's second sentence true — "lower quality can
+reduce demand over time" — and it means cheapening the recipe produces a
+normal-ish day followed by a worse one, which is what a reputation is. Day one
+has nothing to remember, so it is judged only on its own choice.
+
+**The constraint that shaped this.** `buildCustomers` insists the number of
+random draws depends "only on the weather and the day's parameters — never on
+the price or the batch", because two children on one challenge code must get
+the same week. Grade is a decision, so it had to land on the same side of that
+line as price: it changes **who buys**, not **who walks past**. Three tests hold
+it — same weather, same footfall, same seed carried into tomorrow, whatever the
+recipe.
+
+### Bulk
+
+A dozen earns 10% off, two dozen 20%. Tiers rather than a curve because a child
+has to be able to *see* the moment it gets cheaper, and a step at a round number
+is findable by sliding a slider — twelve and twenty-four are also how lemons are
+actually sold.
+
+Both halves of the row are true: each one is cheaper **and** the total is
+larger. And the counterweight was already in the game — a lemon lasts three
+days, so buying two dozen for the discount and pouring eight of them is a loss
+at the price actually paid. A test asserts over-buying still costs money, or
+"always buy the maximum" would be the correct answer and the lesson would be a
+discount rather than a trade.
+
+**This was the invasive part.** Cost of goods sold used to be
+`lemonsUsed × LEMON_COST` — a count times a constant. With grades and volume,
+two lots bought on different days cost different amounts per lemon, and only the
+pantry knows which ones were poured. So `LemonLot` now carries what was paid,
+FIFO consumption reports what it spent, and `runDay` costs the day *after*
+consuming rather than before. Spoilage is costed the same way. Without that the
+receipt and the profit and loss would have disagreed, which is PRODUCT.md §4's
+line in the sand.
+
+### The challenge, and the two rounds
+
+- Two exploratory days with no target at all. The goal strip says "Try things
+  out. Nothing to hit yet."
+- Then: **make $25 in a day, twice.** The strip names the figure, because a goal
+  a child cannot restate is not a goal.
+- $25 is measured, not guessed: across three grades and four prices, eleven of
+  twelve strategies clear it twice and the twelfth clears it once.
+- The seven-day clock stays as the fallback, exactly as it does for the two
+  stages after this one. Stage 1's failure model is "no harsh failure", and an
+  arc with one exit is an arc somebody gets stuck in. A test plays badly on
+  purpose and checks the clock still releases them.
+
+**A bug worth recording.** The first version counted hits across the whole
+history, so a child whose two exploratory days both happened to clear $25 would
+complete the stage on day two — **the challenge won before it was set.** Hits
+are now counted from after the exploration window, and a test plays two good
+exploratory days and asserts the count is still zero.
+
+**What it cost, and what it did not.** Competent play now finishes Stage 1 in
+four or five days instead of seven. That looked like it would cost vocabulary —
+§51's rule is that a tightening which costs a word is not a tightening — but
+`deriveInsights` runs on *every* day regardless of stage, so Act 1's words keep
+arriving during Act 2. `tests/wordbudget.test.ts` and `tests/arc.test.ts` both
+pass unchanged. Nothing is lost; some of it arrives later.
+
+Two words were added for the two new mechanics, `quality` and `bulk-discount`,
+which took the glossary from 34 to 36. `tests/wordsreachable.test.ts` failed
+until its fixture swept grades as well as prices — correctly, which is what that
+file is for.
+
+### The weather row, not built
+
+§1 says Stage 1's demand should be "driven only by price + quality at this
+stage. No weather, competition, location." **Weather is still there, and that is
+a decision rather than an omission.**
+
+Removing it would cost: the forecast, the weather art, two Act 1 words
+(`signal-vs-noise` and `demand-bet`, both of which exist because a good plan can
+be betrayed by a cold day), and the premise of the Same-Sky Challenge — whose
+entire claim is that two children get identical weather so the whole difference
+is decisions.
+
+The row is the one place the build is deliberately *more* complex than the
+specification asks. Flagged rather than actioned, and it is the customer's call.
+
+### Onboarding, every stage
+
+The customer asked whether the tour covered new mechanics at every stage or only
+the first, and the answer at the time was four of five. There are now five:
+
+| Stage | Tour | Points at |
+|---|---|---|
+| 1 — One stand | `the-stand` | The sign, the lemons, the free rehearsal |
+| 2 — More stands | `the-yard` | Buy-once kit, people paid daily, a second pitch |
+| 3 — The shop | `the-funding` | Pay cash, borrow, sell a slice |
+| 4 — Go public | `the-listing` | The float dial, and the single-buyer alternative |
+| 5 — Markets | `the-market` | A real company's card, and the gate that opened it |
+
+Act 4 was the one with none, and it is the least familiar screen in the game —
+cutting a company into a thousand pieces has no real-world shape a nine-year-old
+has met. A test now asserts **every stage has a tour**, so adding a sixth fails
+rather than shipping a room nobody explains. Three steps maximum each, for §13's
+reason.

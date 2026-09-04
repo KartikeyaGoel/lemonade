@@ -257,8 +257,91 @@ export const ACT_TITLES: Record<
  * arithmetic; it just stops sooner, because a thing you send a friend at
  * lunchtime has to be finishable at lunchtime.
  */
+export interface Act1Progress {
+  /** Still in the exploratory rounds, with nothing to hit yet. */
+  exploring: boolean;
+  target: number;
+  /** Days that cleared the target. */
+  hits: number;
+  required: number;
+  complete: boolean;
+  /** The one line the goal strip shows. */
+  goal: string;
+}
+
+/**
+ * What the first stage is asking for, and how close they are.
+ *
+ * FRAMEWORK.md §1's Stage 1 table asks for a profit goal introduced after one
+ * or two exploratory rounds, and an unlock of hitting it twice. §14 recorded
+ * that neither existed: the goal strip showed a day countdown and a cash
+ * comparison, and the stage ended when seven days had passed.
+ *
+ * Two separate days rather than a running total, and that is the whole point
+ * of the row. A single good day can be luck — a hot Saturday will carry a
+ * mediocre price. Doing it twice is the smallest evidence that a child knows
+ * *why* it worked, which is the difference between the Optimize arrow and the
+ * Mastery one in the desired-feeling sequence.
+ */
+export function act1Progress(stand: GameState): Act1Progress {
+  const target = ECON.ACT1_PROFIT_TARGET;
+  const required = ECON.ACT1_TARGET_HITS;
+  const played = stand.history.length;
+  /*
+   * Counted from after the exploratory rounds, not from day one.
+   *
+   * Otherwise a child whose first two days both happened to clear $25 would
+   * complete the stage on day two, having never been shown the goal — the
+   * challenge would be won before it was set. The spec's order is explore,
+   * then challenge, and this is the line that enforces it.
+   */
+  const hits = stand.history
+    .slice(ECON.ACT1_EXPLORE_DAYS)
+    .filter((day) => day.profit >= target).length;
+
+  if (played < ECON.ACT1_EXPLORE_DAYS) {
+    return {
+      exploring: true,
+      target,
+      hits,
+      required,
+      complete: false,
+      goal: 'Try things out. Nothing to hit yet.',
+    };
+  }
+
+  if (hits >= required) {
+    return { exploring: false, target, hits, required, complete: true, goal: 'You did it twice.' };
+  }
+
+  const left = required - hits;
+  return {
+    exploring: false,
+    target,
+    hits,
+    required,
+    complete: false,
+    /*
+     * Names the number and how many times, because a goal a child cannot
+     * restate is not a goal. "Two good days" without the figure is a mood.
+     */
+    goal:
+      hits === 0
+        ? `Make $${target} in one day. Twice.`
+        : `Make $${target} again. ${left} more to go.`,
+  };
+}
+
+/**
+ * Act 1 ends when the goal has been hit twice, or time is up.
+ *
+ * The clock stays as the fallback, exactly as it does for the two stages after
+ * it. Stage 1's failure model is "no harsh failure" and an arc with only one
+ * exit is an arc somebody gets stuck in — a child who never finds a good price
+ * still moves on, having had seven days to try.
+ */
 export function act1Complete(stand: GameState, lastDay: number = ECON.TOTAL_DAYS): boolean {
-  return stand.history.length >= lastDay;
+  return act1Progress(stand).complete || stand.history.length >= lastDay;
 }
 
 /**

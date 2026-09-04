@@ -37,6 +37,46 @@ export const ECON = {
   /** A lemon is usable on the day it is bought plus the two days after. */
   LEMON_SHELF_LIFE_DAYS: 3,
 
+  /**
+   * What kind of lemon, and what it does.
+   *
+   * FRAMEWORK.md §1's Stage 1 table asks for "2-3 simple choices such as
+   * organic vs. regular" and for willingness to pay to "depend partly on
+   * product quality". This is that lever, and it is the *only* thing besides
+   * price and batch size a child decides in Act 1.
+   *
+   * `regular` is exactly 1.0 on both axes on purpose. It is the default for
+   * every caller that does not choose, which means the economy a child met
+   * before this existed is reproduced to the cent — and every arithmetic
+   * identity in `tests/pnl.test.ts` still holds untouched.
+   *
+   * The dear lemon has to be worth it and must not be a free win: 1.8x the
+   * cost for 1.25x the demand only pays back above about a dollar a cup, which
+   * is the trade the row asks a child to discover.
+   */
+  LEMON_GRADES: {
+    value: { costFactor: 0.6, demandFactor: 0.85 },
+    regular: { costFactor: 1, demandFactor: 1 },
+    organic: { costFactor: 1.8, demandFactor: 1.25 },
+  },
+
+  /**
+   * Buying more at once makes each one cheaper.
+   *
+   * The "bulk-purchase lesson" row: "buying in larger quantities lowers cost
+   * per cup but requires more spending upfront". Read highest-first, so the
+   * first tier a quantity clears is the one it gets.
+   *
+   * Tiers rather than a smooth curve because a child has to be able to *see*
+   * the moment it gets cheaper, and a step at a round number is findable by
+   * sliding a slider. Twelve and twenty-four are a dozen and two dozen, which
+   * is how lemons are actually sold.
+   */
+  BULK_TIERS: [
+    { atLeast: 24, off: 0.2 },
+    { atLeast: 12, off: 0.1 },
+  ],
+
   /** cups_wanted = max(0, INTERCEPT - SLOPE * price) * weather */
   DEMAND_INTERCEPT: 60,
   DEMAND_SLOPE: 20,
@@ -46,9 +86,69 @@ export const ECON = {
 
   TOTAL_DAYS: 7,
 
+  /**
+   * The profit a child is asked to make in one day, and how often.
+   *
+   * FRAMEWORK.md §1's Stage 1 table asks for "a clear profit goal after
+   * exploration" and an unlock of "hit the profit goal in two separate
+   * rounds". Before this, Act 1 ended when seven days had passed: nothing was
+   * aimed at, hit, or missed.
+   *
+   * $25 is measured rather than guessed. Playing the week at every grade and
+   * four prices, eleven of twelve strategies clear it twice and the twelfth
+   * clears it exactly once — so it rewards finding a decent price without
+   * demanding the best one. The best day available is $59, at posh lemons and
+   * $2 a cup, which is the trade the quality lever exists to teach.
+   */
+  ACT1_PROFIT_TARGET: 25,
+  ACT1_TARGET_HITS: 2,
+
+  /**
+   * Days before the goal is mentioned at all.
+   *
+   * "1-2 exploratory rounds without a target." A target on day one is a
+   * demand made of a child who does not yet know what a cup costs, and the
+   * whole of the desired feeling — Experiment, then Notice, then Optimize,
+   * then Challenge — depends on the first two arriving before the third.
+   */
+  ACT1_EXPLORE_DAYS: 2,
+
   MIN_PRICE: 0,
   MAX_PRICE: 5,
 } as const;
+
+/**
+ * What a child buys to make the lemonade with.
+ *
+ * Ordered worst to best so `GRADE_ORDER.indexOf` gives a sane comparison, and
+ * named for what is on the label rather than for the mechanic — a nine-year-old
+ * buys "posh lemons", not "quality tier 3".
+ */
+export type LemonGrade = 'value' | 'regular' | 'organic';
+
+export const GRADE_ORDER: readonly LemonGrade[] = ['value', 'regular', 'organic'];
+
+/** The grade every caller gets if it does not choose. Reproduces the old economy. */
+export const DEFAULT_GRADE: LemonGrade = 'regular';
+
+/**
+ * What one lemon costs, given its grade and how many are being bought.
+ *
+ * Both effects multiply into a single unit price, because that is the number
+ * the receipt shows and the number the cost of goods sold has to be computed
+ * from. A child can check it: grade price, less the bulk discount, times the
+ * number of lemons.
+ */
+export function lemonUnitCost(grade: LemonGrade = DEFAULT_GRADE, quantity = 0): number {
+  const graded = ECON.LEMON_COST * ECON.LEMON_GRADES[grade].costFactor;
+  const tier = ECON.BULK_TIERS.find((step) => quantity >= step.atLeast);
+  return toCents(graded * (1 - (tier?.off ?? 0)));
+}
+
+/** The discount a quantity earns, as a fraction. 0 when it earns none. */
+export function bulkDiscountFor(quantity: number): number {
+  return ECON.BULK_TIERS.find((step) => quantity >= step.atLeast)?.off ?? 0;
+}
 
 export type Weather = 'cold' | 'mild' | 'hot';
 
@@ -140,6 +240,25 @@ class Rng {
 export interface LemonLot {
   lemons: number;
   purchasedOnDay: number;
+  /**
+   * What each lemon in this lot cost.
+   *
+   * Added when grade and bulk pricing arrived, because the cost of goods sold
+   * can no longer be `lemonsUsed * LEMON_COST` — two lots bought on different
+   * days at different grades cost different amounts, and the receipt has to
+   * agree with the profit and loss (PRODUCT.md §4).
+   *
+   * Optional, so a save written before this existed reads back as lemons
+   * bought at the plain price, which is what they were.
+   */
+  unitCost?: number;
+  /** What kind they were. Kept for the receipt, not used in the arithmetic. */
+  grade?: LemonGrade;
+}
+
+/** What one lemon from this lot cost, for a lot that may predate grades. */
+export function lotUnitCost(lot: LemonLot): number {
+  return lot.unitCost ?? ECON.LEMON_COST;
 }
 
 export interface DayRecord {
@@ -163,6 +282,15 @@ export interface DayRecord {
   cupsMade?: number;
   /** Cups sold to punch-card regulars, who come whatever the weather. */
   subscriberCups?: number;
+  /**
+   * What kind of lemon was used.
+   *
+   * Recorded because word of mouth reads it: today's demand is partly
+   * yesterday's quality, which is the "lower quality can reduce demand over
+   * time" half of FRAMEWORK.md §1's quality row. Optional, so a save from
+   * before grades existed reads back as `regular`, which is what it was.
+   */
+  grade?: LemonGrade;
   /** Share of the street that came to them, after competition. 1 means alone. */
   marketShare?: number;
   /** Everything owed today whether or not anyone bought. */
@@ -202,6 +330,13 @@ export interface Decisions {
   buyCupPacks: number;
   /** Price per cup, in dollars. */
   price: number;
+  /**
+   * What kind of lemon to buy today.
+   *
+   * Optional, and absent means `regular` — which costs and sells exactly what
+   * a lemon cost and sold before this decision existed.
+   */
+  grade?: LemonGrade;
 }
 
 /* ------------------------------------------------------------------ *
@@ -215,11 +350,26 @@ export function totalLemons(lots: LemonLot[]): number {
   return lots.reduce((sum, lot) => sum + lot.lemons, 0);
 }
 
-export function purchaseCost(decisions: Pick<Decisions, 'buyLemons' | 'buySugarPacks' | 'buyCupPacks'>) {
-  const lemons = round2(decisions.buyLemons * ECON.LEMON_COST);
+export function purchaseCost(
+  decisions: Pick<Decisions, 'buyLemons' | 'buySugarPacks' | 'buyCupPacks' | 'grade'>,
+) {
+  /*
+   * The unit price is worked out once and reported, because the shopping list
+   * shows it and the pantry stores it. A child reading the receipt sees
+   * "18 lemons at 36c" and can multiply it themselves.
+   */
+  const perLemon = lemonUnitCost(decisions.grade ?? DEFAULT_GRADE, decisions.buyLemons);
+  const lemons = round2(decisions.buyLemons * perLemon);
   const sugar = round2(decisions.buySugarPacks * ECON.SUGAR_PACK_COST);
   const cups = round2(decisions.buyCupPacks * ECON.CUP_PACK_COST);
-  return { lemons, sugar, cups, total: round2(lemons + sugar + cups) };
+  return {
+    lemons,
+    sugar,
+    cups,
+    total: round2(lemons + sugar + cups),
+    perLemon,
+    bulkOff: bulkDiscountFor(decisions.buyLemons),
+  };
 }
 
 /**
@@ -246,6 +396,37 @@ export function pantryAfterPurchase(state: GameState, decisions: Decisions) {
   };
 }
 
+/**
+ * How much quality is moving demand today.
+ *
+ * Two halves, because FRAMEWORK.md §1's quality row asks for two things:
+ * better lemons "can increase demand and support a higher selling price", and
+ * lower quality "can reduce demand over time".
+ *
+ * The first is today's grade. The second is word of mouth — yesterday's grade
+ * still counts for half, so cheapening the recipe does not bite until the day
+ * after and neither does fixing it. That is the smallest mechanic that makes
+ * the sentence true: a child who switches to the cheap lemon sees a normal-ish
+ * day and a worse one after it, which is what a reputation *is*.
+ *
+ * Half and half rather than a long decay, because a seven-day stage cannot
+ * teach a trend that takes five days to show up.
+ */
+export function gradeDemandFactor(
+  grade: LemonGrade = DEFAULT_GRADE,
+  history: readonly DayRecord[] = [],
+): number {
+  const today = ECON.LEMON_GRADES[grade].demandFactor;
+  const yesterday = history[history.length - 1]?.grade;
+  /*
+   * Day one has nothing to remember, so today's grade is the whole story.
+   * Anything else would mean a child's first day was judged on a decision they
+   * had not made yet.
+   */
+  if (!yesterday) return today;
+  return (today + ECON.LEMON_GRADES[yesterday].demandFactor) / 2;
+}
+
 /** The spec's demand curve, in one place. */
 export function cupsWantedAt(price: number, weather: Weather): number {
   const raw = ECON.DEMAND_INTERCEPT - ECON.DEMAND_SLOPE * price;
@@ -261,9 +442,18 @@ export function lemonsNeededFor(cups: number): number {
  * Ingredient cost of the cups actually sold. Derived, never hardcoded, so
  * the per-cup number on screen is always the kid's real arithmetic.
  */
-export function ingredientCostOf(cupsSold: number) {
+export function ingredientCostOf(cupsSold: number, lemonSpend?: number) {
   const lemonsUsed = lemonsNeededFor(cupsSold);
-  const lemons = round2(lemonsUsed * ECON.LEMON_COST);
+  /*
+   * `lemonSpend` is what the lemons actually poured today cost, taken oldest
+   * first out of the pantry by `lemonsConsumed`. Passed in rather than
+   * recomputed, because two lots bought on different days at different grades
+   * cost different amounts and only the pantry knows which ones were used.
+   *
+   * Falls back to the plain price so every existing caller — and every test
+   * written before grades existed — gets exactly the number it always got.
+   */
+  const lemons = round2(lemonSpend ?? lemonsUsed * ECON.LEMON_COST);
   const sugar = round2(cupsSold * (ECON.SUGAR_PACK_COST / ECON.SUGAR_SERVINGS_PER_PACK));
   const cups = round2(cupsSold * (ECON.CUP_PACK_COST / ECON.CUPS_PER_CUP_PACK));
   const total = round2(lemons + sugar + cups);
@@ -333,6 +523,18 @@ export interface DayOutcome {
   customers: Customer[];
 
   revenue: number;
+  /**
+   * What was made with, and what it cost.
+   *
+   * Reported so the receipt, the close screen and the two new words can all
+   * quote the same figure — a child who reads "each one was 36c" on the
+   * shopping list must find 36c in the word card too (PRODUCT.md §4).
+   */
+  grade: LemonGrade;
+  lemonUnitCost: number;
+  lemonsBought: number;
+  /** The bulk discount this order earned, as a fraction. 0 when none. */
+  bulkOff: number;
   /** Cups served to punch-card regulars, at the discounted standing price. */
   subscriberCups: number;
   subscriberPrice: number;
@@ -515,12 +717,22 @@ function buildCustomers(
 function consumeAndAge(lots: LemonLot[], lemonsUsed: number, day: number) {
   const remaining: LemonLot[] = lots.map((lot) => ({ ...lot }));
   let toUse = lemonsUsed;
+  /*
+   * What the lemons poured today cost, and what the ones thrown away cost.
+   *
+   * Accumulated here rather than multiplied out afterwards because this is the
+   * only place that knows *which* lemons went — oldest first — and once grades
+   * exist "which" and "how much" are different questions.
+   */
+  let lemonSpend = 0;
+  let spoilageSpend = 0;
 
   for (const lot of remaining) {
     if (toUse <= 0) break;
     const take = Math.min(lot.lemons, toUse);
     lot.lemons -= take;
     toUse -= take;
+    lemonSpend += take * lotUnitCost(lot);
   }
 
   let spoiledLemons = 0;
@@ -530,12 +742,18 @@ function consumeAndAge(lots: LemonLot[], lemonsUsed: number, day: number) {
     const lastUsableDay = lot.purchasedOnDay + ECON.LEMON_SHELF_LIFE_DAYS - 1;
     if (day >= lastUsableDay) {
       spoiledLemons += lot.lemons;
+      spoilageSpend += lot.lemons * lotUnitCost(lot);
     } else {
       kept.push(lot);
     }
   }
 
-  return { lots: kept, spoiledLemons };
+  return {
+    lots: kept,
+    spoiledLemons,
+    lemonSpend: round2(lemonSpend),
+    spoilageSpend: round2(spoilageSpend),
+  };
 }
 
 /* ------------------------------------------------------------------ *
@@ -703,8 +921,9 @@ export function runDay(
     buySugarPacks: whole(decisions.buySugarPacks),
     buyCupPacks: whole(decisions.buyCupPacks),
   };
+  const grade = decisions.grade ?? DEFAULT_GRADE;
   const affordable = clampPurchaseToCash(requested, state.cash);
-  const cost = purchaseCost(affordable);
+  const cost = purchaseCost({ ...affordable, grade });
 
   const pantry = pantryAfterPurchase(state, { ...affordable, price });
   const { cups: pourable } = cupsMakeableFrom(pantry.lemons, pantry.sugarServings, pantry.cupsInStock);
@@ -713,7 +932,17 @@ export function runDay(
   const cupsMakeable = Math.min(pourable, Math.floor(params.serviceCapacity));
 
   const weather = drawWeather(rng, state.forecast);
-  const cupsWanted = cupsWantedWith(price, weather, params);
+  /*
+   * Quality moves how many people want a cup — never how many walk past.
+   *
+   * That distinction is the whole reason this is safe. `buildCustomers` draws
+   * once per passer-by, and `buildCustomers`'s own comment records that the
+   * number of draws must depend "only on the weather and the day's parameters
+   * — never on the price or the batch", or two children on the same challenge
+   * code stop getting the same week. Grade is a decision, so it belongs on the
+   * same side of that line as price: it changes who buys, not who walks by.
+   */
+  const cupsWanted = cupsWantedWith(price, weather, params) * gradeDemandFactor(grade, state.history);
 
   // Regulars are served first. They paid in advance, so pouring their cup for
   // a stranger at full price would be spending money the kid already took.
@@ -735,7 +964,30 @@ export function runDay(
   const subscriberRevenue = round2(subscriberCups * subscriberPrice);
   const walkupRevenue = round2(crowd.walkupSold * price);
   const revenue = round2(subscriberRevenue + walkupRevenue);
-  const ingredients = ingredientCostOf(cupsSold);
+  /*
+   * Ingredients leave the pantry *before* they are costed.
+   *
+   * The order matters now and did not used to. Cost of goods sold was
+   * `lemonsUsed * LEMON_COST`, so it could be worked out from a count. With
+   * grades and bulk pricing, two lots cost different amounts per lemon and
+   * only the pantry knows which ones were poured — oldest first. So the
+   * consumption happens first and reports what it spent.
+   */
+  const lotsWithPurchase: LemonLot[] = [
+    ...state.lemonLots.map((lot) => ({ ...lot })),
+    ...(affordable.buyLemons > 0
+      ? [
+          {
+            lemons: affordable.buyLemons,
+            purchasedOnDay: state.day,
+            unitCost: cost.perLemon,
+            grade,
+          },
+        ]
+      : []),
+  ];
+  const aged = consumeAndAge(lotsWithPurchase, lemonsNeededFor(cupsSold), state.day);
+  const ingredients = ingredientCostOf(cupsSold, aged.lemonSpend);
   const grossProfit = round2(revenue - ingredients.total);
   // Derived from the rounded per-cup cost, for the same reason: the close
   // screen shows both, and they must reconcile on paper. With punch cards in
@@ -745,13 +997,8 @@ export function runDay(
   const grossMarginPerCup =
     cupsSold > 0 ? toCents(realisedPrice - toCents(ingredients.perCup)) : toCents(price);
 
-  // Ingredients leave the pantry; leftovers age and may be thrown out.
-  const lotsWithPurchase: LemonLot[] = [
-    ...state.lemonLots.map((lot) => ({ ...lot })),
-    ...(affordable.buyLemons > 0 ? [{ lemons: affordable.buyLemons, purchasedOnDay: state.day }] : []),
-  ];
-  const aged = consumeAndAge(lotsWithPurchase, ingredients.lemonsUsed, state.day);
-  const spoilageCost = round2(aged.spoiledLemons * ECON.LEMON_COST);
+  // Leftovers age and may be thrown out, costed at what they were bought for.
+  const spoilageCost = aged.spoilageSpend;
 
   const profitBeforeEquity = round2(revenue - ingredients.total - fixedCost - spoilageCost);
   // An outside owner is paid out of profit, and only when there is profit.
@@ -781,6 +1028,7 @@ export function runDay(
     marketShare: params.marketShare,
     fixedCost,
     spoiledLemons: aged.spoiledLemons,
+    grade,
     forecast: state.forecast,
     seedBefore: state.seed,
   };
@@ -824,6 +1072,10 @@ export function runDay(
     turnedAwaySoldOut: crowd.turnedAwaySoldOut,
     customers: crowd.customers,
     revenue,
+    grade,
+    lemonUnitCost: cost.perLemon,
+    lemonsBought: affordable.buyLemons,
+    bulkOff: cost.bulkOff,
     subscriberCups,
     subscriberPrice,
     subscriberRevenue,
@@ -1038,6 +1290,8 @@ export function counterfactualProfit(
  * ------------------------------------------------------------------ */
 
 export interface BatchPlan {
+  /** What kind of lemon this plan is priced for. */
+  grade: LemonGrade;
   targetCups: number;
   order: Order;
   cost: ReturnType<typeof purchaseCost>;
@@ -1050,9 +1304,18 @@ export interface BatchPlan {
   pantryAfter: { lemons: number; sugarServings: number; cupsInStock: number };
 }
 
-export function batchPlan(state: GameState, targetCups: number): BatchPlan {
+export function batchPlan(
+  state: GameState,
+  targetCups: number,
+  grade: LemonGrade = DEFAULT_GRADE,
+): BatchPlan {
   const order = orderForTargetCups(state, targetCups);
-  const cost = purchaseCost(order);
+  /*
+   * Costed at the grade being bought, so the shopping list a child reads
+   * before opening is the money that actually leaves the cash box. Defaults to
+   * `regular`, which is what every caller written before grades existed meant.
+   */
+  const cost = purchaseCost({ ...order, grade });
   const pantry = pantryAfterPurchase(state, { ...order, price: 0 });
   const { cups, limitedBy } = cupsMakeableFrom(pantry.lemons, pantry.sugarServings, pantry.cupsInStock);
   return {
@@ -1061,7 +1324,16 @@ export function batchPlan(state: GameState, targetCups: number): BatchPlan {
     cost,
     cupsMakeable: cups,
     limitedBy,
-    costPerCup: cups > 0 ? ingredientCostOf(cups).perCup : 0,
+    /*
+     * Priced from this order's own lemons rather than the list price, because
+     * grade and volume both move it and this is the number the plan screen
+     * shows as "what a cup costs you".
+     */
+    costPerCup:
+      cups > 0
+        ? ingredientCostOf(cups, round2(lemonsNeededFor(cups) * cost.perLemon)).perCup
+        : 0,
+    grade,
     affordable: cost.total <= state.cash,
     pantryAfter: pantry,
   };
@@ -1090,6 +1362,8 @@ export type InsightId =
   | 'margin'
   | 'capacity'
   | 'spoilage'
+  | 'quality'
+  | 'bulk-discount'
   | 'signal-vs-noise'
   | 'operating-leverage'
   | 'demand-bet'
@@ -1233,6 +1507,42 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
       term: 'Capacity',
       evidence: `You sold out. ${outcome.turnedAwaySoldOut} more people wanted a cup, which is about ${money(lost)} of profit you could not collect.`,
       carriesForward: 'Demand you cannot serve is invisible on a P&L. Growing companies spend money to stop leaving it behind.',
+    });
+  }
+
+  /*
+   * Quality, named the day a child buys something other than the normal lemon.
+   *
+   * Both directions earn it, because the lesson is the trade rather than the
+   * upgrade — a child who cheapens the recipe and watches the queue thin out
+   * has learned exactly the thing the word is for.
+   */
+  if (outcome.grade && outcome.grade !== DEFAULT_GRADE && outcome.cupsSold > 0) {
+    const posh = outcome.grade === 'organic';
+    found.push({
+      id: 'quality',
+      term: 'Quality',
+      evidence: posh
+        ? `You bought the posh lemons at ${money(outcome.lemonUnitCost)} each. ${plural(Math.round(outcome.cupsWanted), 'person', 'people')} wanted a cup.`
+        : `You bought the cheap lemons at ${money(outcome.lemonUnitCost)} each and saved money. Watch how many people want one tomorrow.`,
+      carriesForward:
+        'Every business picks how good to make the thing. Cheaper costs less and sells less. There is no answer that is always right.',
+    });
+  }
+
+  /*
+   * Buying in bulk, named the day the order actually earns the discount.
+   *
+   * Conditional on the discount being real rather than on the size of the
+   * order, so the word never arrives alongside a price a child did not get.
+   */
+  if (outcome.bulkOff > 0 && outcome.lemonsBought > 0) {
+    found.push({
+      id: 'bulk-discount',
+      term: 'Buying in bulk',
+      evidence: `You bought ${plural(outcome.lemonsBought, 'lemon')} at once, so each one was ${money(outcome.lemonUnitCost)} instead of ${money(ECON.LEMON_COST * ECON.LEMON_GRADES[outcome.grade ?? DEFAULT_GRADE].costFactor)}.`,
+      carriesForward:
+        'Buying more at once makes each one cheaper — but the money leaves today and the lemons still go off. That trade is why shops run out of cash.',
     });
   }
 
@@ -1401,10 +1711,11 @@ export function projectDay(
   targetCups: number,
   price: number,
   paramsInput?: Partial<DayParams>,
+  grade: LemonGrade = DEFAULT_GRADE,
 ): DayProjection {
   const params = resolveDayParams(paramsInput);
   const fixed = totalFixedCost(params.fixedCosts);
-  const plan = batchPlan(state, targetCups);
+  const plan = batchPlan(state, targetCups, grade);
   const cups = Math.min(plan.cupsMakeable, Math.floor(params.serviceCapacity));
   // Round the per-cup cost before deriving margin from it. The kid will
   // subtract the two figures we show them, and must get the answer we show.

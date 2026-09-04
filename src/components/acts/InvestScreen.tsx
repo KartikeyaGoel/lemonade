@@ -20,6 +20,8 @@ import {
 import { SHOP, type ShopState } from '@/lib/retail';
 import { ChunkyButton, clearsBar, GoalStrip, money, PinnedBar, Sheet, SignHeading, Sky } from '../ui';
 import { YardScene } from '../YardScene';
+import { CoachTour } from '../CoachTour';
+import { YARD_TOUR } from '@/lib/coach';
 import { plural } from '@/lib/copy';
 
 /**
@@ -40,6 +42,8 @@ import { plural } from '@/lib/copy';
  * more cups a day just to break even on the wage".
  */
 export function InvestScreen({
+  tour = false,
+  onToured,
   goal,
   cash,
   business,
@@ -54,6 +58,9 @@ export function InvestScreen({
   onShopStaff,
   onDone,
 }: {
+  /** Run the first-run tour of this screen. See `src/lib/coach.ts`. */
+  tour?: boolean;
+  onToured?: () => void;
   /**
    * The stage's goal, handed in rather than worked out here.
    *
@@ -156,6 +163,7 @@ export function InvestScreen({
         )}
       </div>
 
+      <CoachTour tour={YARD_TOUR} run={tour && open === null} onDone={() => onToured?.()} />
       {plot && (
         <PlotSheet
           plot={plot}

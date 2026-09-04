@@ -328,7 +328,7 @@ the concept name the kid never sees. On day zero it says, honestly:
    that doesn't silently corrupt saved accounts. Tedious, unglamorous,
    load-bearing.
 4. **The rigour is enforced by machine.** Reading level is checked at build
-   (currently **4.8**, and at most 3% of sentences may run over 22 words).
+   (currently **4.7**, and at most 3% of sentences may run over 22 words).
    Contrast is checked at build. **Over 1,100 tests** hold the invariants — including that no jargon can leak into
    a kid-facing string.
 
@@ -342,7 +342,7 @@ the concept name the kid never sees. On day zero it says, honestly:
 - Live market anchored to this week, with catch-up on return
 - Behavioural mastery tracking and the grown-up view
 - Offline-capable, zero backend, zero accounts
-- Over 1,100 tests, clean typecheck, clean lint, reading level 4.8
+- Over 1,100 tests, clean typecheck, clean lint, reading level 4.7
 
 **Honestly not done:**
 - **No kid has played it yet.** That is the single biggest open risk and no

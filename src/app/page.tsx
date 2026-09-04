@@ -13,6 +13,8 @@ import {
   type DayOutcome,
   type DayProjection,
   type Insight,
+  DEFAULT_GRADE,
+  type LemonGrade,
 } from '@/lib/simulation';
 import {
   ACT2_DAYS,
@@ -95,6 +97,7 @@ import {
   beginAct3,
   beginAct4,
   beginAct5,
+  act1Progress,
   createChallengeGame,
   createGame,
   newSeason,
@@ -153,7 +156,15 @@ import {
   type Career,
   recordCoached,
 } from '@/lib/career';
-import { STAND_TOUR, toured } from '@/lib/coach';
+import {
+  FUNDING_TOUR,
+  LISTING_TOUR,
+  MARKET_TOUR,
+  STAND_TOUR,
+  YARD_TOUR,
+  toured,
+  type TourId,
+} from '@/lib/coach';
 import { announceable, isFirstRun, isUnlocked, newlyUnlocked, type Unlock } from '@/lib/unlocks';
 import { road, roadLine } from '@/lib/journey';
 import { desks } from '@/lib/friends';
@@ -310,6 +321,14 @@ export default function Page() {
 
   // In-flight decisions for the day being set up.
   const [targetCups, setTargetCups] = useState(0);
+  /**
+   * The lemon chosen on the shopping screen, held until the price is set.
+   *
+   * Day one splits one decision across two screens — `shop` then `price` — so
+   * the grade has to survive the hop. Day two onward the plan screen holds
+   * both at once and hands them over together.
+   */
+  const [targetGrade, setTargetGrade] = useState<LemonGrade>(DEFAULT_GRADE);
   const [outcome, setOutcome] = useState<DayOutcome | null>(null);
   const [planned, setPlanned] = useState<DayProjection | null>(null);
   const [newInsights, setNewInsights] = useState<Insight[]>([]);
@@ -545,8 +564,45 @@ export default function Page() {
    * Act 1 is deliberately absent: its goal is arithmetic on the starting cash
    * and it derives its own.
    */
+  /**
+   * Should this tour run now?
+   *
+   * One helper rather than the same condition written at four call sites. A
+   * tour waits for the badge queue for the reason PRODUCT.md §57 records: the
+   * spotlight's dim panels sit over the badge toast, so a child reaching for
+   * "tap to close" would hit a panel instead. Badges are the reward for what
+   * just happened; a tour is about what happens next.
+   */
+  const showTour = useCallback(
+    (id: TourId) => badgeQueue.length === 0 && !toured(career?.coached ?? [], id),
+    [badgeQueue.length, career],
+  );
+
+  const markToured = useCallback(
+    (id: TourId) => setCareer((current) => (current ? recordCoached(current, id) : current)),
+    [],
+  );
+
   const stage = useMemo(() => {
-    if (!game || game.weekend || game.act === 1) return undefined;
+    if (!game || game.weekend) return undefined;
+    /*
+     * Act 1 has a goal now, and it says what it is.
+     *
+     * It used to be the one stage with no `stage` entry, so the plan screen
+     * fell back to a day countdown and a cash comparison — "6 days left ·
+     * $33.40 of $20.00 start". FRAMEWORK.md §14 recorded that as the reason a
+     * child could not tell whether what they just did was good: nothing was
+     * being aimed at. `act1Progress` supplies the line, and stays quiet for
+     * the first two exploratory days.
+     */
+    if (game.act === 1) {
+      const progress = act1Progress(game.stand);
+      return {
+        goal: progress.goal,
+        day: game.stand.history.length,
+        total: ECON.TOTAL_DAYS,
+      };
+    }
     if (game.act === 2) {
       return {
         goal: act2Progress(game.business, stageDay).nextStep,
@@ -640,7 +696,7 @@ export default function Page() {
 
 
   const openStand = useCallback(
-    (price: number, cups: number, ranByManager = false) => {
+    (price: number, cups: number, ranByManager = false, grade: LemonGrade = DEFAULT_GRADE) => {
       if (!game) return;
 
       /*
@@ -681,7 +737,7 @@ export default function Page() {
           : { ...deriveDayParams(game.business, price), equityShare: outsideShare };
 
       const order = orderForTargetCups(game.stand, cups);
-      const result = runDay(game.stand, { ...order, price }, params);
+      const result = runDay(game.stand, { ...order, price, grade }, params);
 
       const act1Insights = deriveInsights(result, result.nextState.history);
       const act2Insights =
@@ -1713,8 +1769,9 @@ export default function Page() {
         <ShopScreen
           state={game.stand}
           onBack={() => setPhase('morning')}
-          onConfirm={(cups) => {
+          onConfirm={(cups, grade) => {
             setTargetCups(cups);
+            setTargetGrade(grade);
             setPhase('price');
           }}
         />
@@ -1727,7 +1784,7 @@ export default function Page() {
           cupsMakeable={batchPlan(game.stand, targetCups).cupsMakeable}
           learned={game.learned}
           onBack={() => setPhase('shop')}
-          onConfirm={(price) => openStand(price, targetCups)}
+          onConfirm={(price) => openStand(price, targetCups, false, targetGrade)}
         />
       );
 
@@ -1755,13 +1812,8 @@ export default function Page() {
            * The badges go first. They are the reward for the day just played;
            * the tour is about the day about to be played.
            */
-          tour={
-            game.act === 1 &&
-            !game.weekend &&
-            badgeQueue.length === 0 &&
-            !toured(career?.coached ?? [], STAND_TOUR.id)
-          }
-          onToured={() => setCareer((current) => (current ? recordCoached(current, STAND_TOUR.id) : current))}
+          tour={game.act === 1 && !game.weekend && showTour(STAND_TOUR.id)}
+          onToured={() => markToured(STAND_TOUR.id)}
           state={game.stand}
           params={
             game.weekend
@@ -1797,9 +1849,9 @@ export default function Page() {
              a dead end rather than a lesson.
           */
           onInvest={game.act >= 2 && game.act <= 4 ? () => setPhase('invest') : undefined}
-          onOpen={(cups, price) => {
+          onOpen={(cups, price, grade) => {
             setTargetCups(cups);
-            openStand(price, cups);
+            openStand(price, cups, false, grade);
           }}
         />
       );
@@ -1817,6 +1869,8 @@ export default function Page() {
           onMove={handleMove}
           onOpenStand={handleOpenStand}
           onCloseStand={handleCloseStand}
+          tour={showTour(YARD_TOUR.id)}
+          onToured={() => markToured(YARD_TOUR.id)}
           onOpenShop={() => setPhase('funding')}
           onShopStaff={handleShopStaff}
           onDone={() => setPhase('plan')}
@@ -1947,6 +2001,8 @@ export default function Page() {
     case 'funding':
       return (
         <FundingScreen
+          tour={showTour(FUNDING_TOUR.id)}
+          onToured={() => markToured(FUNDING_TOUR.id)}
           cash={game.stand.cash}
           history={game.stand.history}
           weeklyProfit={trailingWeeklyProfit(game.stand.history)}
@@ -1965,6 +2021,8 @@ export default function Page() {
     case 'listing':
       return (
         <ListingScreen
+          tour={showTour(LISTING_TOUR.id)}
+          onToured={() => markToured(LISTING_TOUR.id)}
           offer={listingOffer(game.stand.history, game.ownership)}
           ownership={game.ownership}
           onList={handleList}
@@ -2004,6 +2062,8 @@ export default function Page() {
     case 'market':
       return game.portfolio ? (
         <MarketScreen
+          tour={showTour(MARKET_TOUR.id)}
+          onToured={() => markToured(MARKET_TOUR.id)}
           portfolio={game.portfolio}
           guide={guideOn('market')}
           readiness={readiness(game)}

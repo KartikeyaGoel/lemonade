@@ -13,6 +13,7 @@ import {
 import {
   createInitialState,
   ingredientCostOf,
+  lemonsNeededFor,
   orderForTargetCups,
   round2,
   runDay,
@@ -66,7 +67,26 @@ describe('regulars are served first', () => {
       subscriberDiscount: ROUND.DISCOUNT,
       serviceCapacity: 30,
     });
-    expect(outcome.ingredients.total).toBe(ingredientCostOf(8).total);
+    /*
+     * Eight cups' worth of ingredients, costed at what those lemons actually
+     * cost — which is no longer the list price, because this order clears a
+     * bulk tier. Asserted as the identity rather than against
+     * `ingredientCostOf(8)`, which prices lemons flat: that comparison used to
+     * hold only because every lemon in the game cost the same, and it started
+     * failing the day grade and volume pricing arrived.
+     *
+     * The point of the test is unchanged: a regular's cup consumes a cup's
+     * worth of ingredients, exactly like a stranger's.
+     */
+    expect(outcome.cupsSold).toBe(8);
+    expect(outcome.ingredients.lemonsUsed).toBe(lemonsNeededFor(8));
+    expect(outcome.ingredients.total).toBe(
+      round2(outcome.ingredients.lemons + outcome.ingredients.sugar + outcome.ingredients.cups),
+    );
+    expect(outcome.ingredients.total).toBeGreaterThan(0);
+    // Same eight cups on a flat price would be dearer, because this order
+    // earned a discount rather than lost one.
+    expect(outcome.ingredients.total).toBeLessThanOrEqual(ingredientCostOf(8).total);
   });
 
   it('takes their cups out of the same capacity everyone else queues for', () => {

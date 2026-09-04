@@ -177,7 +177,7 @@ product: the lock is what makes the unlock feel earned.
 | 4 | Equity dial with visible payback, three stands for sale at different multiples, buyout priced on trailing weekly profit with a growth premium, PE bridge from the kid's own sale — and a **listing**: a thousand shares, a price that is `value / 1000`, a float dial showing cash raised against ownership given up, and a week lived as a public company with the price move attributed to the two numbers that caused it |
 | 5 | Real-company research cards, 35% position cap, 12 weeks of price movement with a scripted market scare, drawdown/panic-sale bookkeeping, finale |
 | — | Parent view, readiness gate, save migration (v3 → v4: the ownership act became Act 4 and the market became Act 5; nobody is sent back to do the shop) |
-| Meta | Trophy case (40 badges, all state-derived), earned-word glossary (34 words), rank ladder, career record across seasons, Same-Sky Challenge, investment club, thesis engine, reckoning screen, seasons |
+| Meta | Trophy case (40 badges, all state-derived), earned-word glossary (36 words), rank ladder, career record across seasons, Same-Sky Challenge, investment club, thesis engine, reckoning screen, seasons |
 
 **Gaps 1 and 2 from section 4 are now closed** (position cap in the market;
 rival in Act 2). **Gap 3 is closed in mechanism** — the market lets prices fall,
@@ -206,7 +206,7 @@ What was added for that, and what each thing is actually for:
 | Mechanic | The learning it serves |
 |---|---|
 | **Trophy case** (40 badges) | Every badge names a business concept and is awarded only for a decision that demonstrates it. No badge exists for time played. Rank derives from badges, so the only way up is to demonstrate something new. |
-| **Words you earned** (34 words) | Closes a real gap: the first build taught the P/E ratio as arithmetic and never said the words. Concepts you cannot name are concepts you cannot discuss or be corrected on. |
+| **Words you earned** (36 words) | Closes a real gap: the first build taught the P/E ratio as arithmetic and never said the words. Concepts you cannot name are concepts you cannot discuss or be corrected on. |
 | **The round** (Act 2) | Recurring revenue, felt from the inside — give up margin, get customers who turn up in the cold — and then *paid for* at the sale as extra weeks of profit on the multiple. Business model → valuation, in one loop. |
 | **Same-Sky Challenge** | The seed is the week, so two kids get identical weather and the entire difference is decisions. The screen decomposes the gap into price, volume, fixed costs and waste, and the four lines sum to the gap. |
 | **Investment club** | You cannot spend the pot without a written thesis, and a tie fails. Defending a number to a peer who can vote you down is how people learn to value things. Attribution reports money made and reasoning-that-held-up as two separate boards. |

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ECON,
   FORECAST_COPY,
@@ -15,6 +15,8 @@ import {
   totalLemons,
   type DayParams,
   type GameState,
+  DEFAULT_GRADE,
+  type LemonGrade,
 } from '@/lib/simulation';
 import {
   MAX_TRIES,
@@ -32,8 +34,9 @@ import { STAFF, UPGRADES, type BusinessState } from '@/lib/business';
 import { ChunkyButton, clearsBar, GoalStrip, HeaderBar, money, PinnedBar, plural, Sheet, SignHeading, Sky, WeatherArt } from './ui';
 import { PipBubble, PipSays } from './Pip';
 import { StandScene, type SpotId } from './StandScene';
-import { Spotlight } from './Spotlight';
-import { STAND_TOUR, stepAt } from '@/lib/coach';
+import { CoachTour } from './CoachTour';
+import { GradeHint, GradePicker } from './GradePicker';
+import { STAND_TOUR } from '@/lib/coach';
 
 /**
  * The stand, from day two onwards.
@@ -115,7 +118,7 @@ export function PlanScreen({
   guide?: { lines: readonly string[]; onDismiss: () => void } | null;
   /** One line of context above the stand, when the day is not an ordinary one. */
   note?: string;
-  onOpen: (targetCups: number, price: number) => void;
+  onOpen: (targetCups: number, price: number, grade: LemonGrade) => void;
   /** Stages 2 to 4: jump to the yard. */
   onInvest?: () => void;
 }) {
@@ -137,6 +140,15 @@ export function PlanScreen({
     return Math.max(8, Math.min(maxCups, capacity, suggestion));
   });
   const [price, setPrice] = useState(() => yesterday?.price ?? 1.5);
+  /*
+   * Lever 1, carried forward from yesterday rather than reset.
+   *
+   * A recipe is a standing decision, not a daily one — a child who switched to
+   * posh lemons yesterday has not decided to switch back this morning, and
+   * word of mouth in `gradeDemandFactor` reads yesterday's grade, so silently
+   * resetting to normal would make the demand move for no reason they chose.
+   */
+  const [grade, setGrade] = useState<LemonGrade>(yesterday?.grade ?? DEFAULT_GRADE);
 
   /** Which object on the stand is open. Null means the whole scene is visible. */
   const [spot, setSpot] = useState<SpotId | null>(null);
@@ -158,29 +170,18 @@ export function PlanScreen({
    * would be a mascot talking over a kid who already understood — the exact
    * failure `Pip.tsx` warns about.
    */
-  const [tourStep, setTourStep] = useState(-1);
-  const [tourOver, setTourOver] = useState(false);
-
   /*
-   * Started by an effect rather than by initial state.
+   * The tour runs until anything on the stand is opened.
    *
-   * `tour` is false while a badge is still waiting to be tapped, and becomes
-   * true once the queue drains — which happens after this component has
-   * mounted. Reading it once, as initial state, meant a child who earned a
-   * badge on day one never saw the tour at all.
+   * `poked` is set by the first tap on any hotspot, so passing `!poked` here
+   * is what makes a child tapping the lit-up thing end the tour — they have
+   * demonstrated the only thing it was trying to teach. `CoachTour` owns the
+   * step state and reports back once, either way.
    */
-  useEffect(() => {
-    if (tour && !tourOver && tourStep < 0) setTourStep(0);
-  }, [tour, tourOver, tourStep]);
+  const tourRunning = tour && !poked;
 
-  const endTour = () => {
-    setTourOver(true);
-    setTourStep(-1);
-    onToured?.();
-  };
-
-  const plan = batchPlan(state, targetCups);
-  const projection = projectDay(state, targetCups, price, params);
+  const plan = batchPlan(state, targetCups, grade);
+  const projection = projectDay(state, targetCups, price, params, grade);
   const forecast = FORECAST_COPY[state.forecast];
   const rival = business?.rival;
   const rivalHere = Boolean(rival?.active && rival.location === business?.location);
@@ -316,7 +317,6 @@ export function PlanScreen({
           active={spot}
           onSelect={(next) => {
             setPoked(true);
-            if (tourStep >= 0) endTour();
             setSpot((current) => (current === next ? null : next));
           }}
         />
@@ -333,7 +333,7 @@ export function PlanScreen({
           Kept for afterwards, because a child who skipped the tour, or who
           comes back next season, still needs to know the scene is touchable.
         */}
-        {!poked && tourStep < 0 && (
+        {!poked && !tourRunning && (
           <PipBubble point="up" className="-mt-1">
             Tap the sign to change your price. Tap the lemons to make more.
           </PipBubble>
@@ -414,7 +414,7 @@ export function PlanScreen({
             variant="mint"
             full
             disabled={!plan.affordable}
-            onClick={() => onOpen(targetCups, price)}
+            onClick={() => onOpen(targetCups, price, grade)}
           >
             Open the stand!
           </ChunkyButton>
@@ -427,19 +427,7 @@ export function PlanScreen({
         Only while nothing is open. A sheet is a child doing the thing the tour
         was asking for, and the spotlight would be arguing with them.
       */}
-      {tourStep >= 0 && spot === null && stepAt(STAND_TOUR, tourStep) && (
-        <Spotlight
-          step={stepAt(STAND_TOUR, tourStep)!}
-          stepNumber={tourStep + 1}
-          total={STAND_TOUR.steps.length}
-          onNext={() => {
-            const next = tourStep + 1;
-            if (stepAt(STAND_TOUR, next)) setTourStep(next);
-            else endTour();
-          }}
-          onSkip={endTour}
-        />
-      )}
+      <CoachTour tour={STAND_TOUR} run={tourRunning && spot === null} onDone={() => onToured?.()} />
 
       {/* ---- Inside the objects ---- */}
 
@@ -550,6 +538,22 @@ export function PlanScreen({
               You can only serve {plural(capacity, 'cup')} a day. Making more would just be lemons in the bin.
             </p>
           )}
+
+          {/*
+            Which lemons, under the shopping list rather than beside it.
+            Same place the decision lives on day one — the shopping screen —
+            and the same picker, so the two days agree about where a recipe is
+            chosen. FRAMEWORK.md §1, Lever 1.
+          */}
+          <div className="mt-4 border-t-2 border-dashed border-ink/15 pt-3">
+            <div className="text-center font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/55">
+              Which lemons?
+            </div>
+            <div className="mt-1.5">
+              <GradePicker grade={grade} lemons={plan.order.buyLemons} onPick={setGrade} />
+              <GradeHint grade={grade} lemons={plan.order.buyLemons} />
+            </div>
+          </div>
         </Sheet>
       )}
 

@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import {
+  DEFAULT_GRADE,
   ECON,
   batchPlan,
   maxAffordableCups,
   type GameState,
+  type LemonGrade,
   totalLemons,
 } from '@/lib/simulation';
+import { GradeHint, GradePicker } from './GradePicker';
 import { PipBubble } from './Pip';
 import { ActionFooter, ChunkyButton, HeaderBar, SignHeading, Sky, money, plural } from './ui';
 
@@ -41,13 +44,19 @@ export function ShopScreen({
   onBack,
 }: {
   state: GameState;
-  onConfirm: (targetCups: number) => void;
+  onConfirm: (targetCups: number, grade: LemonGrade) => void;
   onBack: () => void;
 }) {
   const maxCups = Math.max(0, maxAffordableCups(state));
   // Default to something sensible so a first-timer can simply tap through.
   const [target, setTarget] = useState(() => Math.min(maxCups, 28));
-  const plan = batchPlan(state, target);
+  /*
+   * Lever 1 of FRAMEWORK.md §1's Stage 1 table lives here, on day one, because
+   * this is the shopping screen and a product choice is a shopping decision.
+   * Day two onward the same picker is inside the crate of lemons on the stand.
+   */
+  const [grade, setGrade] = useState<LemonGrade>(DEFAULT_GRADE);
+  const plan = batchPlan(state, target, grade);
 
   const firstEver = state.history.length === 0;
   const [touched, setTouched] = useState(false);
@@ -182,6 +191,21 @@ export function ShopScreen({
           </div>
         </div>
 
+        {/*
+          What kind of lemon. Below the shopping list, because the list has to
+          be read first — the choice only means something once a child has seen
+          what a cup costs.
+        */}
+        <div className="mt-4">
+          <div className="text-center font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/55">
+            Which lemons?
+          </div>
+          <div className="mt-1.5">
+            <GradePicker grade={grade} lemons={plan.order.buyLemons} onPick={setGrade} />
+            <GradeHint grade={grade} lemons={plan.order.buyLemons} />
+          </div>
+        </div>
+
         <ActionFooter className="mt-auto flex gap-3 pt-6">
           <ChunkyButton variant="ghost" onClick={onBack} className="!px-5 !text-xl">
             ←
@@ -190,7 +214,7 @@ export function ShopScreen({
             variant="lemon"
             full
             disabled={!plan.affordable}
-            onClick={() => onConfirm(target)}
+            onClick={() => onConfirm(target, grade)}
           >
             Set my price →
           </ChunkyButton>

@@ -93,6 +93,20 @@ export const GLOSSARY: GlossaryWord[] = [
     act: 1,
   },
   {
+    id: 'quality',
+    word: 'Quality',
+    kidLine: 'Better lemons cost more and bring more people. Worse ones save money and lose customers.',
+    grownUpLine: 'The cost/quality trade every product makes. Cheapest is a strategy, best is a strategy, and picking neither on purpose is how margins vanish.',
+    act: 1,
+  },
+  {
+    id: 'bulk-discount',
+    word: 'Buying in bulk',
+    kidLine: 'Buy a lot at once and each one costs less. You have to spend more today to get it.',
+    grownUpLine: 'Economies of scale, and the working capital they need. It is why big shops beat small ones on price and why they can run out of cash doing it.',
+    act: 1,
+  },
+  {
     id: 'capacity',
     word: 'Capacity',
     kidLine: 'The most cups you can physically pour in a day, however long the queue is.',

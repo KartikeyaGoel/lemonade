@@ -36,6 +36,8 @@ import { runningFor } from '@/lib/live';
 import type { Readiness } from '@/lib/progress';
 import { PipSays } from '../Pip';
 import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
+import { CoachTour } from '../CoachTour';
+import { MARKET_TOUR } from '@/lib/coach';
 
 /**
  * Act 5. Other people's lemonade stands.
@@ -45,6 +47,8 @@ import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../
  * years of profit the market is asking for. Nothing here is a recommendation.
  */
 export function MarketScreen({
+  tour = false,
+  onToured,
   portfolio,
   readiness,
   knowsPE,
@@ -61,6 +65,9 @@ export function MarketScreen({
   onWeekendStand,
   onPlaybook,
 }: {
+  /** Run the first-run tour of the market. */
+  tour?: boolean;
+  onToured?: () => void;
   portfolio: PortfolioState;
   readiness: Readiness;
   /** True once the kid has been handed the words "P/E ratio" at the sale. */
@@ -246,10 +253,13 @@ export function MarketScreen({
           </button>
         )}
 
+        <CoachTour tour={MARKET_TOUR} run={tour && !comparing} onDone={() => onToured?.()} />
+
         {!readiness.canTrade && (
           <button
             type="button"
             onClick={onOpenGate}
+            data-coach="gate"
             className="mt-3 w-full rounded-2xl border-[3px] border-dashed border-lemon/60 bg-lemon/10 p-3 text-left"
           >
             <div className="flex items-center gap-2">
@@ -389,6 +399,7 @@ export function MarketScreen({
                     <button
                       key={c.ticker}
                       type="button"
+                      {...(inTier[0]?.ticker === c.ticker ? { 'data-coach': 'company-card' } : {})}
                       onClick={() => {
                         if (comparing) {
                           setPicked((current) =>

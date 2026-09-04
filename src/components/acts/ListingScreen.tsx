@@ -9,6 +9,8 @@ import {
 } from '@/lib/listing';
 import type { OwnershipState } from '@/lib/ownership';
 import { ActionFooter, ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { CoachTour } from '../CoachTour';
+import { LISTING_TOUR } from '@/lib/coach';
 import { plural } from '@/lib/copy';
 
 /**
@@ -36,12 +38,17 @@ import { plural } from '@/lib/copy';
  *     — and the third is the one a first-time founder forgets.
  */
 export function ListingScreen({
+  tour = false,
+  onToured,
   offer,
   ownership,
   onList,
   onSellInstead,
   onBack,
 }: {
+  /** Run the first-run tour of going public. */
+  tour?: boolean;
+  onToured?: () => void;
   offer: ListingOffer;
   ownership: OwnershipState;
   onList: (fraction: number) => void;
@@ -128,9 +135,11 @@ export function ListingScreen({
           <div className="text-center font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-wood-deep/60">
             How much of it to sell
           </div>
+          <CoachTour tour={LISTING_TOUR} run={tour} onDone={() => onToured?.()} />
           <div
             role="radiogroup"
             aria-label="How much of the company to sell"
+            data-coach="float-dial"
             className="mt-2 flex flex-wrap justify-center gap-1.5"
           >
             {choices.map((option) => (
@@ -186,7 +195,7 @@ export function ListingScreen({
           <ChunkyButton variant="mint" full cue="bell" onClick={() => onList(plan.fraction)}>
             Ring the bell · raise {money(plan.cashRaised)}
           </ChunkyButton>
-          <ChunkyButton variant="lemon" full onClick={onSellInstead}>
+          <ChunkyButton variant="lemon" full coach="sell-instead" onClick={onSellInstead}>
             Sell the lot for {money(offer.buyout.price)}
           </ChunkyButton>
           <ChunkyButton variant="ghost" full onClick={onBack}>

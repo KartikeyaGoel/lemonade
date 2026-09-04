@@ -18,7 +18,9 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PlanScreen } from '@/components/PlanScreen';
-import { STAND_TOUR, stepAt, toured } from '@/lib/coach';
+import { ALL_TOURS, STAND_TOUR, stepAt, toured } from '@/lib/coach';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { createCareer, recordCoached } from '@/lib/career';
 import { DEFAULT_DAY_PARAMS, batchPlan, runDay, type GameState } from '@/lib/simulation';
 import { createGame } from '@/lib/progress';
@@ -103,6 +105,115 @@ describe('every tour step has something to point at', () => {
     expect(STAND_TOUR.steps.length).toBeGreaterThan(0);
     for (const step of STAND_TOUR.steps) {
       expect(step.lines.length, `${step.target} has no copy`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('every tour, not just the first one', () => {
+  /**
+   * Every `data-coach` value that exists anywhere in the source.
+   *
+   * A static scan rather than four rendered screens, and deliberately so: the
+   * bug this guards against is a *step pointing at nothing*, which is a
+   * question about whether the attribute exists at all. Rendering the market
+   * needs a portfolio, a readiness gate and a snapshot of real companies, and
+   * a test that heavy would be skipped the next time it broke.
+   *
+   * It caught `ChunkyButton` silently dropping `data-coach` once already —
+   * that is PRODUCT.md §40's class, wired to nothing, and it has now been the
+   * defect in a badge counter, a glossary word, and a tour step.
+   */
+  const anchors = (() => {
+    const found = new Set<string>();
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(entry.name)) {
+          const text = readFileSync(full, 'utf8');
+          for (const match of text.matchAll(/'data-coach':\s*'([^']+)'/g)) found.add(match[1]);
+          for (const match of text.matchAll(/data-coach="([^"]+)"/g)) found.add(match[1]);
+          // `coach="try"` on ChunkyButton, and `coach={...}` pass-throughs.
+          for (const match of text.matchAll(/\bcoach="([^"]+)"/g)) found.add(match[1]);
+          // Template forms, e.g. `plot-${plot.id}`.
+          for (const match of text.matchAll(/'data-coach':\s*`([^`$]*)\$\{/g)) {
+            found.add(`prefix:${match[1]}`);
+          }
+        }
+      }
+    };
+    walk('src');
+
+    /*
+     * `StandScene` anchors its hotspots with `{ 'data-coach': id }`, where
+     * `id` is a `SpotId` — so there is no literal in the file to find. Rather
+     * than exempt the stand tour, the union itself is read: every value
+     * `SpotId` can take is an anchor that really exists, and a step naming
+     * something outside it still fails.
+     */
+    const scene = readFileSync('src/components/StandScene.tsx', 'utf8');
+    const union = scene.match(/export type SpotId =([^;]+);/);
+    if (union) {
+      for (const member of union[1].matchAll(/'([^']+)'/g)) found.add(member[1]);
+    }
+    return found;
+  })();
+
+  it('gives every step of every tour something to point at', () => {
+    const orphans: string[] = [];
+    for (const tour of ALL_TOURS) {
+      for (const step of tour.steps) {
+        const exact = anchors.has(step.target);
+        const byPrefix = [...anchors].some(
+          (a) => a.startsWith('prefix:') && step.target.startsWith(a.slice('prefix:'.length)),
+        );
+        if (!exact && !byPrefix) orphans.push(`${tour.id} → ${step.target}`);
+      }
+    }
+    expect(orphans, `tour steps pointing at nothing: ${orphans.join(', ')}`).toEqual([]);
+  });
+
+  it('has a tour for every stage, because every stage adds mechanics', () => {
+    /*
+     * The customer's question, made into a test: "does the onboarding cover
+     * all of the new features every time or does it only do it in stage one?"
+     *
+     * It was four of five. Act 4 — cutting the company into a thousand pieces
+     * and selling some — had none, and it is the least familiar screen in the
+     * game and the concept FRAMEWORK.md §2 says the whole product points at.
+     *
+     * Asserted over the stages rather than counted, so adding a sixth stage
+     * fails here instead of shipping a room nobody explains.
+     */
+    const covered = new Set(ALL_TOURS.map((tour) => tour.act));
+    const missing = ([1, 2, 3, 4, 5] as const).filter((act) => !covered.has(act));
+    expect(missing, `stages with no first-run tour: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('gives every tour a unique id, because the career keys on it', () => {
+    const ids = ALL_TOURS.map((tour) => tour.id);
+    expect(new Set(ids).size, `duplicate tour ids: ${ids.join(', ')}`).toBe(ids.length);
+  });
+
+  it('keeps every tour short enough to sit through', () => {
+    /*
+     * Three at most. FRAMEWORK.md §13's finding is that what has to be bounded
+     * is the number of things asked of a child, and a five-step tour of a
+     * screen is the §26 failure — "day one handed over three new words in
+     * three stacked panels" — wearing a different hat.
+     */
+    for (const tour of ALL_TOURS) {
+      expect(tour.steps.length, `${tour.id} has ${tour.steps.length} steps`).toBeLessThanOrEqual(3);
+      expect(tour.steps.length, `${tour.id} has no steps`).toBeGreaterThan(0);
+    }
+  });
+
+  it('says something on every step, in two short lines at most', () => {
+    for (const tour of ALL_TOURS) {
+      for (const step of tour.steps) {
+        expect(step.lines.length, `${tour.id} → ${step.target} says nothing`).toBeGreaterThan(0);
+        expect(step.lines.length, `${tour.id} → ${step.target} is a paragraph`).toBeLessThanOrEqual(2);
+      }
     }
   });
 });

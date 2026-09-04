@@ -10,6 +10,8 @@ import {
   type FundingOption,
 } from '@/lib/retail';
 import { EQUITY_SLICES, MAX_EQUITY_SOLD, equityOffer } from '@/lib/ownership';
+import { CoachTour } from '../CoachTour';
+import { FUNDING_TOUR } from '@/lib/coach';
 import type { DayRecord } from '@/lib/simulation';
 import { ActionFooter, ChunkyButton, SignHeading, Sky, money } from '../ui';
 import { plural } from '@/lib/copy';
@@ -36,6 +38,8 @@ import { plural } from '@/lib/copy';
  * moves, the three cards sit on one screen, and backing out is a button.
  */
 export function FundingScreen({
+  tour = false,
+  onToured,
   cash,
   history,
   weeklyProfit,
@@ -45,6 +49,9 @@ export function FundingScreen({
   onSellSlice,
   onBack,
 }: {
+  /** Run the first-run tour of the three ways to pay. */
+  tour?: boolean;
+  onToured?: () => void;
   cash: number;
   history: DayRecord[];
   weeklyProfit: number;
@@ -103,9 +110,12 @@ export function FundingScreen({
           </p>
         </div>
 
+        <CoachTour tour={FUNDING_TOUR} run={tour} onDone={() => onToured?.()} />
+
         <div className="mt-5 space-y-3">
           {/* 1 — wait for it */}
           <Option
+            coach="pay-cash"
             emoji="🪙"
             name="Pay for it yourself"
             cost="Nothing extra. You keep all of it and you wait."
@@ -117,6 +127,7 @@ export function FundingScreen({
 
           {/* 2 — borrow it */}
           <Option
+            coach="borrow"
             emoji="🏦"
             name="Borrow from the bank"
             /* The extra is named as its own figure, because it is the whole
@@ -129,7 +140,10 @@ export function FundingScreen({
           />
 
           {/* 3 — sell a slice, on a dial */}
-          <div className="rounded-2xl border-[3px] border-ink/20 bg-white p-4 shadow-lg">
+          <div
+            className="rounded-2xl border-[3px] border-ink/20 bg-white p-4 shadow-lg"
+            {...{ 'data-coach': 'sell-slice' }}
+          >
             <div className="flex items-start gap-3">
               <span aria-hidden className="text-3xl leading-none">
                 🤝
@@ -216,6 +230,7 @@ export function FundingScreen({
 }
 
 function Option({
+  coach,
   emoji,
   name,
   cost,
@@ -231,9 +246,13 @@ function Option({
   shortBy: number;
   cta: string;
   onPick: () => void;
+  coach?: string;
 }) {
   return (
-    <div className="rounded-2xl border-[3px] border-ink/20 bg-white p-4 shadow-lg">
+    <div
+      className="rounded-2xl border-[3px] border-ink/20 bg-white p-4 shadow-lg"
+      {...(coach ? { 'data-coach': coach } : {})}
+    >
       <div className="flex items-start gap-3">
         <span aria-hidden className="text-3xl leading-none">
           {emoji}

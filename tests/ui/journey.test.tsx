@@ -252,10 +252,30 @@ describe('a first run, from the title screen', () => {
       if (!(await stepForward())) break;
     }
 
-    expect(daysPlayed, 'never got through a single day').toBeGreaterThanOrEqual(5);
+    /*
+     * Asserted as "reached the end of the stage", not "played five days".
+     *
+     * The floor used to be 5, as a proxy for getting through the week. Act 1
+     * now ends when the $25 goal is hit twice, so a run that prices well
+     * finishes on day four — and this test started failing intermittently,
+     * depending on the weather it drew. The proxy had become the thing being
+     * tested, which is the mistake §51 records in `arc.test.ts`.
+     *
+     * Three is the real floor: two exploratory days plus at least one day the
+     * goal could have been hit on.
+     */
     const game = JSON.parse(window.localStorage.getItem('lemonade.save.v2') ?? '{}');
-    expect(game.stand.history.length).toBeGreaterThanOrEqual(5);
+    expect(daysPlayed, 'never got through the exploratory days').toBeGreaterThanOrEqual(3);
+    expect(game.stand.history.length).toBeGreaterThanOrEqual(3);
     expect(game.version).toBe(SAVE_VERSION);
+
+    /*
+     * Deliberately not asserting that the stage *finished*. This walk breaks
+     * out on copy and can stop anywhere, including partway into the stands
+     * stage, so "finished" here would be a claim about stage-transition logic
+     * this test does not drive — and it failed intermittently when tried. The
+     * Act 1 to Act 2 boundary has its own test below.
+     */
   }, 60_000);
 
   it('opens the grown-up view from a cold start and comes back', async () => {
@@ -672,8 +692,21 @@ describe('crossing from one stage into the next', () => {
       version: SAVE_VERSION,
       act: 1,
       learned: GLOSSARY.map((w) => w.id),
-      // Six days played, so one more finishes the week.
-      stand: { ...game.stand, day: 7, cash: 400, history: history.slice(0, 6) },
+      /*
+       * Six days played, none of them good enough to finish the stage early.
+       *
+       * The shared `history` fixture makes $26+ a day, which now *completes*
+       * Act 1 — the stage ends when the $25 goal is hit twice, so a save built
+       * from it is already over and this test could not play a seventh day.
+       * Held under the target so the boundary this test is about is the one it
+       * crosses: the seven-day clock.
+       */
+      stand: {
+        ...game.stand,
+        day: 7,
+        cash: 400,
+        history: history.slice(0, 6).map((day) => ({ ...day, profit: 4 })),
+      },
     });
     render(<Page />);
     await atTitle();

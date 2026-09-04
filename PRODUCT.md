@@ -2919,3 +2919,99 @@ Seven days of sandbox with a clock is not a level, it is a toy with a timer.
 
 Half of "I don't know how to play" was the interaction model, and that half is
 now addressed. The other half is that there is nothing to aim at.
+
+## 58. A lever, a discount and a goal, without moving a single identity
+
+FRAMEWORK.md §15 is the design record of building Stage 1's six missing rows.
+This is the engineering account, and there is one decision the whole thing
+turned on.
+
+### The default that made it safe
+
+Act 1 gained a product choice — cheap, normal or posh lemons — and volume
+pricing on the order. Both change what a cup costs, and a cup's cost is the
+subject of roughly thirty arithmetic identities: `tests/pnl.test.ts` holds
+twenty-odd, `tests/fuzz.test.ts` nine more, and several are phrased in terms of
+*a* per-cup ingredient cost.
+
+**Normal is exactly ×1.0 on cost and ×1.0 on demand, and it is what every
+caller gets if it does not choose.** So a run that passes no grade reproduces
+the previous economy to the cent, and all thirty identities kept passing without
+being touched. A test asserts it directly rather than trusting it — a plain run
+and an explicit `regular` run, compared day by day on profit, revenue and
+ingredient total.
+
+That is the general move worth keeping: **when adding a dimension to a system
+under identity tests, give the new dimension an identity element and default to
+it.** The alternative is editing thirty assertions and hoping.
+
+### The part that was genuinely invasive
+
+Cost of goods sold used to be `lemonsUsed × ECON.LEMON_COST` — a count times a
+constant, computable from a number. That stops being true the moment two lemons
+can cost different amounts:
+
+- `LemonLot` now carries `unitCost` (optional, so an old save reads back as
+  lemons bought at the plain price, which is what they were).
+- `consumeAndAge` walks the lots oldest-first and reports **what it spent**, not
+  just how many it took.
+- `runDay` had to be **reordered**: consumption now happens *before* costing,
+  because only the pantry knows which lemons were poured.
+- Spoilage is costed from the lots too, so a lemon thrown away is a loss at what
+  it actually cost.
+
+Without that, the receipt and the profit and loss would have disagreed about the
+same day — §4's line in the sand.
+
+### Three bugs, all caught by existing guards
+
+Nothing here was found by reading it back:
+
+1. **`tests/round.test.ts`** compared `outcome.ingredients.total` against
+   `ingredientCostOf(8)`, which prices lemons flat. Its order clears a bulk
+   tier, so the day came out at $1.46 against the helper's $1.56. The test was
+   right until the day two lemons could cost different amounts; it now asserts
+   the identity instead of the number.
+2. **`tests/plural.test.ts`** flagged the new picker. `<GradePicker grade={g}
+   lemons={n} />` closes a brace and is followed by the word "lemons" — a JSX
+   *attribute name*, which no child will ever read. The scanner now excludes a
+   noun followed by `=`; prose never contains `lemons=`, so the exclusion cannot
+   hide a real offender.
+3. **`tests/wordsreachable.test.ts`** reported both new words unearnable —
+   correctly. Its sweep varied price and batch but always bought normal lemons
+   in modest quantities, so nothing in it could produce `quality` or
+   `bulk-discount`. Fixture fixed to sweep grades; the sixth fixture mistake of
+   §49's kind, and the first the file caught on the same day the mechanic
+   landed.
+
+### The bug that was mine, and the flake that followed
+
+The profit target counted qualifying days across the **whole** history. Two
+exploratory days that both happened to clear $25 therefore completed the stage
+on day two — **the challenge won before it was ever set.** Hits are now counted
+from after the exploration window, and a test plays two good exploratory days
+and asserts the count is zero.
+
+Then `tests/ui/journey.test.tsx` began failing **intermittently**: "plays a full
+week and reaches the end of it" asserted five days played, and a run that priced
+well now finishes in four, depending on the weather it drew. The number five had
+been a proxy for "got through the week" and had quietly become the thing under
+test — §51 records the same mistake in `arc.test.ts`, where `days <
+ACT2_DAYS / 2` was written as caution and behaved as a constraint.
+
+My first fix over-reached: I asserted the stage had *finished*, which pulled
+stage-transition logic into a smoke test that breaks out of its loop on copy and
+can stop anywhere, including partway into Act 2. That failed intermittently too,
+for a different reason. Removed; the boundary has its own test.
+
+### What did not have to change
+
+The Same-Sky Challenge. `buildCustomers` requires that the number of random
+draws depend only on the weather and the day's parameters, never on a decision,
+or two children on one code stop getting the same week. Quality is a decision,
+so it multiplies **`cupsWanted`** — who buys — and never **`passersby`** — who
+walks by. Three tests hold it: same weather, same footfall, same seed carried
+forward, at every grade.
+
+Getting that wrong would have broken the classroom board and the challenge
+codes, silently, in a way no arithmetic test would have noticed.

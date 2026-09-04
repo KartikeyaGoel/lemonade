@@ -232,6 +232,7 @@ function PlotButton({
       type="button"
       onClick={() => onSelect(plot.id)}
       aria-label={plot.owned ? plot.name : `${plot.name}, ${money(plot.cost)} ${plot.costLabel}`}
+      {...{ 'data-coach': `plot-${plot.id}` }}
       className={`${className ? 'absolute' : ''} flex min-w-11 flex-col items-center transition-transform active:translate-y-[2px] ${className}`}
     >
       <span
