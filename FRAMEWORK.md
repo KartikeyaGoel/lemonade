@@ -758,20 +758,35 @@ it is kid-facing rather than a design note:
 | How do I finance and manage growth? | *What do I owe on a day nobody comes?* |
 | What is my company worth, and what does ownership mean in a public company? | *What is one piece of my company worth?* |
 
-Three of four are the same question in a nine-year-old's words. **Stage 3 is
-not.** The refinement leads with financing; the game leads with fixed costs.
+All four are the same question in a nine-year-old's words, **including Stage
+3** — which this section originally got wrong, and the customer corrected:
 
-Both are in the stage — Act 3's `grownUpConcept` is "Fixed costs, operating
-leverage, debt against equity", and the shop's funding screen is a real
-three-way decision between cash, a loan and an investor's slice. So nothing is
-missing. But the *headline* differs, and the game's choice is deliberate and
-worth defending: a rent owed on a day nobody comes is the thing that makes
-financing matter. Ask a child how to finance growth before they have felt a
-fixed cost and the question has no weight behind it. Financing is the second
-beat of Stage 3 because the first beat is what creates the need for it.
+> *"well both no, one uses a more grown up language, the other is a
+> child-friendly language. so its the same just from different perspectives?"*
 
-Flagged rather than changed, because it is a judgement call the customer may
-want to overrule.
+That is right, and the code is explicit about it. `curriculum.ts` says the
+child's version *is* the grown-up stage restated — "the child gets
+`ACT_TITLES[act].question`, which is the same stage asked as a question worth
+answering" — and every act carries both registers deliberately: `question` for
+the kid, `grownUpConcept` and `grownUpWhy` for the adult.
+
+Act 3's grown-up register is the refinement's question almost word for word:
+
+| | |
+|---|---|
+| Refinement | *How do I finance and manage growth?* |
+| `grownUpConcept` | Fixed costs, operating leverage, **debt against equity** |
+| `grownUpWhy` | "...the first thing they cannot buy out of profit, which is where **borrowing and selling a slice become two real answers**." |
+| `question` (kid) | *What do I owe on a day nobody comes?* |
+
+"Manage growth" is the fixed cost the child feels; "finance growth" is the
+three-way funding screen, named in the adult line. Both halves are in the
+stage, in the register each audience reads.
+
+The error was comparing a grown-up-register question against a child-register
+one and calling the difference a design gap. There was nothing to reconcile —
+which makes this the fourth instance of the pattern §12 closes with, and the
+first where the wrong claim was in this document rather than in the code.
 
 ### Core concepts, stage by stage
 
@@ -823,3 +838,139 @@ and contradicted by data**, after §11's stale day count and the concept mapping
 that existed only in this document until `frameworkwords.test.ts` asserted it.
 A document that describes the build is only as good as the checks that keep it
 honest.
+
+---
+
+## 13. Two research questions: the clock, and the rule of three
+
+Both came from the customer, and both are asked as questions rather than
+asserted — which is the right instinct, because one of them is a real
+principle wearing a wrong number, and the other is a real principle about
+something other than what it is usually quoted about.
+
+### "A Clash Royale match is about two minutes. Is that a design principle?"
+
+**The principle is real. The number is not the principle.**
+
+What is solidly established is narrower and older than any particular game:
+flow states require *immediate, unambiguous feedback*, and formative feedback
+is among the largest single effects in the learning-research literature. The
+claim worth defending is **the consequence arrives while the decision is still
+in mind** — not any specific duration.
+
+The two-to-three minute figure in Clash Royale and Clash of Clans is a
+*session-length* decision, driven by things that have nothing to do with
+cognition: matchmaking queues, a commute, a bus stop, the length of time a
+phone is out of a pocket. Useful to copy, but copy it for the right reason.
+
+The more transferable observation is that those games run **two nested loops**,
+which is exactly the structure §1's refinement describes:
+
+| | Clash Royale | lemonade |
+|---|---|---|
+| Decision cadence | seconds — elixir ticks, a card is played or held | the price dial, the batch slider |
+| Feedback unit | the match, a few minutes | **the day** |
+| Progression unit | the ladder, weeks | the stage, and the arc |
+
+The mistake would be to read "two minutes" as applying to the *progression*
+loop. It applies to the feedback unit. In this game that unit is the day —
+plan, price, watch, and a close screen carrying the P&L and up to one new word
+— and a stage is an hour, which is the right length for a stage and would be
+absurd for a feedback loop.
+
+**Measured.** The only part of a day the code controls is the watched portion;
+the rest is a child reading, which no test can time.
+
+| Crowd | Watched day |
+|---|---|
+| 10 | 4.7s |
+| 37–109 | 13.5s |
+| 150 | 13.5s |
+| 284 (the biggest the simulation produces) | 13.5s |
+
+The right-hand column is flat, and it had to be fixed to become flat. It read
+4.7 / 13.5 / **18.0** / **32.7** — because the per-customer legibility floor
+(`MIN_TICK_MS`) stretched the day instead of being absorbed, so past about a
+hundred customers the arithmetic stopped fitting. `RunDayScreen`'s own comment
+promised "roughly ten seconds regardless of how big the crowd is" and had been
+wrong by two and a half times, on the screen the same file calls "the signature
+moment of the product".
+
+Worse, it went wrong in the direction that punishes engagement: the 284-customer
+day is a loaded late-game business selling at 25c — the cheap price an
+experimenting child tries first, on their best day. The fix divides a large
+crowd into groups and walks a whole group on per tick, so the day stays bounded
+and a sprite stays legible. `tests/pacing.test.ts` holds it, across every crowd
+size the simulation can produce.
+
+**What is still a risk.** Act 2 runs to 16 days, so its *stage* reward is a
+long way off. Two things stand between that and boredom, and they were designed
+for it: a word a day (§26), and the reinvest-or-take-it-out fork every seventh
+day. Whether that is enough is not a question measurement can answer.
+
+### "Human brains can't handle more than three things — but Clash Royale shows me dozens?"
+
+**The scepticism is correct, and the observation is the answer.**
+
+Three things are being conflated:
+
+1. **The rule of three** is a rhetorical and marketing device — a tricolon.
+   It is about *memorability and persuasion in a message*. It is real, and it
+   is about copywriting, not comprehension capacity.
+2. **Miller (1956)**, "the magical number seven, plus or minus two", is the
+   cognitive claim usually being reached for. It is about *chunks* held in
+   working memory, and the number is seven, not three.
+3. **Cowan (2001)** revised the practical working-memory limit down to about
+   **four** chunks. Still not three.
+
+So no serious version of the claim says three, and none of them says anything
+at all about how many objects may be *on a screen*.
+
+The Clash Royale observation is exactly right and resolves it: that screen
+holds two towers, a river, dozens of troops, an elixir bar, a timer and a
+trophy count — and **the hand is four cards.** The information set is huge; the
+*decision set* is four. What has to be bounded is the number of choices in
+front of a player at the moment they choose, not the number of things drawn.
+
+The other half is **chunking and progressive disclosure**: Clash Royale has
+over a hundred cards, a deck is eight, a hand is four, and the hundred are
+learned over months. A chunk can contain arbitrarily much once it has been
+learned — which is why "how many things" is the wrong question and "how many
+*decisions*" is the right one.
+
+**Measured, for this game.** Counting decisions, not drawn elements — and a
+dial is one decision however many stops it has, which is why the price slider
+counts as one and not as a continuum:
+
+| Screen | Simultaneous decisions |
+|---|---|
+| Price | 1 dial |
+| Batch / shopping list | 1 dial |
+| Shop funding | **3** — pay cash, borrow, sell a slice |
+| Deal board | **3** stands to rank |
+| Investor's slice | 1 dial, 5 stops |
+| The float | 1 dial, 9 stops |
+| The market | **8** companies at tier 1, of 24 in the data |
+| The yard | 10 plots, in **4 groups**: pitch (2), kit (3), crew (2), site (3) |
+
+Every one lands at four or fewer, on the measure that matters. The yard is the
+only screen that shows ten of anything, and it shows them as four labelled
+groups of two or three — which is chunking, done by hand, before anyone went
+looking for a principle to justify it. The market is the clearest case of
+progressive disclosure in the product: a child meets eight companies, not
+twenty-four, and the other sixteen arrive by tier.
+
+**One thing this found.** The single place the codebase asserted a "three" was
+stale. `InvestScreen` carried a comment reading *"Three numbers, and they are
+the three that decide everything"* directly above code that renders two chips —
+a superseded comment sitting beside the change that superseded it, which is the
+same class as everything in §12. Removed, with the history kept.
+
+### What neither of these settles
+
+**No child has played this.** Everything above is design reasoning plus
+measurement of the build, and measurement can only ever say that the day is
+bounded at 13.5 seconds and the yard is four chunks. Whether a nine-year-old
+finds the day satisfying and the yard legible is the one question that needs a
+nine-year-old, and `PITCH.md` is right to list it as the single biggest open
+risk.

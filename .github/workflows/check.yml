@@ -46,5 +46,15 @@ jobs:
       - name: Market data is sane
         run: node scripts/check-market-data.mjs
 
+      # A mechanic written, tested and wired to nothing is this project's
+      # oldest defect class (PRODUCT.md §40). Was in `npm test` and not here.
+      - name: No code without a caller
+        run: node scripts/check-dead-code.mjs
+
+      # Four defects in three sessions were a claim in prose that the build
+      # contradicted, with nothing in between. PRODUCT.md §56, FRAMEWORK.md §12.
+      - name: The documents still tell the truth
+        run: node scripts/check-doc-claims.mjs
+
       - name: Build
         run: npx next build

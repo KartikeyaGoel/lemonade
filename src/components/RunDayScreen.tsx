@@ -13,6 +13,28 @@ const WALK_MS = 1500;
 /** Total time the day should take, whatever the size of the crowd. */
 const DAY_MS = 12000;
 
+/**
+ * The shortest a single customer may hold the screen.
+ *
+ * Below this a sprite is a flicker rather than a person walking up and
+ * deciding, which is the whole point of the screen.
+ *
+ * This floor used to *stretch the day* instead of being absorbed. The pace was
+ * one customer per tick at `DAY_MS / crowd` milliseconds, clamped up to this
+ * floor — so past 109 customers the arithmetic stopped fitting and the day ran
+ * long. Measured: 13.5s at 37–109 customers, 18.0s at 150, and **32.7s at 284**,
+ * which is the biggest crowd the simulation actually produces (a loaded
+ * late-game business selling at 25c — the cheap price an experimenting kid
+ * tries first). Two and a half times the intended pace, on the screen this
+ * file's own comment calls "the signature moment of the product", and directly
+ * against the comment below promising "roughly ten seconds regardless of how
+ * big the crowd is".
+ *
+ * Now the floor is absorbed by taking more than one customer per tick, so the
+ * day stays bounded and a sprite stays legible. See FRAMEWORK.md §13.
+ */
+const MIN_TICK_MS = 110;
+
 /** Never draw more than this many sprites at once, however busy the day. */
 const MAX_ON_SCREEN = 6;
 
@@ -27,13 +49,30 @@ const MIN_SOUND_GAP_MS = 90;
  * arriving in real time.
  */
 export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone: () => void }) {
-  // Pace the day so it always resolves in roughly ten seconds regardless of
+  // Pace the day so it always resolves in roughly twelve seconds regardless of
   // how big the crowd is, then let an impatient kid speed it up.
   const [hurry, setHurry] = useState(false);
-  const baseTick = useMemo(
-    () => Math.max(110, Math.min(320, Math.round(DAY_MS / Math.max(1, outcome.customers.length)))),
-    [outcome.customers.length],
-  );
+
+  /**
+   * Customers per tick, and how long a tick lasts.
+   *
+   * Two knobs rather than one, because a big crowd cannot be paced by
+   * shortening the tick alone — `MIN_TICK_MS` is a legibility floor and past
+   * about a hundred customers it is binding. So the crowd is divided into at
+   * most `DAY_MS / MIN_TICK_MS` groups, and a whole group walks up per tick.
+   * The day stays bounded and each tick stays long enough to read.
+   */
+  const { baseTick, step } = useMemo(() => {
+    const crowd = Math.max(1, outcome.customers.length);
+    const mostTicks = Math.floor(DAY_MS / MIN_TICK_MS);
+    const perTick = Math.max(1, Math.ceil(crowd / mostTicks));
+    const ticksNeeded = Math.ceil(crowd / perTick);
+    return {
+      step: perTick,
+      baseTick: Math.max(MIN_TICK_MS, Math.min(320, Math.round(DAY_MS / ticksNeeded))),
+    };
+  }, [outcome.customers.length]);
+
   const tick = hurry ? 24 : baseTick;
   const walkMs = hurry ? 420 : WALK_MS;
 
@@ -62,12 +101,12 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
         window.clearInterval(interval);
         return;
       }
-      revealedRef.current += 1;
+      revealedRef.current = Math.min(outcome.customers.length, revealedRef.current + step);
       setRevealed(revealedRef.current);
     }, tick);
 
     return () => window.clearInterval(interval);
-  }, [outcome.customers.length, tick]);
+  }, [outcome.customers.length, tick, step]);
 
   // Let the last few verdicts land, then declare the day over.
   useEffect(() => {

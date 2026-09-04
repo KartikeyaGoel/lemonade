@@ -328,8 +328,8 @@ the concept name the kid never sees. On day zero it says, honestly:
    that doesn't silently corrupt saved accounts. Tedious, unglamorous,
    load-bearing.
 4. **The rigour is enforced by machine.** Reading level is checked at build
-   (currently **4.9**, nothing over 22 words). Contrast is checked at build.
-   **641 tests** hold the invariants — including that no jargon can leak into
+   (currently **4.8**, and at most 3% of sentences may run over 22 words).
+   Contrast is checked at build. **Over 1,100 tests** hold the invariants — including that no jargon can leak into
    a kid-facing string.
 
 ---
@@ -337,19 +337,22 @@ the concept name the kid never sees. On day zero it says, honestly:
 ## 7. Where it actually stands
 
 **Shipped and working today:**
-- Four acts, playable end to end in a sitting, mobile-first
+- Five stages, playable end to end in a sitting, mobile-first
 - Real SEC fundamentals + five years of real weekly prices, 24 companies
 - Live market anchored to this week, with catch-up on return
 - Behavioural mastery tracking and the grown-up view
 - Offline-capable, zero backend, zero accounts
-- 641 tests, clean typecheck, clean lint, reading level 4.9
+- Over 1,100 tests, clean typecheck, clean lint, reading level 4.8
 
 **Honestly not done:**
 - **No kid has played it yet.** That is the single biggest open risk and no
   amount of engineering substitutes for it.
 - 24 tickers, not a few hundred (needs a data key, not a redesign)
 - Weekly price granularity, not daily
-- Two of the five stages still lack a closing recap
+- Three of the five stages still lack a closing recap. Act 1 ends on
+  `week-end`, a real look back with a chart; the run ends on `finale`. Stages
+  2, 3 and 4 hand over through `act-intro`, which introduces what is next
+  rather than closing what just happened.
 - It is a web prototype. **The product is a phone app.**
 
 ---

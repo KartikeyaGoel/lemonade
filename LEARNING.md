@@ -194,8 +194,8 @@ document used to describe.
 
 ## 8. The retention question, which is a learning question
 
-Nothing durable is learned in forty-five minutes. The four acts are about that
-long, so the first build could teach a kid something on a Tuesday and have no
+Nothing durable is learned in forty-five minutes. The five stages are about an
+hour, so the first build could teach a kid something on a Tuesday and have no
 answer at all for why they would open it again on Thursday — which means the
 concept never got the repetition that turns it into an instinct. A kid who
 plays four times learns roughly four times as much, and the fourth play has to
@@ -205,8 +205,8 @@ What was added for that, and what each thing is actually for:
 
 | Mechanic | The learning it serves |
 |---|---|
-| **Trophy case** (30 badges) | Every badge names a business concept and is awarded only for a decision that demonstrates it. No badge exists for time played. Rank derives from badges, so the only way up is to demonstrate something new. |
-| **Words you earned** (26 words) | Closes a real gap: the first build taught the P/E ratio as arithmetic and never said the words. Concepts you cannot name are concepts you cannot discuss or be corrected on. |
+| **Trophy case** (40 badges) | Every badge names a business concept and is awarded only for a decision that demonstrates it. No badge exists for time played. Rank derives from badges, so the only way up is to demonstrate something new. |
+| **Words you earned** (34 words) | Closes a real gap: the first build taught the P/E ratio as arithmetic and never said the words. Concepts you cannot name are concepts you cannot discuss or be corrected on. |
 | **The round** (Act 2) | Recurring revenue, felt from the inside — give up margin, get customers who turn up in the cold — and then *paid for* at the sale as extra weeks of profit on the multiple. Business model → valuation, in one loop. |
 | **Same-Sky Challenge** | The seed is the week, so two kids get identical weather and the entire difference is decisions. The screen decomposes the gap into price, volume, fixed costs and waste, and the four lines sum to the gap. |
 | **Investment club** | You cannot spend the pot without a written thesis, and a tie fails. Defending a number to a peer who can vote you down is how people learn to value things. Attribution reports money made and reasoning-that-held-up as two separate boards. |

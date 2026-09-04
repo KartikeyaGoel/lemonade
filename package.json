@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run && node scripts/check-reading-level.mjs && node scripts/check-contrast.mjs && node scripts/check-dead-code.mjs",
+    "test": "vitest run && node scripts/check-reading-level.mjs && node scripts/check-contrast.mjs && node scripts/check-dead-code.mjs && node scripts/check-doc-claims.mjs",
     "test:watch": "vitest",
     "data": "node scripts/fetch-market-data.mjs",
     "data:check": "node scripts/check-market-data.mjs",
@@ -15,6 +15,7 @@
     "reading": "node scripts/check-reading-level.mjs --worst --words",
     "a11y": "node scripts/check-contrast.mjs",
     "dead": "node scripts/check-dead-code.mjs",
+    "docs": "node scripts/check-doc-claims.mjs",
     "check": "tsc --noEmit && eslint . && npm test",
     "coverage": "vitest run --coverage"
   },

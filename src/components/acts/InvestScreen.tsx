@@ -115,11 +115,12 @@ export function InvestScreen({
       <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-center px-4 pt-4" style={clearsBar()}>
         <SignHeading className="text-center text-3xl">Your patch</SignHeading>
 
-        {/* Three numbers, and they are the three that decide everything: what
-            you have, what you can serve, what you owe before you open. */}
         {/* Two numbers: what you have, and what you can serve. What you owe
             gets its own line below the scene, in cups, because that is the one
-            a kid can actually act on. */}
+            a kid can actually act on.
+
+            It was three, and the superseded comment saying so sat here beside
+            the two-chip code for as long as the change has been in. */}
         <div className="mt-2 flex flex-wrap justify-center gap-2">
           <span className="stat-chip">💵 {money(cash)}</span>
           <span className="stat-chip">🥤 {plural(capacity, 'cup')} a day</span>
