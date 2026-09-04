@@ -29,7 +29,7 @@ import {
   recurringRevenueInsight,
   unrecorded,
 } from '../src/lib/glossary';
-import { createOwnershipState, equityOffer } from '../src/lib/ownership';
+import { equityOffer } from '../src/lib/ownership';
 import {
   buyUpgrade,
   createBusinessState,
