@@ -123,7 +123,18 @@ export function runLedger(history: DayRecord[]): RunLedger {
   for (const day of history) {
     cupsSold += day.cupsSold;
     revenue = round2(revenue + day.revenue);
-    ingredientCost = round2(ingredientCost + ingredientCostOf(day.cupsSold).total);
+    /*
+     * What the day really cost, when the day recorded it.
+     *
+     * `ingredientCostOf(day.cupsSold)` prices lemons flat, so once a recipe
+     * could be chosen this understated any day bought with posh lemons and
+     * overstated a cheap one — and this figure feeds the comparison two
+     * children see side by side, where the whole claim is that the numbers are
+     * the same week decided differently.
+     */
+    ingredientCost = round2(
+      ingredientCost + (day.ingredientCost ?? ingredientCostOf(day.cupsSold).total),
+    );
     fixedCost = round2(fixedCost + (day.fixedCost ?? ECON.STAND_FEE));
     spoiledLemons += day.spoiledLemons ?? 0;
   }

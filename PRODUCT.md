@@ -3015,3 +3015,100 @@ forward, at every grade.
 
 Getting that wrong would have broken the classroom board and the challenge
 codes, silently, in a way no arithmetic test would have noticed.
+
+## 59. Seven bugs from one browser playthrough, six of them one bug
+
+A full play of Act 1 on a phone-sized viewport, after §58 shipped. Seven
+defects, and six were the same defect wearing different clothes.
+
+### The class: a cost quoted at the wrong recipe
+
+Grade and volume pricing made "what does a cup cost" a question with an
+argument. Six places answered it without passing the argument, so all six
+quoted the *normal* lemon:
+
+| Where | What a child was told | The truth |
+|---|---|---|
+| The price screen's floor | "a cup costs you **$0.20** — charge more than that" | 29c, so 25c looked like a profit and lost money on every cup |
+| The rehearsal bench | this plan makes **$23.98** | $20.38, on the screen whose whole job is being wrong for free |
+| Planned-versus-actual | "planned **$31.54**" vs actual $28.74 | equal — a $2.80 shortfall on a day where every cup planned was sold |
+| The "you keep" chip | **$0.81** a cup | 70c |
+| `profitIfSold` — "if all sells" | **$42.00** | $38.38 |
+| The challenge summary | a posh week costed as a cheap one | the figure two children compare side by side |
+
+Every one was a call site that built a plan or a projection and left `grade`
+out, so it silently took the default. The worst two are the price floor and the
+bench, because both actively advise: one names the number a price has to beat,
+the other is the game's only planning tool.
+
+**The default that made §58 safe is what made these possible.** `grade`
+defaults to `regular`, which is exactly the old economy — so a forgotten
+argument does not crash, does not fail a type check, and produces a plausible
+number. That is the trade: an identity element buys a safe migration and pays
+for it in silent-wrongness at every call site that forgets.
+
+Two structural fixes rather than six patches:
+
+- **`DayRecord` now records `ingredientCost`.** Anything summarising a past day
+  used to recompute it, and the bulk discount depends on how many lemons were
+  bought *that morning*, which no later reader can recover. The day is the only
+  correct source.
+- **`projectDay` takes the grade and hands it down**, and every figure it
+  produces comes from the plan it already built. The old code built a plan with
+  the recipe on one line and then priced the cup flat three lines later.
+
+`tests/stage1.test.ts` now asserts the *class*: every figure describing a day
+has to move when the recipe does. A new call site that forgets fails there
+rather than in a browser.
+
+### The one that was not that
+
+**A rival appeared in Act 1.** `closeDay` called `advanceRival` with no act
+guard and `RIVAL_APPEARS_ON_DAY` is 3, so on day three a competitor turned up
+on the stand with a price — and did nothing at all, because Act 1 runs on
+`DEFAULT_DAY_PARAMS` and never consults `deriveDayParams`. A child watched
+somebody undercut them and nothing happened.
+
+Wrong twice: a mechanic wired to nothing (§40, again), and `competition` is an
+Act 2 word — FRAMEWORK.md §1 says Stage 1's demand is "driven only by price +
+quality ... No weather, competition, location".
+
+Pre-existing, and it took a playthrough to find because no test asserted the
+absence of something. The guard went into `advanceRival` itself rather than the
+call site, because the call site is what forgot; and the test was checked by
+deleting the guard and watching it fail with *"a rival turned up on Act 1 day
+3"*.
+
+### Three that were mine, from §58's own changes
+
+- **The day-one goal strip** still read "7 days to grow $20.00" — a third
+  objective, next to a stage that now ends on two good days and a plan screen
+  that names "$25 in a day, twice" from day three. Now "Two days to try things
+  out", which is what those days are actually for.
+- **The header disagreed with the title**: "Day 1 / 7" above a screen headed
+  "Day 2". `PlanScreen` reads `stage?.day ?? history.length + 1`; Act 1 had no
+  stage entry until the goal arrived and so took the correct fallback. The new
+  entry passed days *banked* rather than the day about to be played.
+- **A reload switched the recipe back to normal.** `ShopScreen` defaulted the
+  grade instead of carrying it, and its own comment claimed it "is only ever
+  reached on a run's first day" — which a resumed Act 1 save disproves, because
+  `morning → shop → price` is exactly the path a resume takes. Worse than a
+  reset: word of mouth reads *yesterday's* grade, so demand would have moved
+  for a decision the child never made.
+
+### And two pieces of copy that assumed a seven-day week
+
+`WeekEndScreen`'s `short` branch was written for a one-day duel and keyed on
+`days < TOTAL_DAYS`, so a four-day run that hit the goal twice was told "that
+was your day" and denied "you figured out pricing" — the run that had most
+obviously figured out pricing. And the chart was labelled "your 7 days" over
+four columns.
+
+### What the playthrough could not cover
+
+Two of the five tours were driven in a browser: the stand and the yard, which
+are the two most different screens in the product, and the `Spotlight` geometry
+is shared. Funding, listing and market are covered only by the static anchor
+test — that every step points at an element that exists. Reaching Act 3, 4 and
+5 honestly takes another twenty-odd days of play, and the honest statement is
+that their *layout* has not been looked at on a phone.

@@ -18,13 +18,22 @@ import {
   gradeDemandFactor,
   ingredientCostOf,
   lemonUnitCost,
+  orderForTargetCups,
+  projectDay,
   purchaseCost,
+  rehearseDay,
   round2,
   runDay,
   type GameState,
   type LemonGrade,
 } from '../src/lib/simulation';
 import { act1Complete, act1Progress, createGame } from '../src/lib/progress';
+import { summariseRun } from '../src/lib/challenge';
+import {
+  RIVAL_APPEARS_ON_DAY,
+  advanceRival,
+  createBusinessState,
+} from '../src/lib/business';
 
 const params = { ...DEFAULT_DAY_PARAMS, lastDay: null };
 
@@ -359,5 +368,161 @@ describe('nothing about the old economy moved', () => {
 
   it('costs a flat lemon exactly what it always did, below the first tier', () => {
     expect(ingredientCostOf(8).total).toBe(round2(2 * ECON.LEMON_COST + 8 * 0.04 + 8 * 0.03));
+  });
+});
+
+describe('nothing quotes a cost at the wrong recipe', () => {
+  /*
+   * Four bugs in one browser playthrough, all the same shape: a screen working
+   * out what a cup costs *without* being told which lemon was bought, and so
+   * quoting the normal price.
+   *
+   *   - the price screen's floor — "a cup costs you $0.20, charge more than
+   *     that" when it cost 29c, which makes 25c look like a profit;
+   *   - the rehearsal bench — a plan that made $20.38 reported as $23.98, on
+   *     the one screen whose job is being wrong for free;
+   *   - the planned-versus-actual line — "planned $17.54" against an actual
+   *     $14.74, a $2.80 shortfall on a day where every cup planned was sold;
+   *   - the challenge summary, which two children read side by side.
+   *
+   * Each was a call site that built a plan or a projection and left the grade
+   * out, so it silently took the default. These assertions are about the
+   * *class*: every figure that describes a day has to move when the recipe
+   * does. A new call site that forgets fails here rather than in a browser.
+   */
+  it('makes every forward projection answer to the recipe', () => {
+    const fresh = createGame(7).stand;
+    for (const price of [1, 2]) {
+      const cheap = projectDay(fresh, 28, price, params, 'value');
+      const normal = projectDay(fresh, 28, price, params, 'regular');
+      const posh = projectDay(fresh, 28, price, params, 'organic');
+
+      expect(cheap.costPerCup).toBeLessThan(normal.costPerCup);
+      expect(posh.costPerCup).toBeGreaterThan(normal.costPerCup);
+      // And the margin has to move the other way, or the trade is invisible.
+      expect(posh.marginPerCup).toBeLessThan(normal.marginPerCup);
+      expect(cheap.marginPerCup).toBeGreaterThan(normal.marginPerCup);
+    }
+  });
+
+  it('makes the rehearsal answer to the recipe', () => {
+    /*
+     * The bench borrows yesterday's crowd, so it needs a day behind it. The
+     * bug: `rehearseDay` takes `Decisions`, `grade` is optional on
+     * `Decisions`, and the caller left it out.
+     */
+    let state: GameState = createGame(7).stand;
+    state = runDay(state, { ...batchPlan(state, 28).order, price: 1 }, params).nextState;
+    const yesterday = state.history[state.history.length - 1];
+
+    const order = orderForTargetCups(state, 36);
+    const cheap = rehearseDay(state, { ...order, price: 1, grade: 'value' }, params, yesterday);
+    const posh = rehearseDay(state, { ...order, price: 1, grade: 'organic' }, params, yesterday);
+    expect(cheap, 'the bench refused a rehearsal').not.toBeNull();
+    expect(posh).not.toBeNull();
+    expect(posh!.ingredients.total).toBeGreaterThan(cheap!.ingredients.total);
+  });
+
+  it('records what a day cost, so nothing has to guess later', () => {
+    /*
+     * The structural half of the fix. A reader of an old day cannot recover
+     * the bulk discount — it depended on how many lemons were bought that
+     * morning — so the day has to say what it cost.
+     */
+    let state: GameState = createGame(7).stand;
+    for (const grade of GRADE_ORDER) {
+      const plan = batchPlan(state, 40, grade);
+      const outcome = runDay(state, { ...plan.order, price: 1.5, grade }, params);
+      const record = outcome.nextState.history[outcome.nextState.history.length - 1];
+      expect(record.ingredientCost, `no cost recorded for a ${grade} day`).toBe(
+        outcome.ingredients.total,
+      );
+      expect(record.grade).toBe(grade);
+      state = outcome.nextState;
+    }
+  });
+
+  it('summarises a week at what it really cost', () => {
+    /*
+     * Two children compare weeks on a challenge code, and the entire claim is
+     * that the figures are the same week decided differently. A summary that
+     * priced every lemon the same made a posh week look cheaper than it was.
+     */
+    const play = (grade: LemonGrade) => {
+      let state: GameState = createGame(7).stand;
+      for (let day = 0; day < 5; day++) {
+        const plan = batchPlan(state, 40, grade);
+        state = runDay(state, { ...plan.order, price: 1.5, grade }, params).nextState;
+      }
+      return summariseRun(7, 'Ada', state.history, 0);
+    };
+
+    const cheap = play('value');
+    const posh = play('organic');
+
+    /*
+     * `RunResult` carries `grossProfit` rather than the ingredient cost — the
+     * comment on that field explains why it is carried and not recomputed: a
+     * whole lemon is cut even for one cup, so a week's cost is not the cost of
+     * the week's total cups. The implied ingredient bill is the difference.
+     */
+    const bill = (run: { revenue: number; grossProfit: number }) =>
+      round2(run.revenue - run.grossProfit);
+
+    expect(
+      bill(posh),
+      'a posh week was summarised as costing no more than a cheap one',
+    ).toBeGreaterThan(bill(cheap));
+  });
+});
+
+describe('Stage 1 has none of the later complications', () => {
+  /*
+   * FRAMEWORK.md §1: Stage 1's demand is "driven only by price + quality at
+   * this stage. No weather, competition, location, etc."
+   *
+   * Weather is a deliberate exception, recorded in §15 — removing it would
+   * cost the forecast, two Act 1 words and the whole premise of the Same-Sky
+   * Challenge. Competition and location are not exceptions, and one of them
+   * was leaking.
+   */
+  it('never puts a rival on the street in the first stage', () => {
+    /*
+     * `advanceRival` had no act guard and `RIVAL_APPEARS_ON_DAY` is 3, so a
+     * competitor appeared on Act 1 day three — drawn on the stand, with a
+     * price, affecting nothing, because Act 1 runs on DEFAULT_DAY_PARAMS.
+     * Found by playing to day four in a browser.
+     *
+     * Asserted over the whole stage rather than at day three, so a change to
+     * when the rival arrives cannot reintroduce it.
+     */
+    let business = createBusinessState();
+    for (let actDay = 0; actDay <= ECON.TOTAL_DAYS + 2; actDay++) {
+      business = { ...business, rival: advanceRival(business, actDay, 1.5, 1) };
+      expect(
+        business.rival.active,
+        `a rival turned up on Act 1 day ${actDay}`,
+      ).toBe(false);
+    }
+  });
+
+  it('still lets the rival arrive once the stands stage begins', () => {
+    /* The guard must not have switched competition off altogether. */
+    const business = createBusinessState();
+    const arrived = advanceRival(business, RIVAL_APPEARS_ON_DAY, 1.5);
+    expect(arrived.active, 'the rival never arrives in Act 2 either').toBe(true);
+    expect(arrived.price).toBeLessThan(1.5);
+  });
+
+  it('leaves Act 1 demand answering to price and quality alone', () => {
+    /*
+     * The property behind the row. Act 1 hands `DEFAULT_DAY_PARAMS` to every
+     * day, so nothing a later stage adds — market share, capacity, subscribers
+     * — can move the first stage's crowd.
+     */
+    expect(DEFAULT_DAY_PARAMS.marketShare).toBe(1);
+    expect(DEFAULT_DAY_PARAMS.subscribers).toBe(0);
+    expect(DEFAULT_DAY_PARAMS.equityShare).toBe(0);
+    expect(DEFAULT_DAY_PARAMS.demandMultiplier).toBe(1);
   });
 });

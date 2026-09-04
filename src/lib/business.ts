@@ -825,8 +825,25 @@ export function advanceRival(
   business: BusinessState,
   actDay: number,
   myPrice: number,
+  /**
+   * Which stage this is. Below 2 there is no rival, ever.
+   *
+   * The guard lives here rather than at the call site because the call site
+   * forgot: `closeDay` advanced the rival on every day of every act, and
+   * `RIVAL_APPEARS_ON_DAY` is 3, so a competitor appeared on **Act 1 day
+   * three** — drawn on the stand, with a price, affecting nothing, because
+   * Act 1 runs on `DEFAULT_DAY_PARAMS` and never consults `deriveDayParams`.
+   *
+   * FRAMEWORK.md §1 says Stage 1's demand is "driven only by price + quality
+   * ... No weather, competition, location", and `competition` is an Act 2
+   * word. Defaults to 2 so every existing caller and test means what it
+   * always meant.
+   */
+  act = 2,
 ): RivalState {
   const { rival } = business;
+
+  if (act < 2) return rival;
 
   if (!rival.active) {
     if (actDay >= RIVAL_APPEARS_ON_DAY) {

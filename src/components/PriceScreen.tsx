@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ECON, ingredientCostOf, type GameState } from '@/lib/simulation';
+import { ECON, type GameState } from '@/lib/simulation';
 import { PipBubble } from './Pip';
 import { ActionFooter, ChunkyButton, HeaderBar, SignHeading, Sky, money, plural } from './ui';
 import { Stand } from './Stand';
@@ -17,12 +17,28 @@ import { Stand } from './Stand';
 export function PriceScreen({
   state,
   cupsMakeable,
+  perCupCost,
   learned,
   onConfirm,
   onBack,
 }: {
   state: GameState;
   cupsMakeable: number;
+  /**
+   * What a cup of *today's* lemonade costs, at the recipe just chosen.
+   *
+   * Passed in rather than derived here. This screen used to call
+   * `ingredientCostOf(cupsMakeable)`, which prices lemons flat — so after the
+   * grade lever arrived it told a child who had just bought posh lemons that a
+   * cup cost 20c when it cost 29c, and then said "charge more than that".
+   * That is the one number a price has to beat, and it was wrong in the
+   * direction that loses money on every cup.
+   *
+   * The caller knows the grade and the order size, and the order size is what
+   * decides the bulk discount, so the caller is the only place this can be
+   * worked out correctly.
+   */
+  perCupCost: number;
   learned: string[];
   onConfirm: (price: number) => void;
   onBack: () => void;
@@ -30,7 +46,7 @@ export function PriceScreen({
   const yesterday = state.history[state.history.length - 1];
   const [price, setPrice] = useState(() => yesterday?.price ?? 1);
 
-  const perCup = cupsMakeable > 0 ? ingredientCostOf(cupsMakeable).perCup : 0;
+  const perCup = perCupCost;
   const marginPerCup = price - perCup;
   const showMargin = learned.includes('margin') || learned.includes('unit-cost');
   const firstEver = state.history.length === 0;

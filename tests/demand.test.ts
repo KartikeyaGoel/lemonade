@@ -68,7 +68,19 @@ describe('the discoverable optimum (the whole point of Act 1)', () => {
     const optimal = counterfactualProfit(1.6, 'mild', UNLIMITED);
     expect(cupsWantedAt(0.75, 'mild')).toBeGreaterThan(cupsWantedAt(1.6, 'mild'));
     expect(cheap).toBeLessThan(optimal);
-    expect(cheap).toBeCloseTo(19.6, 2);
+    /*
+     * $20.20, up from $19.60 when this figure was first written down.
+     *
+     * `counterfactualProfit` now prices lemons the way a child actually buys
+     * them, which means a 45-cup day needs twelve lemons and twelve lemons
+     * earn the bulk discount — 45c each rather than 50c. The old figure was
+     * right for a world where every lemon cost the same.
+     *
+     * The optimum is untouched: the test above still finds $1.60 and a profit
+     * between $33 and $35, so the shape of the curve — the thing Act 1 exists
+     * to teach — did not move. Only the arithmetic got more honest.
+     */
+    expect(cheap).toBeCloseTo(20.2, 2);
   });
 
   it('punishes greed too, so there is a real peak to find and not a ramp', () => {

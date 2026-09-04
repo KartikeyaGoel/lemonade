@@ -220,7 +220,14 @@ export function PlanScreen({
       return;
     }
     const order = orderForTargetCups(state, targetCups);
-    const outcome = rehearseDay(state, { ...order, price }, params, yesterday);
+    /*
+     * The recipe goes into the rehearsal too.
+     *
+     * Without it the bench priced every plan at the normal lemon and told a
+     * child holding posh lemons that a plan made $23.98 when it made $20.38 —
+     * on the one screen whose whole job is to let them be wrong for free.
+     */
+    const outcome = rehearseDay(state, { ...order, price, grade }, params, yesterday);
     if (!outcome) return;
 
     const attempt = asTry(nextTryId, targetCups, outcome);

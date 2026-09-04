@@ -291,6 +291,20 @@ export interface DayRecord {
    * before grades existed reads back as `regular`, which is what it was.
    */
   grade?: LemonGrade;
+  /**
+   * What the cups sold today actually cost to make.
+   *
+   * Recorded rather than recomputed. Anything summarising a past day used to
+   * work this out with `ingredientCostOf(day.cupsSold)`, which prices lemons
+   * flat — fine while every lemon cost the same, and wrong from the moment
+   * grade and volume could move it. The bulk discount depends on how many were
+   * bought *that morning*, which no later reader can recover, so the only
+   * correct source is the day itself.
+   *
+   * Optional, so a pre-grade save falls back to the flat figure, which is what
+   * those days really cost.
+   */
+  ingredientCost?: number;
   /** Share of the street that came to them, after competition. 1 means alone. */
   marketShare?: number;
   /** Everything owed today whether or not anyone bought. */
@@ -1029,6 +1043,7 @@ export function runDay(
     fixedCost,
     spoiledLemons: aged.spoiledLemons,
     grade,
+    ingredientCost: ingredients.total,
     forecast: state.forecast,
     seedBefore: state.seed,
   };
@@ -1271,11 +1286,14 @@ export function counterfactualProfit(
   weather: Weather,
   cupsMakeable: number,
   params?: Partial<DayParams>,
+  grade: LemonGrade = DEFAULT_GRADE,
 ): number {
   const resolved = resolveDayParams(params);
   const wanted = Math.round(cupsWantedWith(price, weather, resolved));
   const sold = Math.min(wanted, cupsMakeable);
-  const ing = ingredientCostOf(sold);
+  // Costed at the recipe, like everything else that quotes a cup's cost.
+  const lemons = lemonsNeededFor(sold);
+  const ing = ingredientCostOf(sold, round2(lemons * lemonUnitCost(grade, lemons)));
   return round2(sold * price - ing.total - totalFixedCost(resolved.fixedCosts));
 }
 
@@ -1695,15 +1713,27 @@ export interface DayProjection {
   worstCase: { cupsSold: number; revenue: number; profit: number };
 }
 
-/** Profit if exactly `cupsSold` cups sell at `price` from this batch. */
+/**
+ * Profit if exactly `cupsSold` cups sell at `price` from this batch.
+ *
+ * `grade` matters and used to be missing, which put a phantom gap on the close
+ * screen's planned-versus-actual line: a day of posh lemonade where every cup
+ * planned was a cup sold read "planned $31.54" against an actual $28.74,
+ * because the plan was costed at the normal lemon. A comparison screen exists
+ * to show a child where a plan went wrong, so inventing a shortfall is worse
+ * than showing none.
+ */
 export function profitIfSold(
   cupsSold: number,
   price: number,
   params?: Partial<DayParams>,
+  grade: LemonGrade = DEFAULT_GRADE,
 ): number {
   const sold = Math.max(0, Math.floor(cupsSold));
   const fixed = totalFixedCost(resolveDayParams(params).fixedCosts);
-  return round2(sold * price - ingredientCostOf(sold).total - fixed);
+  const lemons = lemonsNeededFor(sold);
+  const spend = round2(lemons * lemonUnitCost(grade, lemons));
+  return round2(sold * price - ingredientCostOf(sold, spend).total - fixed);
 }
 
 export function projectDay(
@@ -1719,13 +1749,27 @@ export function projectDay(
   const cups = Math.min(plan.cupsMakeable, Math.floor(params.serviceCapacity));
   // Round the per-cup cost before deriving margin from it. The kid will
   // subtract the two figures we show them, and must get the answer we show.
-  const costPerCup = toCents(cups > 0 ? ingredientCostOf(cups).perCup : ingredientCostOf(1).perCup);
+  /*
+   * Taken from the plan above, which was priced at the chosen grade.
+   *
+   * This line used to call `ingredientCostOf(cups)` — flat — three lines after
+   * building a plan that knew the recipe. So every figure downstream of it was
+   * quoted at the normal lemon: the "you keep" chip on the stand, the
+   * break-even in cups, the "you keep nothing per cup" warning, and the yard's
+   * advice. A child holding posh lemons at a dollar was told they kept 81c a
+   * cup when they kept 70c.
+   */
+  const costPerCup = toCents(
+    cups > 0
+      ? plan.costPerCup
+      : ingredientCostOf(1, lemonUnitCost(grade, 1)).perCup,
+  );
   const marginPerCup = toCents(price - costPerCup);
 
   const scenario = (cupsSold: number) => ({
     cupsSold,
     revenue: round2(cupsSold * price),
-    profit: profitIfSold(cupsSold, price, params),
+    profit: profitIfSold(cupsSold, price, params, grade),
   });
 
   return {

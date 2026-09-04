@@ -599,7 +599,15 @@ export default function Page() {
       const progress = act1Progress(game.stand);
       return {
         goal: progress.goal,
-        day: game.stand.history.length,
+        /*
+         * The day about to be played, not the number already banked.
+         *
+         * `PlanScreen` reads `stage?.day ?? state.history.length + 1` for its
+         * header. Act 1 had no stage entry before the goal existed, so it took
+         * that fallback and was right; supplying `history.length` here made
+         * the header read "Day 1 / 7" above a screen titled "Day 2".
+         */
+        day: game.stand.history.length + 1,
         total: ECON.TOTAL_DAYS,
       };
     }
@@ -768,7 +776,15 @@ export default function Page() {
       const today = queue.slice(0, WORDS_PER_DAY);
       const waiting = queue.slice(WORDS_PER_DAY);
 
-      setPlanned(projectDay(game.stand, cups, price, params));
+      /*
+       * Projected at the recipe the day was actually played with.
+       *
+       * At the normal lemon this said a perfect day had "planned $17.54"
+       * against an actual $14.74 — a $2.80 shortfall on a day where every cup
+       * planned was a cup sold. The comparison screen exists to show a child
+       * where a plan went wrong, so a phantom gap is worse than no gap.
+       */
+      setPlanned(projectDay(game.stand, cups, price, params, grade));
       setOutcome(result);
       setNewInsights(today);
 
@@ -844,7 +860,21 @@ export default function Page() {
     const nextStand = outcome.nextState;
     const business = {
       ...game.business,
-      rival: advanceRival(game.business, stageDay, outcome.price),
+      /*
+       * No rival in the first stage.
+       *
+       * `advanceRival` had no act guard and `RIVAL_APPEARS_ON_DAY` is 3, so a
+       * competitor turned up on Act 1 day three — visible on the stand, with a
+       * price, and doing *nothing*, because Act 1 runs on `DEFAULT_DAY_PARAMS`
+       * and never consults `deriveDayParams`. A child watched somebody
+       * undercut them and nothing happened.
+       *
+       * Wrong twice over: a mechanic wired to nothing (PRODUCT.md §40), and
+       * competition is an Act 2 word — FRAMEWORK.md §1 says Stage 1's demand
+       * is "driven only by price + quality ... No weather, competition,
+       * location". Found by playing to day four.
+       */
+      rival: advanceRival(game.business, stageDay, outcome.price, game.act),
       daysAtPark:
         game.business.location === 'park' ? game.business.daysAtPark + 1 : game.business.daysAtPark,
     };
@@ -1624,8 +1654,11 @@ export default function Page() {
       ? recentDays.reduce((sum, day) => sum + day.cupsSold, 0) / recentDays.length
       : 0;
   const recentMargin = (() => {
-    const lastPrice = game.stand.history[game.stand.history.length - 1]?.price ?? 1.6;
-    return projectDay(game.stand, 40, lastPrice, dayParams).marginPerCup;
+    const last = game.stand.history[game.stand.history.length - 1];
+    const lastPrice = last?.price ?? 1.6;
+    // At the recipe they are actually buying, or the yard prices its advice
+    // off a lemon this child does not use.
+    return projectDay(game.stand, 40, lastPrice, dayParams, last?.grade).marginPerCup;
   })();
 
   const thesisReport = game.portfolio
@@ -1781,7 +1814,8 @@ export default function Page() {
       return (
         <PriceScreen
           state={game.stand}
-          cupsMakeable={batchPlan(game.stand, targetCups).cupsMakeable}
+          cupsMakeable={batchPlan(game.stand, targetCups, targetGrade).cupsMakeable}
+          perCupCost={batchPlan(game.stand, targetCups, targetGrade).costPerCup}
           learned={game.learned}
           onBack={() => setPhase('shop')}
           onConfirm={(price) => openStand(price, targetCups, false, targetGrade)}

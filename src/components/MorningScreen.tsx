@@ -29,9 +29,19 @@ export function MorningScreen({ state, onContinue }: { state: GameState; onConti
 
         {firstEver && (
           <div className="w-full">
-            <GoalStrip>
-              {ECON.TOTAL_DAYS} days to grow {money(ECON.STARTING_CASH)}
-            </GoalStrip>
+            {/*
+              Day one, and the stage's real goal has not been set yet.
+              FRAMEWORK.md §1 asks for "1-2 exploratory rounds without a
+              target", so this says what the next two days are *for* rather
+              than naming a figure.
+
+              It used to read "7 days to grow $20.00", which was a third
+              objective: the stage now ends on two good days rather than on the
+              clock, and the plan screen names "$25 in a day, twice" from day
+              three. Two different goals inside one stage, and a child cannot
+              tell which one they are being judged on.
+            */}
+            <GoalStrip>Two days to try things out</GoalStrip>
           </div>
         )}
 

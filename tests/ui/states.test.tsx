@@ -217,6 +217,9 @@ describe('the stand', () => {
           <PriceScreen
             state={playedState(2)}
             cupsMakeable={cups}
+            // Zero as well as a real figure: a screen that says "charge more
+            // than $0.00" on a batch of nothing must still render.
+            perCupCost={cups > 0 ? 0.29 : 0}
             learned={learned as string[]}
             onConfirm={noop}
             onBack={noop}

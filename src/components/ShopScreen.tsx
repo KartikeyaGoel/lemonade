@@ -31,10 +31,15 @@ import { ActionFooter, ChunkyButton, HeaderBar, SignHeading, Sky, money, plural 
  * screen — what a cup costs him, which is the floor his price has to clear.
  * That line was the smallest and faintest thing on the card, under the total.
  *
- * So it leads now. The itemisation stays open, because this screen is only
- * ever reached on a run's first day — `morning → shop → price` runs at the
- * start of a run and every later day goes straight to the stand — and on day
- * one the receipt *is* the unit-cost lesson. The screen he was actually
+ * So it leads now. The itemisation stays open, because this screen is mostly
+ * reached on a run's first day — `morning → shop → price` runs at the start of
+ * a run and, within a session, every later day goes straight to the stand —
+ * and on day one the receipt *is* the unit-cost lesson.
+ *
+ * "Mostly", not "only": a *resumed* Act 1 save also comes through here, so
+ * this screen sees day two and later after a reload. That correction cost a
+ * bug — the recipe defaulted to normal here and so a reload silently switched
+ * a child off the lemons they had chosen. The screen he was actually
  * describing is the daily profit and loss, which is where the disclosure
  * belongs, because that one fires twenty-one times.
  */
@@ -55,7 +60,22 @@ export function ShopScreen({
    * this is the shopping screen and a product choice is a shopping decision.
    * Day two onward the same picker is inside the crate of lemons on the stand.
    */
-  const [grade, setGrade] = useState<LemonGrade>(DEFAULT_GRADE);
+  /*
+   * Carried forward from yesterday, not reset.
+   *
+   * A recipe is a standing decision. A child who switched to posh lemons has
+   * not decided to switch back this morning — and `gradeDemandFactor` reads
+   * yesterday's grade for word of mouth, so a silent reset moves demand for a
+   * reason they did not choose.
+   *
+   * This screen's own comment says it "is only ever reached on a run's first
+   * day". That is not true: `morning → shop → price` is also the path a
+   * *resumed* Act 1 save takes, so day two onward lands here after a reload
+   * and the reset was visible on the second screen of a real session.
+   */
+  const [grade, setGrade] = useState<LemonGrade>(
+    () => state.history[state.history.length - 1]?.grade ?? DEFAULT_GRADE,
+  );
   const plan = batchPlan(state, target, grade);
 
   const firstEver = state.history.length === 0;

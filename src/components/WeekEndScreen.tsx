@@ -1,8 +1,8 @@
 'use client';
 
-import { ECON, closingTakeaway, type GameState, weekSummary } from '@/lib/simulation';
+import { closingTakeaway, type GameState, weekSummary } from '@/lib/simulation';
 import { ACT_TITLES } from '@/lib/progress';
-import { ChunkyButton, Sky, money } from './ui';
+import { ChunkyButton, Sky, money, plural } from './ui';
 
 /**
  * End of the week. The kid gets to see their own learning curve plotted:
@@ -27,9 +27,17 @@ export function WeekEndScreen({
   challengeResult?: boolean;
 }) {
   const summary = weekSummary(state.history);
-  // A duel is one day, and a screen that says "seven days" after one of them
-  // is the kind of small lie that makes a kid stop trusting the numbers.
-  const short = summary.days < ECON.TOTAL_DAYS;
+  /*
+   * A duel is one day, and a screen that says "seven days" after one of them
+   * is the kind of small lie that makes a kid stop trusting the numbers.
+   *
+   * One day, not "fewer than seven". Act 1 now ends when the profit goal has
+   * been hit twice, so a child who priced well finishes on day four — and this
+   * read `days < TOTAL_DAYS`, which told them "that was your day" after four
+   * of them and withheld "you figured out pricing" from the run that had most
+   * obviously figured out pricing.
+   */
+  const short = summary.days <= 1;
 
   return (
     <Sky mood="dawn">
@@ -165,7 +173,10 @@ function PriceProfitChart({ state }: { state: GameState }) {
         <span className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/50">
           Profit vs price
         </span>
-        <span className="font-body text-[11px] font-bold text-ink/40">your 7 days</span>
+        {/* However many were actually played, which is no longer always seven. */}
+        <span className="font-body text-[11px] font-bold text-ink/40">
+          your {plural(history.length, 'day')}
+        </span>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Your profit at each price you tried">
         {/* Break-even line */}

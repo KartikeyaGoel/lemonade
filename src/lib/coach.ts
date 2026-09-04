@@ -145,10 +145,7 @@ export const YARD_TOUR: Tour = {
   steps: [
     {
       target: 'plot-cooler',
-      lines: [
-        'Things you buy once and keep forever.',
-        'They cost money today and every day after is cheaper.',
-      ],
+      lines: ['Things you buy once and keep forever.', 'You pay today. It helps every day after.'],
     },
     {
       target: 'plot-manager',
