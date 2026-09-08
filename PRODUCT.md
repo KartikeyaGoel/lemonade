@@ -3762,3 +3762,84 @@ in the matrix now, and
 it: every `*Screen.tsx` must be named by some UI test. Verified by adding an
 empty screen and watching it fail.
 
+## 65. Four rewards nobody could earn
+
+§64 said Level 2 was built. Checking that claim properly — going back to the
+customer's list of twelve credit behaviours and asking of each one *"can a
+child actually do this?"* rather than *"is it in the table?"* — found four that
+paid nothing.
+
+| Behaviour, in the customer's words | Deed | State |
+| --- | --- | --- |
+| "identifying excessive concentration" | `trimmed-concentration` | in the table, awarded nowhere |
+| "checking whether the thesis changed" | `checked-a-thesis` | in the table, awarded nowhere |
+| "reviewing a mistake" | `reviewed-a-mistake` | in the table, awarded nowhere |
+| "staying invested over time" | — | mapped onto the wrong thing |
+
+A child could read **"Noticed too much was in one company — 20"** on the
+credits screen and there was no way in the game to do it. That is worse than a
+reward which does not exist: it is a promise on a screen, in the one part of
+the product whose entire argument is that nothing is given away.
+
+### Why no gate saw it
+
+This is §40 — a mechanic written, tested, and wired to nothing — in the one
+shape §40's guard cannot see. `check-dead-code` finds exported functions with
+no callers. A `Deed` is **a member of a union**, not an export, so the moment
+anything imports the type the whole union counts as used. `EARNERS` had a row
+for each one, `tests/ledger.test.ts` exercised the payout arithmetic for each
+one, and every test passed.
+
+So the guard is now a source scan in
+[`tests/ledger.test.ts`](tests/ledger.test.ts): every deed in `EARNERS` must
+have a real `noteDeed('…')` or `awardFor(…, '…')` somewhere in `src`, and every
+member of the union must have an earner. Written before the fix, so it named
+all three on its first run.
+
+### Where each one belongs
+
+Two of the three were unwired because the screen that should have offered them
+was **display-only**, which is worth noting as its own small pattern: a card
+that ends on a question with nothing to press.
+
+- **`trimmed-concentration`** → the check-in's fourth step, answered right.
+  Paid for the correct answer on a portfolio that really is concentrated, never
+  for picking the option. Reachable only at one or two holdings, because
+  `market.ts` refuses any single position over 35% — which is the shape of
+  concentration a child can actually create.
+- **`checked-a-thesis`** → the drift card on the market screen. It ended on
+  *"Want to think again?"* with no way to answer, which made the question
+  rhetorical. It has a button now.
+- **`reviewed-a-mistake`** → the reckoning, per card, and **only on the two
+  verdicts that are mistakes.** "Lucky" is the money going up while the reason
+  was wrong; "now you know" is both going wrong. Tapping past "Good call" is
+  not a review, and paying for it would be paying to read good news.
+
+### The fourth was a mapping error, not a missing wire
+
+"Staying invested over time" had been counted as satisfied by the streak. It is
+not. **The streak counts days the *child* did something; this counts weeks the
+*position* was left alone** — and a child can turn up every single day and
+still churn. The customer's own example makes it plain: "you held a stock for 3
+days, here's 50".
+
+So `held-a-while` exists, at 25 credits — more than writing a thesis pays,
+because leaving something alone for a month is harder than buying it was. Two
+details carry it:
+
+- **Counted from the first buy, not the last top-up.** Adding to a position you
+  believe in must not reset your patience; the thing being measured is how long
+  the child stuck with the idea.
+- **Paid once per holding, not once per week.** The call site checks the ledger
+  for that ticker first. Paid weekly, patience becomes a salary and stops being
+  a decision.
+
+### The lesson worth keeping
+
+"Is it built?" and "is it in the code?" are different questions, and a reward
+table is where they come apart most easily, because a row in a table looks
+exactly like a feature. The check that found this was mechanical and took a
+minute: list the behaviours the customer asked for, and grep for a call site
+for each. It should have been the last step of §64 rather than the first step
+of §65.
+

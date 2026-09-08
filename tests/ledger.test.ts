@@ -16,6 +16,8 @@
  * only in prose is a hope.
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   DAY_CAP,
   LOG_CAP,
@@ -36,6 +38,7 @@ import {
 } from '../src/lib/ledger';
 import {
   EARNERS,
+  HELD_A_WHILE_WEEKS,
   TOPUP_STEP,
   affordableDollars,
   awardFor,
@@ -46,6 +49,16 @@ import {
   topUp,
   worthNow,
 } from '../src/lib/credits';
+import { buy, createPortfolio, weeksHeld } from '../src/lib/market';
+import { SNAPSHOT } from '../src/lib/companies';
+
+function walkSrc(dir = join(import.meta.dirname, '..', 'src')): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) return walkSrc(full);
+    return /\.tsx?$/.test(full) ? [full] : [];
+  });
+}
 
 /** A ledger with `deeds` written on `on`, paid at the real rates. */
 function after(entries: Array<[Deed, string]>): Ledger {
@@ -440,3 +453,134 @@ describe('the credits card', () => {
     expect(checkedInToday(led, '2026-09-08')).toBe(false);
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * Every deed has to be reachable
+ * ------------------------------------------------------------------ */
+
+describe('the payout table is wired to the game', () => {
+  /*
+   * PRODUCT.md §40: a mechanic written, tested, and wired to nothing.
+   *
+   * This is the shape that class takes in a reward table, and the dead-code
+   * gate cannot see it — a `Deed` is a member of a union, not an export, so
+   * `check-dead-code` counts the union as used the moment anything imports the
+   * type. Three of the customer's twelve credit behaviours sat in `EARNERS`
+   * paying nothing, because no call site ever recorded them: a child could read
+   * "Noticed too much was in one company — 20" on the credits screen and there
+   * was no way in the game to do it.
+   *
+   * A reward you cannot earn is worse than a reward that does not exist. It is
+   * a promise on a screen.
+   */
+  it('has a real call site for every deed', () => {
+    const source = walkSrc()
+      .map((file) => readFileSync(file, 'utf8'))
+      .join('\n');
+
+    const unreachable = EARNERS.map((earner) => earner.deed).filter((deed) => {
+      const noted = new RegExp(`noteDeed\\(\\s*'${deed}'`).test(source);
+      const awarded = new RegExp(`awardFor\\([^)]*'${deed}'`).test(source);
+      return !noted && !awarded;
+    });
+
+    expect(unreachable).toEqual([]);
+  });
+
+  it('has an earner for every deed in the union', () => {
+    // And the other direction: a deed nothing pays for would be recorded and
+    // silently worth nothing, which is the same lie from the other end.
+    const source = readFileSync(
+      join(import.meta.dirname, '..', 'src', 'lib', 'ledger.ts'),
+      'utf8',
+    );
+    const union = [...source.matchAll(/^ {2}\| '([a-z-]+)'/gm)].map((m) => m[1] as Deed);
+    expect(union.length).toBeGreaterThan(10);
+
+    const paid = new Set(EARNERS.map((earner) => earner.deed));
+    expect(union.filter((deed) => !paid.has(deed))).toEqual([]);
+  });
+});
+
+describe('patience, and why it is not a salary', () => {
+  /*
+   * "Staying invested over time" was the last item on the customer's credit
+   * list and the one their example was about — "you held a stock for 3 days,
+   * here's 50 for more trading".
+   *
+   * It had been mapped onto the streak, and that was wrong: the streak counts
+   * days the *child* did something, and this counts weeks the *position* was
+   * left alone. A child can turn up every single day and still churn.
+   */
+  it('counts weeks from the first buy, not from the last top-up', () => {
+    let portfolio = createPortfolio(500);
+    const ticker = SNAPSHOT[0].ticker;
+
+    portfolio = buy(portfolio, ticker, 100).portfolio;
+    expect(weeksHeld(portfolio, ticker)).toBe(0);
+
+    // Three weeks on, and a top-up in the middle.
+    portfolio = { ...portfolio, week: 2 };
+    portfolio = buy(portfolio, ticker, 30).portfolio;
+    portfolio = { ...portfolio, week: 4 };
+
+    /*
+     * Four, not two. The thing being measured is how long the child stuck with
+     * the idea, not how long since they last touched it — otherwise adding to
+     * a position you believe in would reset your patience.
+     */
+    expect(weeksHeld(portfolio, ticker)).toBe(4);
+  });
+
+  it('is nothing for a holding that does not exist', () => {
+    const portfolio = createPortfolio(500);
+    expect(weeksHeld(portfolio, SNAPSHOT[0].ticker)).toBe(0);
+    expect(weeksHeld({ ...portfolio, week: 40 }, 'NOPE')).toBe(0);
+  });
+
+  it('pays once per holding, however many weeks pass', () => {
+    /*
+     * The call site checks the ledger for this ticker before awarding, and
+     * this is the property that check exists for: paid every week, patience
+     * becomes a salary and the reward stops being for a decision.
+     */
+    const today = '2026-09-07';
+    let led = createLedger();
+    const ticker = SNAPSHOT[0].ticker;
+
+    const pay = () => {
+      const already = led.entries.some((e) => e.deed === 'held-a-while' && e.what === ticker);
+      if (already) return 0;
+      const out = awardFor(led, 'held-a-while', today, ticker);
+      led = out.ledger;
+      return out.credits;
+    };
+
+    expect(pay()).toBe(25);
+    expect(pay()).toBe(0);
+    expect(pay()).toBe(0);
+    expect(led.entries.filter((e) => e.deed === 'held-a-while')).toHaveLength(1);
+  });
+
+  it('needs a month of market before it pays at all', () => {
+    let portfolio = createPortfolio(500);
+    const ticker = SNAPSHOT[0].ticker;
+    portfolio = buy(portfolio, ticker, 100).portfolio;
+
+    for (let week = 0; week < HELD_A_WHILE_WEEKS; week += 1) {
+      expect(weeksHeld({ ...portfolio, week }, ticker)).toBeLessThan(HELD_A_WHILE_WEEKS);
+    }
+    expect(weeksHeld({ ...portfolio, week: HELD_A_WHILE_WEEKS }, ticker)).toBe(
+      HELD_A_WHILE_WEEKS,
+    );
+  });
+
+  it('pays patience more than it pays buying', () => {
+    const byDeed = new Map(EARNERS.map((e) => [e.deed, e]));
+    // The point of the row. Buying is 10; leaving it alone for a month is 25.
+    expect(byDeed.get('held-a-while')!.worth).toBeGreaterThan(
+      byDeed.get('wrote-a-thesis')!.worth,
+    );
+  });
+});
+

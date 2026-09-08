@@ -279,6 +279,24 @@ export function positionFraction(portfolio: PortfolioState, ticker: string): num
  * Buying, with the cap
  * ------------------------------------------------------------------ */
 
+/**
+ * How many market weeks a holding has been held, counting from the first buy.
+ *
+ * From the trade log rather than a field on the holding, because the log is
+ * already the record of when money moved and a second copy of "when did this
+ * start" is §62's defect class. A holding topped up later still counts from
+ * the first purchase: the point being measured is how long the child has stuck
+ * with the idea, not how long since they last touched it.
+ */
+export function weeksHeld(portfolio: PortfolioState, ticker: string): number {
+  if (!portfolio.holdings[ticker]) return 0;
+  const firstBuy = portfolio.trades.find(
+    (trade) => trade.ticker === ticker && trade.action === 'buy',
+  );
+  if (!firstBuy) return 0;
+  return Math.max(0, portfolio.week - firstBuy.week);
+}
+
 export interface TradeResult {
   ok: boolean
   reason?: string;

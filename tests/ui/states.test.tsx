@@ -57,6 +57,7 @@ import { awardFor } from '@/lib/credits';
 import { createInbox, openThread, send as sendMessage } from '@/lib/messages';
 import { missionsFor } from '@/lib/missions';
 import { SCOUT_QUESTIONS } from '@/lib/scout';
+import { QUAL_CLAIMS, QUANT_CLAIMS, buildThesis, driftOf } from '@/lib/thesis';
 import { PlanScreen } from '@/components/PlanScreen';
 import { MarketScreen } from '@/components/acts/MarketScreen';
 import { ReckoningScreen } from '@/components/meta/ReckoningScreen';
@@ -1184,6 +1185,116 @@ describe('the Level 2 screens', () => {
     });
     // No theses, so no missions: an empty list is a real answer here.
     expect(missions).toEqual([]);
+  });
+});
+
+/*
+ * The two cards that carry the newly-reachable rewards.
+ *
+ * Both were display-only: the drift card ended on "Want to think again?" with
+ * nothing to press, which made the question rhetorical, and the reckoning
+ * showed every graded reason while recording nothing about whether anybody
+ * read the uncomfortable ones. Two of the customer's twelve credit behaviours
+ * had no way in because of it.
+ */
+describe('the cards that ask a child to look again', () => {
+  it('gives the drift card something to press, and only when there is a drift', () => {
+    const payback = QUANT_CLAIMS.find((claim) => claim.id === 'pays-back-fast')!;
+    const company = SNAPSHOT[0];
+    const cheap = company.price * 0.3;
+    const thesis = buildThesis({
+      company,
+      quantId: payback.id,
+      qualId: QUAL_CLAIMS[0].id,
+      week: 0,
+      priceAtBuy: cheap,
+      dollars: 100,
+    });
+    const drift = driftOf(thesis, company, company.price * 8);
+    expect(drift.drifted).toBe(true);
+    expect(drift.ticker).toBe(company.ticker);
+
+    const withDrift = render(
+      <MarketScreen
+        portfolio={createPortfolio(500)}
+        readiness={readiness(createGame(1))}
+        knowsPE
+        badges={4}
+        studied={[]}
+        drifts={[drift]}
+        onChecked={noop}
+        onResearch={noop}
+        onStartBuy={noop}
+        onSell={noop}
+        onAdvanceWeek={noop}
+        onLeave={noop}
+        onOpenGate={noop}
+      />,
+    );
+    const text = withDrift.container.textContent ?? '';
+    expect(text).toContain('Your reason has changed');
+    expect(
+      [...withDrift.container.querySelectorAll('button')].some((b) =>
+        /I have had a look/.test(b.textContent ?? ''),
+      ),
+    ).toBe(true);
+    for (const bad of POISON) expect(text, `drift card rendered "${bad}"`).not.toContain(bad);
+    cleanup();
+
+    const without = render(
+      <MarketScreen
+        portfolio={createPortfolio(500)}
+        readiness={readiness(createGame(1))}
+        knowsPE
+        badges={4}
+        studied={[]}
+        onChecked={noop}
+        onResearch={noop}
+        onStartBuy={noop}
+        onSell={noop}
+        onAdvanceWeek={noop}
+        onLeave={noop}
+        onOpenGate={noop}
+      />,
+    );
+    expect(without.container.textContent ?? '').not.toContain('Your reason has changed');
+    cleanup();
+  });
+
+  it('offers the review only on the verdicts that are mistakes', () => {
+    /*
+     * Tapping past "Good call" is not reviewing a mistake, so the button must
+     * not be there — otherwise the reward pays for reading good news.
+     */
+    const company = SNAPSHOT[0];
+    const thesis = buildThesis({
+      company,
+      quantId: QUANT_CLAIMS[0].id,
+      qualId: QUAL_CLAIMS[0].id,
+      week: 0,
+      priceAtBuy: company.price,
+      dollars: 100,
+    });
+
+    for (const [label, endPrice] of [
+      ['a win', company.price * 1.4],
+      ['a loss', company.price * 0.6],
+    ] as const) {
+      const report = scoreAll([thesis], () => endPrice);
+      const { container } = render(
+        <ReckoningScreen report={report} onReviewed={noop} onContinue={noop} />,
+      );
+      const hasButton = [...container.querySelectorAll('button')].some((b) =>
+        /Now I see why/.test(b.textContent ?? ''),
+      );
+      const verdict = report.scores[0].verdict;
+      const isMistake = verdict === 'lucky' || verdict === 'now-you-know';
+      expect(hasButton, `${label} (${verdict})`).toBe(isMistake);
+      for (const bad of POISON) {
+        expect(container.textContent ?? '', `${label} rendered "${bad}"`).not.toContain(bad);
+      }
+      cleanup();
+    }
   });
 });
 

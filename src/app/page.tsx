@@ -73,6 +73,7 @@ import {
   currentDate,
   currentPrice,
   holdingValue,
+  weeksHeld,
   markResearched,
   maxSpendOn,
   sell as sellStock,
@@ -206,7 +207,7 @@ import {
   type Inbox,
 } from '@/lib/messages';
 import { missionsFor } from '@/lib/missions';
-import { topUp } from '@/lib/credits';
+import { HELD_A_WHILE_WEEKS, topUp } from '@/lib/credits';
 import { checkIn as buildCheckIn, storyFor, type Answers } from '@/lib/checkin';
 import { awardFor } from '@/lib/credits';
 import { CloseScreen } from '@/components/CloseScreen';
@@ -1492,6 +1493,23 @@ export default function Page() {
     );
     if (ridden) words.push(drawdownInsight(ridden.worstDrawdown, ridden.ticker));
 
+    /*
+     * Patience, paid once per holding.
+     *
+     * "Staying invested over time" from the customer's credit list, and the
+     * one their example was about. Checked here because advancing the week is
+     * the only moment `weeksHeld` can change — and gated on the ledger not
+     * already carrying this ticker, because paying every week would turn
+     * patience into a salary rather than a decision.
+     */
+    for (const ticker of Object.keys(portfolio.holdings)) {
+      if (weeksHeld(portfolio, ticker) < HELD_A_WHILE_WEEKS) continue;
+      const alreadyPaid = ledger.entries.some(
+        (entry) => entry.deed === 'held-a-while' && entry.what === ticker,
+      );
+      if (!alreadyPaid) noteDeed('held-a-while', ticker);
+    }
+
     setGame(queueWords({ ...game, portfolio }, words));
     setWeekReport(report);
     setPhase('week-report');
@@ -1509,7 +1527,7 @@ export default function Page() {
     if (portfolio.status === 'closed' && !live) {
       setLive(createLivePortfolio(totalValue(portfolio)));
     }
-  }, [game, live, queueWords]);
+  }, [game, live, queueWords, ledger.entries, noteDeed]);
 
   /**
    * A new season: a genuinely new stand, and every badge and word kept.
@@ -1615,6 +1633,18 @@ export default function Page() {
         }
         if (answers.needed === 'nothing' && state.needed === 'nothing') {
           noteDeed('held-when-nothing-changed');
+        }
+        /*
+         * "Identifying excessive concentration", which is the note's phrase.
+         *
+         * Awarded for the *right* answer on a portfolio that really is
+         * concentrated, not for picking the option. `neededToday` decides
+         * whether it is true, and it is only true at fewer than three holdings
+         * — the market refuses any single position over 35%, so the concentration
+         * a child can actually create is the two-holding kind.
+         */
+        if (answers.needed === 'spread-out' && state.needed === 'spread-out') {
+          noteDeed('trimmed-concentration');
         }
       }
       setPhase(returnPhase);
@@ -2518,6 +2548,7 @@ export default function Page() {
       return game.portfolio ? (
         <MarketScreen
           drifts={drifts}
+          onChecked={(ticker) => noteDeed('checked-a-thesis', ticker)}
           tour={showTour(MARKET_TOUR.id)}
           onToured={() => markToured(MARKET_TOUR.id)}
           portfolio={game.portfolio}
@@ -2703,6 +2734,7 @@ export default function Page() {
     case 'reckoning':
       return game.portfolio ? (
         <ReckoningScreen
+          onReviewed={(ticker) => noteDeed('reviewed-a-mistake', ticker)}
           report={thesisReport}
           onContinue={() => setPhase('finale')}
         />

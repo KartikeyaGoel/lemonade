@@ -47,6 +47,7 @@ export type Deed =
   | 'trimmed-concentration'
   /* Living with it */
   | 'held-when-nothing-changed'
+  | 'held-a-while'
   | 'named-the-mover'
   | 'told-news-from-noise'
   | 'checked-a-thesis'

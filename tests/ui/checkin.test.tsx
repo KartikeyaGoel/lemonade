@@ -20,6 +20,8 @@ import { createCareer } from '@/lib/career';
 import { createPortfolio } from '@/lib/market';
 import { loadLedger } from '@/lib/storage';
 import { STEPS } from '@/lib/checkin';
+import { buy } from '@/lib/market';
+import { SNAPSHOT } from '@/lib/companies';
 
 /**
  * A save that has reached the market, which is what gives the ritual a subject.
@@ -234,5 +236,69 @@ describe('reaching the check-in', () => {
     }
 
     await waitFor(() => expect(button(/Start selling|Keep going/)).toBeDefined());
+  });
+  /*
+   * "Identifying excessive concentration" — one of the three credit
+   * behaviours that sat in the payout table paying nothing.
+   *
+   * A child could read "Noticed too much was in one company — 20" on the
+   * credits screen and there was no way in the game to do it. A reward you
+   * cannot earn is worse than one that does not exist: it is a promise on a
+   * screen.
+   *
+   * Paid for the *right* answer on a portfolio that really is concentrated,
+   * never for picking the option.
+   */
+  it('pays for spotting concentration, and only when there is some', async () => {
+    const user = userEvent.setup();
+
+    // Two holdings: under the 35% single-position cap, over the concentration
+    // line, which is the only shape of concentration a child can create.
+    const base = createGame(4242);
+    let portfolio = createPortfolio(500);
+    const priceHistory = Object.fromEntries(
+      Object.entries(portfolio.priceHistory).map(([t, series]) => [
+        t,
+        [series[0], series[0] * 1.02],
+      ]),
+    );
+    portfolio = { ...portfolio, week: 1, priceHistory };
+    for (const company of SNAPSHOT.slice(0, 2)) {
+      portfolio = buy(portfolio, company.ticker, 150).portfolio;
+    }
+
+    window.localStorage.setItem(
+      'lemonade.save.v2',
+      JSON.stringify({ ...base, version: SAVE_VERSION, act: 5, portfolio }),
+    );
+    window.localStorage.setItem('lemonade.career.v1', JSON.stringify(createCareer('Ada')));
+
+    render(<Page />);
+    await readTheCards(user);
+    await waitFor(() => expect(button(/Check in/)).toBeDefined());
+    await user.click(button(/Check in/)!);
+
+    for (let step = 0; step < STEPS.length + 2; step += 1) {
+      const go = button(/Next →/) ?? button(/Collect →/);
+      if (!go) break;
+      if (screen.queryByText('Does anything need doing?')) {
+        // The right answer for this portfolio.
+        await user.click(screen.getByRole('button', { name: /Spread my money out/ }));
+      } else if (go.disabled) {
+        const choices = [...document.querySelectorAll('[data-coach="checkin-choices"] button')];
+        if (choices.length > 0) await user.click(choices[0] as HTMLElement);
+      }
+      const press = button(/Next →/) ?? button(/Collect →/);
+      if (!press) break;
+      const wasLast = /Collect/.test(press.textContent ?? '');
+      await user.click(press);
+      if (wasLast) break;
+    }
+
+    await waitFor(() =>
+      expect(
+        loadLedger().entries.some((entry) => entry.deed === 'trimmed-concentration'),
+      ).toBe(true),
+    );
   });
 });

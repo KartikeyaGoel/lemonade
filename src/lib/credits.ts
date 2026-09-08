@@ -81,6 +81,26 @@ export const EARNERS: readonly Earner[] = [
     because: 'Most days the right move is no move. Sitting still is a decision.',
   },
   {
+    deed: 'held-a-while',
+    worth: 25,
+    perDay: 2,
+    label: 'Held one for a month without touching it',
+    /*
+     * "Staying invested over time", which is the last item on the customer's
+     * credit list and the one their example was about — "you held a stock for
+     * 3 days, here's 50".
+     *
+     * Distinct from the streak, which counts days the *child* did something.
+     * This counts weeks the *position* was left alone, which is the harder and
+     * more valuable thing: a child can turn up every day and still churn.
+     *
+     * Paid once per holding, not once per week — see `HELD_A_WHILE_WEEKS` and
+     * the check on the ledger at the call site. Paying every week would turn
+     * patience into a salary.
+     */
+    because: 'Leaving something alone for a month is harder than buying it was.',
+  },
+  {
     deed: 'checked-a-thesis',
     worth: 25,
     perDay: 3,
@@ -266,6 +286,15 @@ export function awardFor(ledger: Ledger, deed: Deed, on: string, what?: string):
  * ladder is derived from what has been demonstrated and there must be no way
  * to buy a rung of it.
  */
+/**
+ * Weeks a holding has to survive untouched before patience is paid.
+ *
+ * Four, which is a month of replayed market. Short enough that a child sees it
+ * happen inside one sitting of the market act, long enough that it cannot be
+ * had by accident on the way to selling.
+ */
+export const HELD_A_WHILE_WEEKS = 4;
+
 export const CREDITS_PER_DOLLAR = 5;
 
 /**

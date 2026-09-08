@@ -1475,7 +1475,7 @@ Both turned out to be right, and this is the state of the table now.
 | Clubs | ✅ | ✅ unchanged |
 | Parent sharing | Partly | ✅ [`missions.ts`](src/lib/missions.ts) + a working grown-up thread |
 | Readiness to commit money | ✅ | ✅ untouched, deliberately |
-| Credits as a currency | ❌ | ✅ [`credits.ts`](src/lib/credits.ts) — 17 rows, capped, judgment out-paying activity 10:1 |
+| Credits as a currency | ❌ | ✅ [`credits.ts`](src/lib/credits.ts) — 18 rows, capped, judgment out-paying activity 10:1, and every row reachable (PRODUCT.md §65) |
 | Daily check-in ritual | ❌ | ✅ [`checkin.ts`](src/lib/checkin.ts), six steps delivered one at a time |
 | Streaks, return rewards | ❌ | ✅ counted on days with a deed, never on days opened |
 | Notifications | ❌ | ⚠️ still a decision, not a gap — see below |

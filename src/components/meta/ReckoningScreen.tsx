@@ -38,10 +38,21 @@ const ICON: Record<ThesisScore['verdict'], string> = {
  * reason held up: that happens, and it is not the same kind of mistake.
  */
 export function ReckoningScreen({
+  onReviewed,
   report,
   onContinue,
 }: {
   report: ThesisReport;
+  /**
+   * The child having read one of the uncomfortable cards.
+   *
+   * "Reviewing a mistake" is one of the customer's credit behaviours and it
+   * had no way in: the reckoning showed every graded reason and recorded
+   * nothing about whether anybody looked. Called per card and only for the two
+   * verdicts that are mistakes — a child tapping through "Good call" has not
+   * reviewed anything.
+   */
+  onReviewed?: (ticker: string) => void;
   onContinue: () => void;
 }) {
   return (
@@ -113,6 +124,22 @@ export function ReckoningScreen({
               <p className="mt-2 font-body text-[13px] font-bold leading-snug text-ink/80">
                 {score.lesson}
               </p>
+
+              {/*
+                Only on the two verdicts that are mistakes. "Lucky" is the
+                money going up while the reason was wrong, and "now you know"
+                is both going wrong — those are the cards worth being paid to
+                read. Tapping past "Good call" is not a review.
+              */}
+              {onReviewed && (score.verdict === 'lucky' || score.verdict === 'now-you-know') && (
+                <button
+                  type="button"
+                  onClick={() => onReviewed(score.thesis.ticker)}
+                  className="mt-2 min-h-11 w-full rounded-xl border-2 border-ink/25 bg-white/80 font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/70"
+                >
+                  Now I see why
+                </button>
+              )}
             </div>
           ))}
 

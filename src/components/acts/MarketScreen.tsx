@@ -62,6 +62,7 @@ export function MarketScreen({
   onOpenGate,
   guide,
   drifts = [],
+  onChecked,
   onClub,
   onWeekendStand,
   onPlaybook,
@@ -109,6 +110,15 @@ export function MarketScreen({
    * holdings over a whole run rather than a weekly nag.
    */
   drifts?: readonly { says: string; ticker?: string }[];
+  /**
+   * The child having actually looked at a reason that stopped being true.
+   *
+   * The card used to end on "Want to think again?" with nothing to press,
+   * which made the question rhetorical — and left "checking whether the
+   * thesis changed" as a row on the credits screen with no way in the game to
+   * do it. A reward you cannot earn is a promise on a screen.
+   */
+  onChecked?: (ticker?: string) => void;
   /** Only passed once a club is a thing that exists for this kid. */
   onClub?: () => void;
   /** Saturday: run the stand once a week and put the takings in the account. */
@@ -198,6 +208,15 @@ export function MarketScreen({
               <p className="mt-1.5 font-body text-[11px] font-extrabold text-ink/45">
                 {drifts.length - 1} more like this. One at a time.
               </p>
+            )}
+            {onChecked && (
+              <button
+                type="button"
+                onClick={() => onChecked(drifts[0].ticker)}
+                className="mt-2 min-h-11 w-full rounded-xl border-[3px] border-ink/20 bg-white font-body text-xs font-extrabold uppercase tracking-wide text-ink/70"
+              >
+                I have had a look
+              </button>
             )}
           </div>
         )}

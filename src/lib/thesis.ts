@@ -467,6 +467,8 @@ export function journalLines(thesis: Thesis, name?: string): string[] {
 export interface Drift {
   /** True when the number reason held at the time and does not now. */
   drifted: boolean;
+  /** Which holding this is about, so a caller can record what was checked. */
+  ticker?: string;
   /** The claim being re-checked, if it is still a known one. */
   claim?: QuantClaim;
   /**
@@ -509,6 +511,7 @@ export function driftOf(
 
   return {
     drifted: true,
+    ticker: thesis.ticker,
     claim,
     says: `You bought ${company.name} because ${claim.label.toLowerCase()}. That is not true any more — ${claim.evidence(company, priceNow, asOf)} Want to think again?`,
   };
