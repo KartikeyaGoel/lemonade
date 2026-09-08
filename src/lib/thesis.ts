@@ -206,6 +206,118 @@ export const QUAL_CLAIMS: QualClaim[] = [
   { id: 'everyone-has-one', label: 'Almost everyone already has one', bearish: true },
 ];
 
+/* ------------------------------------------------------------------ *
+ * The other two halves of the journal
+ *
+ * The customer's Level 2 note asks every purchase to capture four things:
+ * "I bought: X / Because: ___ / Biggest risk: ___ / I plan to hold unless:
+ * ___". The first two existed as the number reason and the story reason. These
+ * are the other two, and they are the cheapest high-value thing on the whole
+ * Level 2 list: "hold unless" is what turns an opinion into **a test the child
+ * wrote themselves**, which is the difference between the duck being
+ * interesting and the duck being right.
+ *
+ * **Picked from a list, never typed, and that is not laziness.** A `Thesis`
+ * travels between children — `club.ts` carries one inside every proposal so a
+ * friend can read it before voting — and PRIVACY.md promises "No free text
+ * between children". A typed "biggest risk" box would put a child's own prose
+ * into a code passed across a lunch table, which is a promise broken in a page
+ * a teacher is invited to check.
+ *
+ * It is also better teaching. A blank box gets "idk"; a list of seven real
+ * risks is seven things a nine-year-old now knows can go wrong with a business.
+ * ------------------------------------------------------------------ */
+
+export interface RiskClaim {
+  id: string;
+  /** What could go wrong, in the child's words. */
+  label: string;
+  /** What to watch for, so the risk is checkable rather than a mood. */
+  watchFor: string;
+}
+
+export const RISK_CLAIMS: RiskClaim[] = [
+  {
+    id: 'growth-slows',
+    label: 'It stops growing so fast',
+    watchFor: 'Sales growing slower than they were when you bought it.',
+  },
+  {
+    id: 'someone-copies',
+    label: 'Somebody copies what they do',
+    watchFor: 'A rival selling the same thing cheaper.',
+  },
+  {
+    id: 'people-move-on',
+    label: 'People get bored of it',
+    watchFor: 'Fewer people using it than last year.',
+  },
+  {
+    id: 'costs-rise',
+    label: 'It gets dearer to run',
+    watchFor: 'Keeping less of every dollar than it used to.',
+  },
+  {
+    id: 'too-dear-already',
+    label: 'I paid too much for it',
+    watchFor: 'The price falling while the business carries on the same.',
+  },
+  {
+    id: 'one-product',
+    label: 'They only really sell one thing',
+    watchFor: 'Bad news about that one thing.',
+  },
+  {
+    id: 'borrowed-a-lot',
+    label: 'They have borrowed a lot of money',
+    watchFor: 'Borrowing getting dearer for everybody.',
+  },
+];
+
+export interface ExitClaim {
+  id: string;
+  /** "I plan to hold unless…" */
+  label: string;
+}
+
+/**
+ * The test a child sets themselves, and it deliberately excludes the price.
+ *
+ * There is no "unless it goes down", because that is the habit this whole
+ * module exists to refuse — `thesis.ts` opens by saying the most dangerous
+ * thing this product could teach is "I bought it because it went up", and its
+ * mirror image is "I sold because it went down". Every exit below is about the
+ * *business* changing, which is the only thing that should change a reason.
+ */
+export const EXIT_CLAIMS: ExitClaim[] = [
+  { id: 'reason-stops-being-true', label: 'the reason I wrote down stops being true' },
+  { id: 'growth-stops', label: 'it stops growing' },
+  { id: 'stops-keeping-money', label: 'it stops keeping much of what it takes in' },
+  { id: 'people-leave', label: 'people I know stop using it' },
+  /*
+   * Deliberately no "I find a better business at a better price".
+   *
+   * It is real investing — opportunity cost is how grown-ups think — and it is
+   * the wrong option to put in front of a nine-year-old, because it is the
+   * only exit on this list that is *always available*. Every other one
+   * requires the business to have actually changed. A child who wants to trade
+   * can always claim to have found something better, which turns the test they
+   * set themselves into a rubber stamp, and §16's whole objection to XP is
+   * activity mistaken for skill.
+   *
+   * Found by a test asserting no exit is about the price. It flagged this row,
+   * and the right answer turned out not to be a better regex.
+   */
+];
+
+export function riskClaim(id: string): RiskClaim | undefined {
+  return RISK_CLAIMS.find((claim) => claim.id === id);
+}
+
+export function exitClaim(id: string): ExitClaim | undefined {
+  return EXIT_CLAIMS.find((claim) => claim.id === id);
+}
+
 export function quantClaim(id: string): QuantClaim | undefined {
   return QUANT_CLAIMS.find((claim) => claim.id === id);
 }
@@ -260,6 +372,17 @@ export interface Thesis {
   asOf?: string;
   /** Was the story reason a reason to expect it to do worse? */
   contradiction: boolean;
+  /**
+   * The other two halves of the journal, both optional.
+   *
+   * Optional because every thesis written before they existed does not have
+   * them, and a child's saved reasoning must not be invalidated by a feature
+   * arriving after it. Every reader below treats `undefined` as "they were not
+   * asked" rather than as "they had no answer" — the difference matters when
+   * the duck comes back in twelve weeks to ask whether the thesis still holds.
+   */
+  riskId?: string;
+  exitId?: string;
   /** Who wrote it. Used by the club, ignored in solo play. */
   by?: string;
 }
@@ -274,6 +397,8 @@ export function buildThesis(args: {
   /** The real calendar date of the week this was written. */
   asOf?: string;
   by?: string;
+  riskId?: string;
+  exitId?: string;
 }): Thesis {
   // Checked at the price actually being paid, against the accounts that were
   // public on the week being replayed. Both halves matter: judging a value claim
@@ -292,6 +417,14 @@ export function buildThesis(args: {
     asOf: args.asOf,
     contradiction: Boolean(qual?.bearish),
     by: args.by,
+    /*
+     * Only recorded if they are real ids. A `riskId` that matches nothing is
+     * worse than none at all: `riskClaim` would return undefined and every
+     * reader would have to decide whether that meant "not asked" or "asked and
+     * broken". One meaning per absent field.
+     */
+    ...(args.riskId && riskClaim(args.riskId) ? { riskId: args.riskId } : {}),
+    ...(args.exitId && exitClaim(args.exitId) ? { exitId: args.exitId } : {}),
   };
 }
 
@@ -300,6 +433,101 @@ export function thesisLine(thesis: Thesis): string {
   const quant = quantClaim(thesis.quantId);
   const qual = qualClaim(thesis.qualId);
   return `${thesis.ticker}: ${quant?.label ?? 'no number reason'} — and ${(qual?.label ?? 'no story reason').toLowerCase()}.`;
+}
+
+/**
+ * The journal entry as the note asked for it: four lines, in the child's words.
+ *
+ * Returned as lines rather than a paragraph because that is how it is read —
+ * "I bought / Because / Biggest risk / I plan to hold unless" is a form a child
+ * filled in, and running it together into prose loses the thing that makes it
+ * a journal rather than a sentence.
+ */
+export function journalLines(thesis: Thesis, name?: string): string[] {
+  const quant = quantClaim(thesis.quantId);
+  const qual = qualClaim(thesis.qualId);
+  const risk = thesis.riskId ? riskClaim(thesis.riskId) : undefined;
+  const exit = thesis.exitId ? exitClaim(thesis.exitId) : undefined;
+
+  const lines = [
+    `I bought: ${name ?? thesis.ticker}`,
+    `Because: ${quant?.label ?? 'no number reason'}, and ${(qual?.label ?? 'no story reason').toLowerCase()}`,
+  ];
+  // Absent means "not asked", so the line is left out rather than filled with a
+  // dash. A journal with an empty field in it invites reading it as an answer.
+  if (risk) lines.push(`Biggest risk: ${risk.label.toLowerCase()}`);
+  if (exit) lines.push(`I plan to hold unless ${exit.label}`);
+  return lines;
+}
+
+/* ------------------------------------------------------------------ *
+ * Has the reason stopped being true?
+ * ------------------------------------------------------------------ */
+
+export interface Drift {
+  /** True when the number reason held at the time and does not now. */
+  drifted: boolean;
+  /** The claim being re-checked, if it is still a known one. */
+  claim?: QuantClaim;
+  /**
+   * What the duck says. Empty when nothing has changed, so a caller can use
+   * this as the test for whether there is anything worth saying at all.
+   */
+  says: string;
+}
+
+/**
+ * The mechanic the customer's note called the strongest one available:
+ *
+ * > "You bought this because revenue was growing quickly. Revenue growth has
+ * > now slowed. Want to revisit your thesis?"
+ *
+ * Which is producible, exactly, from what a thesis already stores — the claim
+ * and whether it held when the money went in — re-run against the company as
+ * it stands now. Nothing here is generated or guessed; it is the same
+ * `holds()` function, twice, at two prices.
+ *
+ * **Only reports a claim that has stopped being true.** A claim that never
+ * held is already recorded as a mismatch at purchase and graded at the end;
+ * telling a child again now would be nagging about a decision they have
+ * already been shown. And a claim that still holds is not news. The whole
+ * value of this is that it is *rare and specific*, which is what makes it
+ * worth reading when it does appear.
+ */
+export function driftOf(
+  thesis: Thesis,
+  company: Company,
+  priceNow: number,
+  asOf?: string,
+): Drift {
+  const claim = quantClaim(thesis.quantId);
+  if (!claim) return { drifted: false, says: '' };
+  if (!thesis.quantHeld) return { drifted: false, claim, says: '' };
+
+  const stillHolds = claim.holds(company, priceNow, asOf);
+  if (stillHolds) return { drifted: false, claim, says: '' };
+
+  return {
+    drifted: true,
+    claim,
+    says: `You bought ${company.name} because ${claim.label.toLowerCase()}. That is not true any more — ${claim.evidence(company, priceNow, asOf)} Want to think again?`,
+  };
+}
+
+/** Every holding whose written reason has stopped being true. */
+export function drifted(
+  theses: readonly Thesis[],
+  companyFor: (ticker: string) => Company | undefined,
+  priceFor: (ticker: string) => number,
+  asOf?: string,
+): Drift[] {
+  return theses
+    .map((thesis) => {
+      const company = companyFor(thesis.ticker);
+      if (!company) return { drifted: false, says: '' };
+      return driftOf(thesis, company, priceFor(thesis.ticker), asOf);
+    })
+    .filter((drift) => drift.drifted);
 }
 
 /**

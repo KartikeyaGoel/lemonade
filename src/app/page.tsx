@@ -174,10 +174,10 @@ import { desks } from '@/lib/friends';
 import { cardFor } from '@/lib/table';
 import { createPlaybook } from '@/lib/playbook';
 import type { ChallengeSpec } from '@/lib/challenge';
-import { buildThesis, quantClaim, qualClaim, scoreAll, type Thesis } from '@/lib/thesis';
+import { buildThesis, drifted, quantClaim, qualClaim, scoreAll, type Thesis } from '@/lib/thesis';
 import type { ClubState } from '@/lib/club';
 import { STANDS_FOR_SALE } from '@/lib/ownership';
-import { type Company } from '@/lib/companies';
+import { SNAPSHOT, type Company } from '@/lib/companies';
 
 import { TitleScreen } from '@/components/TitleScreen';
 import { MorningScreen } from '@/components/MorningScreen';
@@ -1349,7 +1349,14 @@ export default function Page() {
    * which is the only way a kid can tell a good decision from a lucky one.
    */
   const handleThesisBuy = useCallback(
-    (company: Company, quantId: string, qualId: string, dollars: number) => {
+    (
+      company: Company,
+      quantId: string,
+      qualId: string,
+      dollars: number,
+      riskId?: string,
+      exitId?: string,
+    ) => {
       if (!game?.portfolio) return;
 
       const result = buyStock(game.portfolio, company.ticker, dollars);
@@ -1367,6 +1374,8 @@ export default function Page() {
         priceAtBuy: currentPrice(game.portfolio, company.ticker),
         asOf: currentDate(game.portfolio),
         dollars,
+        riskId,
+        exitId,
       });
 
       const words: Insight[] = [
@@ -1839,6 +1848,25 @@ export default function Page() {
   const thesisReport = game.portfolio
     ? scoreAll(game.theses, (ticker) => currentPrice(game.portfolio!, ticker))
     : scoreAll([], () => 0);
+
+  /**
+   * Written reasons that have stopped being true.
+   *
+   * Re-runs each thesis's own number claim against the company as it stands
+   * this week. Nothing is generated: it is the same `holds()` function, twice,
+   * at two prices. Only a claim that held when the money went in and does not
+   * now — a claim that never held is already recorded as a mismatch and graded
+   * at the end, and telling a child again now would be nagging about a
+   * decision they have already been shown.
+   */
+  const drifts = game.portfolio
+    ? drifted(
+        game.theses,
+        (ticker) => SNAPSHOT.find((company) => company.ticker === ticker),
+        (ticker) => currentPrice(game.portfolio!, ticker),
+        currentDate(game.portfolio),
+      )
+    : [];
 
   /**
    * Today's check-in, built from whichever portfolio the child is living in.
@@ -2339,6 +2367,7 @@ export default function Page() {
     case 'market':
       return game.portfolio ? (
         <MarketScreen
+          drifts={drifts}
           tour={showTour(MARKET_TOUR.id)}
           onToured={() => markToured(MARKET_TOUR.id)}
           portfolio={game.portfolio}
@@ -2599,10 +2628,10 @@ export default function Page() {
             setTradingLive(false);
             setPhase(tradingLive ? 'live' : 'market');
           }}
-          onConfirm={(quantId, qualId, dollars) =>
+          onConfirm={(quantId, qualId, dollars, riskId, exitId) =>
             tradingLive
               ? handleLiveBuy(thesisTarget, quantId, qualId, dollars)
-              : handleThesisBuy(thesisTarget, quantId, qualId, dollars)
+              : handleThesisBuy(thesisTarget, quantId, qualId, dollars, riskId, exitId)
           }
         />
       ) : null;

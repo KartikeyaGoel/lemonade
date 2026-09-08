@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { MODELS, metricsFor, type Company } from '@/lib/companies';
-import { QUAL_CLAIMS, QUANT_CLAIMS, checkQuant } from '@/lib/thesis';
+import { EXIT_CLAIMS, QUAL_CLAIMS, QUANT_CLAIMS, RISK_CLAIMS, checkQuant } from '@/lib/thesis';
 import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
 
 /**
@@ -37,7 +37,18 @@ export function ThesisScreen({
   asOf: string;
   maxDollars: number;
   actionLabel: string;
-  onConfirm: (quantId: string, qualId: string, dollars: number) => void;
+  onConfirm: (
+    quantId: string,
+    qualId: string,
+    dollars: number,
+    /**
+     * The other two halves of the journal. Optional in the signature because
+     * a caller that does not collect them must still be able to buy — and
+     * because every thesis written before they existed has neither.
+     */
+    riskId?: string,
+    exitId?: string,
+  ) => void;
   onCancel: () => void;
 }) {
   const [dollars, setDollars] = useState(() =>
@@ -45,6 +56,8 @@ export function ThesisScreen({
   );
   const [quantId, setQuantId] = useState<string | null>(null);
   const [qualId, setQualId] = useState<string | null>(null);
+  const [riskId, setRiskId] = useState<string | null>(null);
+  const [exitId, setExitId] = useState<string | null>(null);
   const [override, setOverride] = useState(false);
 
   const metrics = metricsFor(company, price, asOf);
@@ -179,6 +192,76 @@ export function ThesisScreen({
             })}
           </div>
         </div>
+
+        {/*
+          The other two halves of the journal.
+          
+          Below the two reasons, because they are questions *about* a reason
+          and cannot be answered before there is one. Both are picked from a
+          list rather than typed, and that is a promise rather than a
+          shortcut: a thesis travels inside a club proposal so a friend can
+          read it before voting, and PRIVACY.md says "No free text between
+          children".
+        */}
+        <div className="mt-5">
+          <div className="px-1 font-sign text-xl text-lemon-light">Biggest risk</div>
+          <p className="mt-0.5 px-1 font-body text-[11px] font-bold text-white/50">
+            Every business has one. Naming it now is how you spot it later.
+          </p>
+          <div className="mt-2 space-y-2">
+            {RISK_CLAIMS.map((claim) => {
+              const picked = riskId === claim.id;
+              return (
+                <button
+                  key={claim.id}
+                  type="button"
+                  onClick={() => setRiskId(picked ? null : claim.id)}
+                  className={`min-h-11 w-full rounded-2xl border-[3px] p-3 text-left ${
+                    picked ? 'border-lemon bg-white' : 'border-white/20 bg-white/5'
+                  }`}
+                >
+                  <div
+                    className={`font-body text-[13px] font-extrabold leading-tight ${
+                      picked ? 'text-ink' : 'text-white/85'
+                    }`}
+                  >
+                    {claim.label}
+                  </div>
+                  {picked && (
+                    <div className="mt-1.5 rounded-xl border-2 border-ink/15 bg-white px-2.5 py-1.5 font-body text-[12px] font-bold leading-snug text-ink/75">
+                      <span className="font-extrabold">Watch for: </span>
+                      {claim.watchFor}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <div className="px-1 font-sign text-xl text-lemon-light">I plan to hold unless…</div>
+          <p className="mt-0.5 px-1 font-body text-[11px] font-bold text-white/50">
+            A test you set yourself. Notice that none of these is &ldquo;it went down&rdquo;.
+          </p>
+          <div className="mt-2 space-y-2">
+            {EXIT_CLAIMS.map((claim) => {
+              const picked = exitId === claim.id;
+              return (
+                <button
+                  key={claim.id}
+                  type="button"
+                  onClick={() => setExitId(picked ? null : claim.id)}
+                  className={`min-h-11 w-full rounded-2xl border-[3px] p-3 text-left font-body text-[13px] font-extrabold leading-tight ${
+                    picked ? 'border-lemon bg-white text-ink' : 'border-white/20 bg-white/5 text-white/85'
+                  }`}
+                >
+                  {claim.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <PinnedBar className="z-20 mx-auto max-w-md border-t-[3px] border-white/15 bg-[#16203A] px-4 pb-5 pt-8">
@@ -197,7 +280,9 @@ export function ThesisScreen({
             variant="lemon"
             full
             disabled={!ready}
-            onClick={() => ready && onConfirm(quantId!, qualId!, dollars)}
+            onClick={() =>
+              ready && onConfirm(quantId!, qualId!, dollars, riskId ?? undefined, exitId ?? undefined)
+            }
           >
             {ready ? `${actionLabel} — ${money(dollars)} →` : 'Pick both halves of the reason'}
           </ChunkyButton>

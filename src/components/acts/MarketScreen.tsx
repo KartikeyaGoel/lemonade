@@ -61,6 +61,7 @@ export function MarketScreen({
   onLeave,
   onOpenGate,
   guide,
+  drifts = [],
   onClub,
   onWeekendStand,
   onPlaybook,
@@ -97,6 +98,17 @@ export function MarketScreen({
    * pitch, and until Pip existed it was never once said to the child playing.
    */
   guide?: { lines: readonly string[]; onDismiss: () => void } | null;
+  /**
+   * Written reasons that have stopped being true.
+   *
+   * The mechanic the customer's note called the strongest one available: "you
+   * bought this because revenue was growing quickly, and growth has now
+   * slowed." It appears here rather than in a notification because it has to
+   * arrive where a child can act on it, and because it is *rare* — only a
+   * claim that held at purchase and does not now, which is a handful of
+   * holdings over a whole run rather than a weekly nag.
+   */
+  drifts?: readonly { says: string; ticker?: string }[];
   /** Only passed once a club is a thing that exists for this kid. */
   onClub?: () => void;
   /** Saturday: run the stand once a week and put the takings in the account. */
@@ -160,6 +172,34 @@ export function MarketScreen({
 
         {guide && (
           <PipSays className="mt-4" lines={guide.lines} onDismiss={guide.onDismiss} />
+        )}
+
+        {/*
+          One drift at a time, and above the money.
+          
+          One, because §26's rule is one thing lit up with a finger pointing at
+          it, and a child with four stale reasons handed all four at once will
+          act on none of them. Above the money because it is the thing that
+          should change what they do with it, and a warning under a total is a
+          footnote.
+        */}
+        {drifts.length > 0 && (
+          <div
+            className="mt-4 rounded-2xl border-[3px] border-berry/60 bg-white px-4 py-3"
+            data-coach="market-drift"
+          >
+            <div className="font-body text-[10px] font-extrabold uppercase tracking-[0.16em] text-berry">
+              Your reason has changed
+            </div>
+            <p className="mt-1 font-body text-[13px] font-bold leading-snug text-ink/80">
+              {drifts[0].says}
+            </p>
+            {drifts.length > 1 && (
+              <p className="mt-1.5 font-body text-[11px] font-extrabold text-ink/45">
+                {drifts.length - 1} more like this. One at a time.
+              </p>
+            )}
+          </div>
         )}
 
         {/* The pot */}

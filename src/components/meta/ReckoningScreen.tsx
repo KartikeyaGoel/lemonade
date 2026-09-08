@@ -1,7 +1,7 @@
 'use client';
 
 import type { ThesisReport, ThesisScore } from '@/lib/thesis';
-import { quantClaim, qualClaim } from '@/lib/thesis';
+import { journalLines } from '@/lib/thesis';
 import { ChunkyButton, clearsBar, PinnedBar, SignHeading, Sky } from '../ui';
 
 /**
@@ -81,14 +81,33 @@ export function ReckoningScreen({
                 </span>
               </div>
 
+              {/*
+                Read back as the journal they filled in, line for line.
+                
+                Not a paraphrase. The customer's note specifies the shape — "I
+                bought / Because / Biggest risk / I plan to hold unless" — and
+                the whole force of the reckoning is a child recognising their
+                own words twelve weeks later. Running it together into prose
+                would lose that, so `journalLines` returns lines and this
+                prints them.
+                
+                Entries written before the last two fields existed simply have
+                two fewer lines. `journalLines` leaves an unanswered field out
+                rather than printing a dash, because an empty field reads as an
+                answer.
+              */}
               <div className="mt-2 rounded-xl bg-white/70 p-2.5">
                 <div className="font-body text-[10px] font-extrabold uppercase tracking-[0.14em] text-ink/45">
-                  What you said about {score.thesis.ticker}
+                  What you wrote about {score.thesis.ticker}
                 </div>
-                <div className="mt-0.5 font-body text-[12px] font-bold leading-snug text-ink/80">
-                  {quantClaim(score.thesis.quantId)?.label ?? 'no number reason'} — and{' '}
-                  {(qualClaim(score.thesis.qualId)?.label ?? 'no story reason').toLowerCase()}.
-                </div>
+                {journalLines(score.thesis).map((line) => (
+                  <div
+                    key={line}
+                    className="mt-0.5 font-body text-[12px] font-bold leading-snug text-ink/80"
+                  >
+                    {line}
+                  </div>
+                ))}
               </div>
 
               <p className="mt-2 font-body text-[13px] font-bold leading-snug text-ink/80">

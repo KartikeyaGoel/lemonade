@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { SNAPSHOT, findCompany, metricsFor } from '../src/lib/companies';
 import {
+  EXIT_CLAIMS,
   QUAL_CLAIMS,
   QUANT_CLAIMS,
+  RISK_CLAIMS,
   buildThesis,
   checkQuant,
   claimsThatHold,
+  driftOf,
+  drifted,
+  journalLines,
   reasoningSound,
   scoreAll,
   scoreThesis,
@@ -199,3 +204,264 @@ describe('the end-of-run report', () => {
     expect(scoreAll([], endPrice).summary).toContain('did not write a reason');
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * The other two halves of the journal
+ * ------------------------------------------------------------------ */
+
+describe('biggest risk, and what would change my mind', () => {
+  const company = SNAPSHOT[0];
+
+  it('records both when they are given', () => {
+    const thesis = buildThesis({
+      company,
+      quantId: QUANT_CLAIMS[0].id,
+      qualId: QUAL_CLAIMS[0].id,
+      week: 0,
+      priceAtBuy: company.price,
+      dollars: 100,
+      riskId: RISK_CLAIMS[0].id,
+      exitId: EXIT_CLAIMS[0].id,
+    });
+    expect(thesis.riskId).toBe(RISK_CLAIMS[0].id);
+    expect(thesis.exitId).toBe(EXIT_CLAIMS[0].id);
+  });
+
+  it('leaves them off rather than storing an id that means nothing', () => {
+    /*
+     * One meaning per absent field. A `riskId` that matches no claim would
+     * make `riskClaim` return undefined, and every reader would then have to
+     * guess whether that meant "not asked" or "asked and broken".
+     */
+    const thesis = buildThesis({
+      company,
+      quantId: QUANT_CLAIMS[0].id,
+      qualId: QUAL_CLAIMS[0].id,
+      week: 0,
+      priceAtBuy: company.price,
+      dollars: 100,
+      riskId: 'not-a-real-risk',
+      exitId: '',
+    });
+    expect('riskId' in thesis).toBe(false);
+    expect('exitId' in thesis).toBe(false);
+  });
+
+  /*
+   * The constraint that decided the shape of this feature.
+   *
+   * A `Thesis` travels between children — `club.ts` puts one inside every
+   * proposal so a friend can read it before voting — and PRIVACY.md promises
+   * "No free text between children". So both new fields are ids picked from a
+   * list, and this is the test that stops somebody helpfully turning one into
+   * a text box.
+   */
+  it('carries only ids, so nothing a child typed can travel', () => {
+    const thesis = buildThesis({
+      company,
+      quantId: QUANT_CLAIMS[0].id,
+      qualId: QUAL_CLAIMS[0].id,
+      week: 0,
+      priceAtBuy: company.price,
+      dollars: 100,
+      riskId: RISK_CLAIMS[2].id,
+      exitId: EXIT_CLAIMS[1].id,
+    });
+
+    for (const [key, value] of Object.entries(thesis)) {
+      if (typeof value !== 'string') continue;
+      // Every string on a thesis is a ticker, an id, a date or a name the
+      // child chose for themselves — never prose. Prose has spaces in it.
+      if (key === 'by') continue;
+      expect(value, `${key} looks like free text`).not.toMatch(/\s/);
+    }
+  });
+
+  it('gives every risk something to watch for, so it is checkable', () => {
+    for (const risk of RISK_CLAIMS) {
+      expect(risk.label.length, risk.id).toBeGreaterThan(8);
+      expect(risk.watchFor.length, risk.id).toBeGreaterThan(15);
+    }
+  });
+
+  /*
+   * The mirror image of the habit this module exists to refuse.
+   *
+   * `thesis.ts` opens by saying the most dangerous thing this product could
+   * teach is "I bought it because it went up". "I will sell if it goes down"
+   * is the same mistake pointing the other way, so no exit may be about the
+   * price.
+   */
+  it('has no exit that is really about the share price', () => {
+    const priceish = /price|went down|goes down|drops|falls|cheaper|dearer|worth less/i;
+    expect(EXIT_CLAIMS.filter((claim) => priceish.test(claim.label))).toEqual([]);
+  });
+
+  it('has no exit a child could claim on any given day', () => {
+    /*
+     * The property behind the rule above. Every exit has to require the
+     * *business* to have changed, because an exit that is always available is
+     * a rubber stamp rather than a test — and this list is the test a child
+     * set themselves.
+     *
+     * "I find a better business at a better price" was in here and failed the
+     * price rule; the fix was to remove it rather than to reword it, because
+     * opportunity cost is exactly the always-available exit.
+     */
+    const alwaysAvailable = /I find|I want|I change my mind|I feel|I decide/i;
+    expect(EXIT_CLAIMS.filter((claim) => alwaysAvailable.test(claim.label))).toEqual([]);
+    expect(EXIT_CLAIMS.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('reads back as the four lines the note asked for', () => {
+    const thesis = buildThesis({
+      company,
+      quantId: QUANT_CLAIMS[0].id,
+      qualId: QUAL_CLAIMS[0].id,
+      week: 0,
+      priceAtBuy: company.price,
+      dollars: 100,
+      riskId: RISK_CLAIMS[0].id,
+      exitId: EXIT_CLAIMS[0].id,
+    });
+    const lines = journalLines(thesis, company.name);
+    expect(lines).toHaveLength(4);
+    expect(lines[0]).toBe(`I bought: ${company.name}`);
+    expect(lines[1]).toMatch(/^Because: /);
+    expect(lines[2]).toMatch(/^Biggest risk: /);
+    expect(lines[3]).toMatch(/^I plan to hold unless /);
+  });
+
+  it('prints two lines, not four with blanks, for an older entry', () => {
+    // Every thesis written before these fields existed. An empty field reads
+    // as an answer, so the line is left out instead.
+    const thesis = buildThesis({
+      company,
+      quantId: QUANT_CLAIMS[0].id,
+      qualId: QUAL_CLAIMS[0].id,
+      week: 0,
+      priceAtBuy: company.price,
+      dollars: 100,
+    });
+    const lines = journalLines(thesis, company.name);
+    expect(lines).toHaveLength(2);
+    expect(lines.join(' ')).not.toMatch(/Biggest risk|hold unless/);
+  });
+});
+
+describe('a reason that has stopped being true', () => {
+  const company = SNAPSHOT[0];
+
+  /** A thesis whose number claim held at the price it was bought at. */
+  function heldAt(price: number) {
+    const claim = QUANT_CLAIMS.find((c) => c.holds(company, price)) ?? QUANT_CLAIMS[0];
+    return buildThesis({
+      company,
+      quantId: claim.id,
+      qualId: QUAL_CLAIMS[0].id,
+      week: 0,
+      priceAtBuy: price,
+      dollars: 100,
+    });
+  }
+
+  it('says nothing while the reason still holds', () => {
+    const cheap = company.price * 0.5;
+    const thesis = heldAt(cheap);
+    expect(thesis.quantHeld).toBe(true);
+    expect(driftOf(thesis, company, cheap).drifted).toBe(false);
+    expect(driftOf(thesis, company, cheap).says).toBe('');
+  });
+
+  it('speaks up when a value claim stops holding at a higher price', () => {
+    /*
+     * The exact mechanic the note asked for, and it is derived rather than
+     * generated: the same `holds()` function, twice, at two prices. "You get
+     * your money back quickly" is true at a low price and false at a high one,
+     * with nothing about the business having changed — which is the honest
+     * lesson about what a price is.
+     */
+    const payback = QUANT_CLAIMS.find((c) => c.id === 'pays-back-fast')!;
+    const cheap = company.price * 0.3;
+    expect(payback.holds(company, cheap)).toBe(true);
+
+    const thesis = buildThesis({
+      company,
+      quantId: payback.id,
+      qualId: QUAL_CLAIMS[0].id,
+      week: 0,
+      priceAtBuy: cheap,
+      dollars: 100,
+    });
+
+    const dear = company.price * 8;
+    expect(payback.holds(company, dear)).toBe(false);
+
+    const drift = driftOf(thesis, company, dear);
+    expect(drift.drifted).toBe(true);
+    expect(drift.says).toContain(company.name);
+    expect(drift.says).toMatch(/not true any more/);
+    // It has to carry the figures, not just the verdict.
+    expect(drift.says.length).toBeGreaterThan(80);
+  });
+
+  it('stays quiet about a reason that never held in the first place', () => {
+    /*
+     * Already recorded as a mismatch at purchase and graded at the end.
+     * Raising it again now is nagging about a decision the child has been
+     * shown once and will be shown again.
+     */
+    const dear = company.price * 8;
+    const payback = QUANT_CLAIMS.find((c) => c.id === 'pays-back-fast')!;
+    const thesis = buildThesis({
+      company,
+      quantId: payback.id,
+      qualId: QUAL_CLAIMS[0].id,
+      week: 0,
+      priceAtBuy: dear,
+      dollars: 100,
+    });
+    expect(thesis.quantHeld).toBe(false);
+    expect(driftOf(thesis, company, dear * 1.5).drifted).toBe(false);
+  });
+
+  it('reports only the drifted ones across a whole portfolio', () => {
+    const payback = QUANT_CLAIMS.find((c) => c.id === 'pays-back-fast')!;
+    const cheap = company.price * 0.3;
+    const other = SNAPSHOT[1];
+
+    const theses = [
+      buildThesis({
+        company,
+        quantId: payback.id,
+        qualId: QUAL_CLAIMS[0].id,
+        week: 0,
+        priceAtBuy: cheap,
+        dollars: 100,
+      }),
+      buildThesis({
+        company: other,
+        quantId: payback.id,
+        qualId: QUAL_CLAIMS[0].id,
+        week: 0,
+        priceAtBuy: other.price * 0.3,
+        dollars: 100,
+      }),
+    ];
+
+    const out = drifted(
+      theses,
+      (ticker) => SNAPSHOT.find((c) => c.ticker === ticker),
+      (ticker) => (ticker === company.ticker ? company.price * 8 : other.price * 0.3),
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].says).toContain(company.name);
+  });
+
+  it('says nothing about a ticker it cannot find', () => {
+    const thesis = heldAt(company.price * 0.5);
+    const out = drifted([{ ...thesis, ticker: 'NOPE' }], () => undefined, () => 1);
+    expect(out).toEqual([]);
+  });
+});
+
