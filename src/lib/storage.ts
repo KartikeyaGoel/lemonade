@@ -35,6 +35,7 @@ import {
   type PortfolioState,
 } from './market';
 import type { DayRecord, Forecast, GameState } from './simulation';
+import { MUTE_KEY } from './sound';
 import type { Entry } from './classroom';
 
 const KEY = 'lemonade.save.v2';
@@ -525,6 +526,21 @@ const ALL_KEYS = [
   CLASS_KEY,
   LIVE_KEY,
   GUIDE_KEY,
+  /*
+   * The sound setting, which lives in `sound.ts` and is the seventh slot the
+   * comment above predicted.
+   *
+   * It was written by a different module, so it was outside the scope of both
+   * this list and the hand-written list in `tests/erase.test.ts` — which
+   * enumerates "every key the storage module writes", and was therefore
+   * incapable of catching a key another module writes. PRIVACY.md said "six
+   * keys, and this is all of them", and there were seven.
+   *
+   * A mute flag is not personal data and the harm is small. The falsehood is
+   * not small: that page exists so a teacher can check rather than take our
+   * word, and the erase screen listed what it removed as proof.
+   */
+  MUTE_KEY,
 ] as const;
 
 /**

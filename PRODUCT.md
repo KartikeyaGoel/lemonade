@@ -3492,3 +3492,91 @@ constant and the copy follows it — which is the point of having taken the word
 
 **Parental check-ins were not started.** The sender deferred them explicitly.
 
+## 63. The seventh key
+
+`PRIVACY.md` said: *"Six keys, and this is all of them."* There were seven.
+
+`lemonade.muted.v1` is written by [`sound.ts`](src/lib/sound.ts) when a child
+turns the sound off. It was not in `ALL_KEYS`, so `eraseEverything` did not
+remove it — and the erase screen, which lists what it deleted as proof, told a
+parent everything had gone while leaving it behind.
+
+A mute flag is not personal data, and the practical harm is close to nil. The
+falsehood is not close to nil. That page exists so a teacher or a parent can
+**check** rather than take our word, and the erase screen reports its removals
+specifically so it is not asserting a success it did not verify. Both were
+wrong, quietly, in the direction that flatters us.
+
+### Both guards were written against this exact failure and both missed it
+
+This is the part worth keeping. The comment above `ALL_KEYS` reads:
+
+> Kept as one list rather than six `removeItem` calls in a row, because the
+> failure mode of the second shape is silent: somebody adds a seventh slot,
+> forgets this function, and a parent who pressed "delete everything" is left
+> with data on the device and a screen that told them there wasn't.
+
+And the docblock of [`tests/erase.test.ts`](tests/erase.test.ts):
+
+> Every key the storage module writes is enumerated here by hand —
+> deliberately not imported from the module under test, because a list that
+> comes from the same place as the code cannot catch the case where somebody
+> adds a seventh slot and forgets the deletion.
+
+Two guards, both naming "a seventh slot", both correct in their reasoning, and
+the seventh slot walked straight past both. The reason is a single phrase that
+appears in each of them: **"the storage module"**. Both were scoped to keys
+written by `storage.ts`, and the seventh key is written by `sound.ts`. It was
+never in scope to be caught.
+
+That is a more useful lesson than "remember to update the list". A guard is only
+as wide as its definition of the thing it guards, and a guard that names its own
+failure mode can still be pointed at the wrong set. The hand-written list was
+right that it must not import from the module under test. It was wrong that the
+module under test is the boundary.
+
+### The fix, and the wider boundary
+
+`MUTE_KEY` is exported and `ALL_KEYS` includes it — exported rather than copied,
+because a key spelled in two files is §62's defect class with a storage key in
+it.
+
+The new guard reads **the source**, not a list: any `'lemonade.…'` literal
+anywhere in `src` has to be a key the erase knows how to remove. No hand-list to
+keep current, no import from the module under test, and no module boundary to be
+wrong about. Verified twice — by taking the seventh key back out of `ALL_KEYS`,
+and by adding an eighth key in a third module and watching the scan name it.
+
+The three tests now form a chain, which is what makes it hold: the source has to
+match the hand-written list, the hand-written list has to match what filling
+every slot actually writes, and erasing has to empty all of them. Breaking any
+one link fails.
+
+### And the page itself is now checked
+
+The count was wrong in the *document* too, and no test reads documents.
+`check-doc-claims.mjs` now counts the key literals in `src` and compares them
+against the two sentences in PRIVACY.md that state the number — which that page
+spells as a word, "Seven keys, and this is all of them", making it the same trap
+as "Two days to try things out" written into a component. Nothing recomputes a
+word.
+
+`PRIVACY.md` was also not in the gate's document list at all, which is the wrong
+omission to have made: it is the one document written to be audited by somebody
+outside the project.
+
+Two things fell out of adding it, both worth keeping:
+
+- **The gate needed `only`.** Its first run failed on this very section, because
+  the paragraph above quotes the sentence that was wrong. A gate that fails on
+  the write-up of a fixed defect teaches us to stop writing them up. `only`
+  scopes a rule to the document that makes the claim, which is narrower and
+  more honest than the existing `historical: true` — that excuses every match
+  of a pattern everywhere, and this promise is made by exactly one page.
+- **The first version of the rule was checking one sentence while appearing to
+  check two.** The sentence wraps in the file — `Six keys, and\nthis is all of
+  them` — and a literal space in the pattern matched nothing. It passed, and it
+  would have passed with the count wrong. Caught by putting the old number back
+  and finding that only the second sentence complained. Verified in both
+  directions now: stale word in the document, and an eighth key added to the
+  source.

@@ -153,7 +153,16 @@ export function cueLength(cue: Cue): number {
  * The player
  * ------------------------------------------------------------------ */
 
-const MUTE_KEY = 'lemonade.muted.v1';
+/**
+ * Exported so `storage.ts` can delete it.
+ *
+ * It was private, and that is precisely how it got missed: `ALL_KEYS` lists
+ * every key *that module* writes, and this one is written here. A parent who
+ * pressed "delete everything" was told all of it had gone and left with this
+ * behind. Exported rather than copied, because a key spelled in two files is
+ * the defect class PRODUCT.md §62 is about.
+ */
+export const MUTE_KEY = 'lemonade.muted.v1';
 /**
  * Everything goes through this. Set once, low, because the alternative is a
  * kid turning the game off rather than turning it down.

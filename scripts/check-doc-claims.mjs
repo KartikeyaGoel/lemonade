@@ -49,6 +49,35 @@ const truth = {
 };
 
 /*
+ * How many `localStorage` slots this product writes.
+ *
+ * Counted by scanning the source for the key literals rather than by reading
+ * `ALL_KEYS`, because the defect this exists for (PRODUCT.md §63) was a key
+ * written by a module `ALL_KEYS` did not cover. Reading `ALL_KEYS` would agree
+ * with itself and miss it again.
+ *
+ * PRIVACY.md is a page a teacher is invited to check, and it states this count
+ * as a word — "Seven keys, and this is all of them" — which is the same trap
+ * as a component with "Two days" written into it: nothing recomputes a word.
+ */
+const srcFiles = execSync("find src -name '*.ts' -o -name '*.tsx'", {
+  cwd: new URL('..', import.meta.url),
+  encoding: 'utf8',
+})
+  .trim()
+  .split('\n')
+  .filter(Boolean);
+
+truth.storageKeys = new Set(
+  srcFiles.flatMap((file) => [...read(file).matchAll(/'(lemonade\.[a-z0-9.]+)'/g)].map((m) => m[1])),
+).size;
+
+/** The counts PRIVACY.md spells out in words, because English is how that page reads. */
+const NUMBER_WORDS = {
+  four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+};
+
+/*
  * The reading gate's own output, rather than a number typed in here — two
  * copies of the same figure is the defect this script exists to catch, and
  * writing one down would reintroduce it.
@@ -84,7 +113,16 @@ truth.tests = testFiles.reduce(
 
 /* ---- the claims, as patterns ---- */
 
-const DOCS = ['PRODUCT.md', 'FRAMEWORK.md', 'LEARNING.md', 'PITCH.md', 'TEACHING.md', 'README.md'];
+const DOCS = [
+  'PRODUCT.md',
+  'FRAMEWORK.md',
+  'LEARNING.md',
+  'PITCH.md',
+  'TEACHING.md',
+  'README.md',
+  // The one document written to be audited by somebody outside the project.
+  'PRIVACY.md',
+];
 
 /**
  * Each rule finds claims of one shape and says what the number should be.
@@ -115,6 +153,28 @@ const RULES = [
   { what: 'tests', re: /^- (\d[\d,]{2,}) tests\b/gm, expect: () => truth.tests },
   { what: 'reading grade', re: /reading level \*?\*?([\d.]+)/gi, expect: () => truth.grade },
   { what: 'reading grade', re: /currently \*\*([\d.]+)\*\*/g, expect: () => truth.grade },
+  /*
+   * The two sentences in PRIVACY.md that count the storage slots. Spelled in
+   * words, so `word: true` converts before comparing — see §63 for the seventh
+   * key that made both of them false.
+   */
+  {
+    what: 'storage keys',
+    // `\s+` because the sentence wraps in the file: "Six keys, and\nthis is
+    // all of them". A literal space matched nothing, and the rule sat there
+    // looking like coverage while checking one sentence instead of two.
+    re: /(\w+) keys, and\s+this is all of them/gi,
+    expect: () => truth.storageKeys,
+    word: true,
+    only: ['PRIVACY.md'],
+  },
+  {
+    what: 'storage keys',
+    re: /removes all (\w+) keys/gi,
+    expect: () => truth.storageKeys,
+    word: true,
+    only: ['PRIVACY.md'],
+  },
 ];
 
 /** Phrases that assert something the build contradicts outright. */
@@ -147,8 +207,25 @@ for (const doc of DOCS) {
   const lineOf = (index) => text.slice(0, index).split('\n').length;
 
   for (const rule of RULES) {
+    /*
+     * `only` scopes a rule to the document that makes the claim.
+     *
+     * Needed the moment this gate learned to count storage keys: PRODUCT.md
+     * §63 *quotes* the sentence that was wrong — "Six keys, and this is all of
+     * them" — as the record of a defect, and a gate that failed on a write-up
+     * of a fixed bug would be teaching us to stop writing them up.
+     *
+     * Narrower than `historical: true`, which excuses every match of a pattern
+     * everywhere. The promise here is made by exactly one page, so that is the
+     * page it is checked on.
+     */
+    if (rule.only && !rule.only.includes(doc)) continue;
+
     for (const match of text.matchAll(rule.re)) {
-      const claimed = Number(match[1].replace(/,/g, ''));
+      const claimed = rule.word
+        ? NUMBER_WORDS[match[1].toLowerCase()]
+        : Number(match[1].replace(/,/g, ''));
+      if (claimed === undefined) continue;
       const actual = rule.expect();
       if (actual === undefined || actual === null || Number.isNaN(actual)) continue;
       checked++;
@@ -179,6 +256,7 @@ for (const doc of DOCS) {
 console.log(
   `doc claims — ${checked} checked across ${DOCS.length} documents ` +
     `(${truth.words} words, ${truth.badges} badges, ${truth.companies} companies, ` +
+    `${truth.storageKeys} storage keys, ` +
     `grade ${truth.grade}${truth.tests ? `, ${truth.tests} tests` : ''})`,
 );
 

@@ -20,7 +20,7 @@ parent can check it rather than take our word for it.
 
 ## Where the child's progress is stored
 
-In their own browser, in `localStorage`, on their own device. Six keys, and
+In their own browser, in `localStorage`, on their own device. Seven keys, and
 this is all of them:
 
 | Key | What is in it |
@@ -31,12 +31,13 @@ this is all of them:
 | `lemonade.live.v1` | The practice portfolio: which companies were bought, at which week |
 | `lemonade.guide.v1` | Which of the guide's lines have already been said |
 | `lemonade.act1.v1` | A save from an early build, read once and then migrated |
+| `lemonade.muted.v1` | Whether the sound is switched off |
 
 ## How to delete it
 
 Open **For a grown-up** from the title screen, scroll to the foot of the
 report, and press **Delete it from this device**. It asks once, tells you what
-it is about to remove, and then removes all six keys and lists them back to
+it is about to remove, and then removes all seven keys and lists them back to
 you. Clearing the browser's site data does the same thing.
 
 Either way it is permanent, including the badges and the words, and there is no

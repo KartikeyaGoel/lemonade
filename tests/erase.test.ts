@@ -16,6 +16,8 @@
  * the deletion.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   clearGame,
   eraseEverything,
@@ -28,6 +30,17 @@ import {
   saveLive,
 } from '../src/lib/storage';
 import { createGame } from '../src/lib/progress';
+import { setMuted } from '../src/lib/sound';
+
+const SRC = join(import.meta.dirname, '..', 'src');
+
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) return walk(full);
+    return /\.tsx?$/.test(full) ? [full] : [];
+  });
+}
 import { createCareer } from '../src/lib/career';
 import { createPortfolio } from '../src/lib/market';
 
@@ -43,6 +56,7 @@ const EVERY_KEY = [
   'lemonade.class.v1',
   'lemonade.live.v1',
   'lemonade.guide.v1',
+  'lemonade.muted.v1',
 ];
 
 /** A device with something in every slot, including the legacy one. */
@@ -53,6 +67,9 @@ function fillEverySlot() {
   saveLive({ ...createPortfolio(0, 100), live: true });
   saveGuideSeen(['welcome']);
   window.localStorage.setItem('lemonade.act1.v1', '{"state":{"day":1}}');
+  // Through the real setter, not a hand-written string: the point of this
+  // fixture is that every slot is filled the way the game fills it.
+  setMuted(true);
 }
 
 beforeEach(() => {
@@ -117,6 +134,32 @@ describe('deleting a child’s data', () => {
     saveCareer(createCareer());
     expect(window.localStorage.getItem('lemonade.save.v2')).not.toBeNull();
     expect(window.localStorage.getItem('lemonade.career.v1')).not.toBeNull();
+  });
+
+  /*
+   * The hand-written list above could not have caught this one, and said so.
+   *
+   * Its own reasoning was right — a list imported from the module under test
+   * cannot catch a forgotten key — and its scope was one module too narrow.
+   * It enumerates "every key the storage module writes", and the seventh key
+   * was written by `sound.ts`. So `ALL_KEYS` missed it, this file missed it,
+   * and PRIVACY.md counted six.
+   *
+   * This reads the source instead. No hand-list to keep up to date and no
+   * import from the module under test: any `'lemonade.…'` literal anywhere in
+   * `src` has to be a key the erase knows how to remove.
+   */
+  it('deletes every key literal that exists anywhere in the source', () => {
+    const found = new Set<string>();
+    for (const file of walk(SRC)) {
+      for (const m of readFileSync(file, 'utf8').matchAll(/'(lemonade\.[a-z0-9.]+)'/g)) {
+        found.add(m[1]);
+      }
+    }
+
+    // Sanity: the scan has to actually be finding things, or it proves nothing.
+    expect(found.size).toBeGreaterThanOrEqual(6);
+    expect([...found].sort()).toEqual([...EVERY_KEY].sort());
   });
 
   it('knows about every key the module writes', () => {
