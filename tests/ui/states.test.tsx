@@ -47,6 +47,16 @@ import { NextUp } from '@/components/meta/NextUp';
 import { ShopScreen } from '@/components/ShopScreen';
 import { MorningScreen } from '@/components/MorningScreen';
 import { RunDayScreen } from '@/components/RunDayScreen';
+import { CheckInScreen } from '@/components/meta/CheckInScreen';
+import { CreditsScreen } from '@/components/meta/CreditsScreen';
+import { MessagesScreen } from '@/components/meta/MessagesScreen';
+import { ScoutScreen } from '@/components/meta/ScoutScreen';
+import { checkIn } from '@/lib/checkin';
+import { createLedger, streak } from '@/lib/ledger';
+import { awardFor } from '@/lib/credits';
+import { createInbox, openThread, send as sendMessage } from '@/lib/messages';
+import { missionsFor } from '@/lib/missions';
+import { SCOUT_QUESTIONS } from '@/lib/scout';
 import { PlanScreen } from '@/components/PlanScreen';
 import { MarketScreen } from '@/components/acts/MarketScreen';
 import { ReckoningScreen } from '@/components/meta/ReckoningScreen';
@@ -169,6 +179,22 @@ const POISON = [
   'null',
   '[object Object]',
   '$-0.00',
+  /*
+   * Two currency symbols.
+   *
+   * `money()` and `formatMillions()` both carry their own `$`, so a caller
+   * that adds one prints "$$416B" — which is what the Stock Scout chips did on
+   * their first browser run, four times, across a module and a screen, in one
+   * sitting. Four instances of one mistake in one sitting is a class.
+   *
+   * It belongs here rather than in a source grep, and that is worth writing
+   * down because the grep was tried first and could not be made correct: in a
+   * template literal `${money(x)}` is the right thing and `$${money(x)}` is
+   * the bug, while in JSX text `${money(x)}` *is* the bug — the same
+   * characters, opposite verdicts, and a regex cannot tell which context it is
+   * in. Checking the rendered output has no such problem.
+   */
+  '$$',
 ];
 
 function check(label: string, element: ReactElement) {
@@ -1016,3 +1042,148 @@ describe('the planning screen, driven through its dials', () => {
     }
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * The Level 2 screens
+ *
+ * Added because they were not here, and the gap had already cost something:
+ * the `$$` rule in POISON exists because the Stock Scout chips printed
+ * "Takings $$416B" on their first browser run, and it would never have caught
+ * it — this matrix did not render the screen. A poison list only protects the
+ * screens somebody remembered to put in it.
+ * ------------------------------------------------------------------ */
+
+describe('the Level 2 screens', () => {
+  const TODAY = '2026-09-07';
+  const account = () => createPortfolio(500);
+
+  it('renders the check-in, with a week behind it and without', () => {
+    const withWeek = (() => {
+      const base = account();
+      return {
+        ...base,
+        priceHistory: Object.fromEntries(
+          Object.entries(base.priceHistory).map(([t, series]) => [t, [series[0], series[0] * 1.05]]),
+        ),
+      };
+    })();
+
+    for (const [label, portfolio] of [
+      ['a fresh market with nothing to compare', account()],
+      ['a week of history', withWeek],
+    ] as const) {
+      const state = checkIn(portfolio, { companiesStudied: [] }, createLedger(), TODAY, 500);
+      check(
+        `check-in: ${label}`,
+        <CheckInScreen
+          state={state}
+          streak={streak(createLedger(), TODAY)}
+          onDone={noop}
+          onBack={noop}
+        />,
+      );
+    }
+  });
+
+  it('renders credits at nothing, at a little and at plenty', () => {
+    const rich = ['passed-on-price', 'reviewed-a-mistake', 'held-when-nothing-changed'].reduce(
+      (led, deed) => awardFor(led, deed as 'passed-on-price', TODAY).ledger,
+      createLedger(),
+    );
+
+    for (const [label, led] of [
+      ['empty', createLedger()],
+      ['one deed', awardFor(createLedger(), 'ran-a-day', TODAY).ledger],
+      ['enough to spend', rich],
+    ] as const) {
+      for (const canSpend of [true, false]) {
+        check(
+          `credits: ${label}, ${canSpend ? 'with' : 'without'} an account`,
+          <CreditsScreen
+            ledger={led}
+            streak={streak(led, TODAY)}
+            today={TODAY}
+            canSpend={canSpend}
+            onTopUp={noop}
+            onBack={noop}
+          />,
+        );
+      }
+    }
+  });
+
+  it('renders messages empty, with a thread, and blocked', () => {
+    const opened = openThread(createInbox(), 'grown-up', 'Mum');
+    const chatted = sendMessage(opened, opened.threads[0].id, 'child', 'I made $28', TODAY).inbox;
+    const filtered = sendMessage(chatted, opened.threads[0].id, 'child', 'ring 07700 900123', TODAY)
+      .inbox;
+    const blocked = {
+      ...filtered,
+      threads: filtered.threads.map((t) => ({ ...t, blocked: true })),
+    };
+
+    for (const [label, box] of [
+      ['nothing yet', createInbox()],
+      ['one thread', opened],
+      ['a conversation', chatted],
+      ['a filtered message', filtered],
+      ['blocked', blocked],
+    ] as const) {
+      check(
+        `messages: ${label}`,
+        <MessagesScreen
+          inbox={box}
+          missions={[]}
+          onSend={noop}
+          onBlock={noop}
+          onReport={noop}
+          onBack={noop}
+        />,
+      );
+    }
+  });
+
+  it('renders the scout on a profitable company and on a loss-making one', () => {
+    /*
+     * Both, because the price questions divide by earnings and a company with
+     * no profit has no P/E — which is the state that produced "has no profit
+     * to divide by" with no figure in it, and would produce a blank or a NaN
+     * if anything here were careless.
+     */
+    const profitable = SNAPSHOT.find((c) => c.netIncomeM > 0)!;
+    const lossMaking = SNAPSHOT.find((c) => c.netIncomeM <= 0);
+
+    for (const company of [profitable, lossMaking].filter(Boolean)) {
+      for (const price of [company!.price, company!.price * 12, 0.01]) {
+        check(
+          `scout: ${company!.ticker} at ${price}`,
+          <ScoutScreen company={company!} price={price} onDone={noop} onBack={noop} />,
+        );
+      }
+    }
+  });
+
+  it('renders every scout question and its evidence without nonsense', () => {
+    // Exhaustive rather than the first screen: each question has its own
+    // evidence branches, and only rendering question one would leave seven
+    // untested.
+    const company = SNAPSHOT[0];
+    for (const question of SCOUT_QUESTIONS) {
+      const text = `${question.ask} ${question.kidLine} ${question.evidence(company, company.price)}`;
+      for (const bad of POISON) {
+        expect(text, `${question.id} produced "${bad}"`).not.toContain(bad);
+      }
+    }
+  });
+
+  it('renders a mission draft made of a real thesis', () => {
+    const missions = missionsFor({
+      theses: [],
+      companyFor: (ticker) => SNAPSHOT.find((c) => c.ticker === ticker),
+      story: null,
+    });
+    // No theses, so no missions: an empty list is a real answer here.
+    expect(missions).toEqual([]);
+  });
+});
+

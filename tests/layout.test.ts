@@ -137,3 +137,41 @@ describe('prices on the screens', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/*
+ * Every screen has to be rendered by some UI test.
+ *
+ * `tests/ui/states.test.tsx` keeps a POISON list — NaN, undefined,
+ * "[object Object]", `$$` — of strings no screen may ever print. It is one of
+ * the most valuable tests in the suite and it protects exactly the screens
+ * somebody remembered to add to it.
+ *
+ * Four screens were missing when this was written, and the gap had already
+ * cost something: the `$$` rule exists *because* the Stock Scout chips printed
+ * "Takings $$416B" in a browser, and the matrix could not have caught it,
+ * because it did not render that screen. A poison list with a hole in it is
+ * worse than none, because it reads as coverage.
+ *
+ * Named rather than rendered here — this file has no jsdom — so the check is
+ * "some UI test mentions this component", which is weaker than "renders it in
+ * every state" and strong enough to stop a screen being added with no test at
+ * all.
+ */
+describe('the render matrix', () => {
+  it('has every screen in it', () => {
+    const screens = walk(SRC)
+      .filter((path) => /Screen\.tsx$/.test(path))
+      .map((path) => path.split('/').pop()!.replace('.tsx', ''));
+
+    const uiTests = readdirSync(join(import.meta.dirname, 'ui'))
+      .filter((name) => name.endsWith('.tsx'))
+      .map((name) => readFileSync(join(import.meta.dirname, 'ui', name), 'utf8'))
+      .join('\n');
+
+    const missing = screens.filter((name) => !uiTests.includes(name));
+    expect(missing).toEqual([]);
+    // And the scan has to be finding screens at all, or it proves nothing.
+    expect(screens.length).toBeGreaterThan(20);
+  });
+});
+

@@ -58,8 +58,16 @@ export interface MissionInput {
   companyFor: (ticker: string) => Company | undefined;
   /** Today's market story, when there is one. */
   story: Story | null;
-  /** What each holding is worth now, so "most confident" can be about a real one. */
-  valueOf?: (ticker: string) => number;
+  /**
+   * What each holding is worth now, so "most confident" can be about a real one.
+   *
+   * Not called `valueOf`, which is what it was first. `Object.prototype` has a
+   * `valueOf`, so every object literal structurally "has" one — and a caller
+   * that legitimately omitted this field failed to typecheck against
+   * `Object`'s. A field name that collides with the prototype is a trap for
+   * every caller, not just the first.
+   */
+  worthOf?: (ticker: string) => number;
 }
 
 /**
@@ -101,7 +109,7 @@ export function missionsFor(input: MissionInput): Mission[] {
     });
   }
 
-  if (input.theses.length > 1 && input.valueOf) {
+  if (input.theses.length > 1 && input.worthOf) {
     /*
      * "Most confident" is asked about the holding whose written reason held,
      * not the one that went up most.

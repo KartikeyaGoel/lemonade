@@ -1455,3 +1455,63 @@ for the answer, not the visit), then credits, then the two journal fields, then
 Stock Scout — and push last, behind the account decision it depends on, not
 before it.
 
+## 18. Level 2, built
+
+§16 audited the customer's Level 2 spec against what existed and found stage 1
+— Stock Scout — was the real gap, with stages 2 and 3 substantially there. §17
+argued the event ledger was upstream of everything and should be built first.
+Both turned out to be right, and this is the state of the table now.
+
+| Specified | Then | Now |
+| --- | --- | --- |
+| Two-sided framework, taught | Partly | ✅ [`scout.ts`](src/lib/scout.ts) — five business questions, then three price questions, every answer computed from the filings |
+| Rate companies before investing | ❌ | ✅ [`ScoutScreen`](src/components/meta/ScoutScreen.tsx), one question at a time, two scores |
+| Thesis before money | ✅ | ✅ unchanged |
+| "Biggest risk", "I plan to hold unless" | ❌ | ✅ [`thesis.ts`](src/lib/thesis.ts), picked from lists so nothing typed can travel |
+| Revisit the thesis when the facts change | ❌ | ✅ `driftOf` — the same `holds()` twice, at two prices |
+| Judged on reasoning, not money | ✅ | ✅ unchanged |
+| Diversification, concentration | Partly | ✅ rewarded deeds, and the check-in's step four |
+| Position sizing | ❌ | ✅ `sized-a-position`, on every buy |
+| Clubs | ✅ | ✅ unchanged |
+| Parent sharing | Partly | ✅ [`missions.ts`](src/lib/missions.ts) + a working grown-up thread |
+| Readiness to commit money | ✅ | ✅ untouched, deliberately |
+| Credits as a currency | ❌ | ✅ [`credits.ts`](src/lib/credits.ts) — 17 rows, capped, judgment out-paying activity 10:1 |
+| Daily check-in ritual | ❌ | ✅ [`checkin.ts`](src/lib/checkin.ts), six steps delivered one at a time |
+| Streaks, return rewards | ❌ | ✅ counted on days with a deed, never on days opened |
+| Notifications | ❌ | ⚠️ still a decision, not a gap — see below |
+| Parental check-ins | deferred | ✅ built anyway, on the customer's instruction |
+
+### The one row that is still a decision
+
+Notifications. §17's argument stands and nothing since has changed it: the
+front end is the part that already works — a service worker is registered
+today, the app is installable, web push runs on iOS 16.4+ from the Home Screen
+— and the back end is the same account work that was deferred, plus a COPPA
+consent question that is a product and legal decision rather than an
+engineering one.
+
+What §17 said to build instead is now built. Every credit, streak, check-in and
+mission reads from [`ledger.ts`](src/lib/ledger.ts), so when the account
+decision is taken, a notification is a query against a record that already
+exists rather than a new subsystem inventing its own half of one.
+
+### What is *not* built, stated plainly
+
+- **No delivery between children.** Friend threads are modelled, filtered and
+  held. `deliver()` is one function and one seam.
+- **No server, no accounts, no push.** All three are the same decision.
+- **No human moderation.** The filter is a filter. A channel between children
+  needs a person, and that is an operating cost rather than a feature.
+
+### One thing the build changed about the spec
+
+The exit list for "I plan to hold unless…" does not include *"I find a better
+business at a better price"*, which was on it and came off. It is real
+investing — opportunity cost is how grown-ups think — and it is the only exit
+that is **always available**, so a child who wants to trade can always claim
+it. That turns the test they set themselves into a rubber stamp, and every
+other exit on the list requires the business to have actually changed.
+
+Found by a test asserting no exit is about the price. The right answer was not
+a better regex.
+

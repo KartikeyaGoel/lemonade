@@ -193,6 +193,8 @@ import { balance as balanceOf, streak as streakOf } from '@/lib/ledger';
 import { CheckInScreen } from '@/components/meta/CheckInScreen';
 import { CreditsScreen } from '@/components/meta/CreditsScreen';
 import { MessagesScreen } from '@/components/meta/MessagesScreen';
+import { ScoutScreen } from '@/components/meta/ScoutScreen';
+import { scoutable } from '@/lib/scout';
 import {
   block as blockThread,
   createInbox,
@@ -278,6 +280,7 @@ type Phase =
   | 'checkin'
   | 'credits'
   | 'messages'
+  | 'scout'
   | 'erased';
 
 /**
@@ -1926,6 +1929,19 @@ export default function Page() {
     : [];
 
   /**
+   * The next company to scout, and it is derived rather than stored.
+   *
+   * Which companies have been rated is already in the ledger — every rating
+   * writes `rated-a-business` with the ticker on it — so a second list would
+   * be the same fact in two homes, which is §62's defect class. Twenty-four
+   * companies against a 400-entry log leaves plenty of room.
+   */
+  const rated = ledger.entries
+    .filter((entry) => entry.deed === 'rated-a-business' && entry.what)
+    .map((entry) => entry.what!);
+  const toScout = scoutable(SNAPSHOT, rated);
+
+  /**
    * Things to go and tell a grown-up, built from what the child actually did.
    *
    * An empty list is a real answer: a mission with no material behind it is a
@@ -1937,7 +1953,7 @@ export default function Page() {
         theses: game.theses,
         companyFor: (ticker) => SNAPSHOT.find((company) => company.ticker === ticker),
         story: storyFor(game.portfolio),
-        valueOf: (ticker) => holdingValue(game.portfolio!, ticker),
+        worthOf: (ticker) => holdingValue(game.portfolio!, ticker),
       })
     : [];
 
@@ -2061,6 +2077,22 @@ export default function Page() {
       onClick: openFrom('title', 'credits'),
     });
   }
+  /*
+   * Stock Scout, from the moment there is a market at all.
+   *
+   * The earliest of the Level 2 doors on purpose: it is the stage that teaches
+   * the framework the rest of the market screens assume. A child who has not
+   * done this is being asked to buy things using a framework nobody showed
+   * them, which is what FRAMEWORK.md §16 found was actually missing.
+   */
+  if (game.portfolio && toScout.length > 0) {
+    titleExtras.push({
+      emoji: '🔎',
+      label: rated.length === 0 ? 'Rate a company' : `Rated ${rated.length}`,
+      onClick: openFrom('title', 'scout'),
+    });
+  }
+
   /*
    * Messages, once there is something to say.
    *
@@ -2615,6 +2647,25 @@ export default function Page() {
           // title, "back" has to mean the title.
           onBack={() => setPhase(returnPhase)}
           onDone={handleCheckIn}
+        />
+      ) : null;
+
+    case 'scout':
+      /*
+       * Rated at the price of the week being replayed, not at today's close.
+       * The market's own rule: a child judges the price they would actually be
+       * paying, against the accounts that were public then.
+       */
+      return toScout.length > 0 && game.portfolio ? (
+        <ScoutScreen
+          company={toScout[0]}
+          price={currentPrice(game.portfolio, toScout[0].ticker)}
+          asOf={currentDate(game.portfolio)}
+          onBack={() => setPhase(returnPhase)}
+          onDone={(rating) => {
+            noteDeed('rated-a-business', rating.ticker);
+            setPhase(returnPhase);
+          }}
         />
       ) : null;
 

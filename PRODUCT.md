@@ -3580,3 +3580,185 @@ Two things fell out of adding it, both worth keeping:
   and finding that only the second sentence complained. Verified in both
   directions now: stale word in the document, and an eighth key added to the
   source.
+
+## 64. Building Level 2, and the four conflicts that had to be resolved rather than argued with
+
+The customer's Level 2 note is now built: the ledger, credits, the daily
+check-in, the investment journal's two missing fields, the stale-thesis prompt,
+parent missions, messages, and Stock Scout. FRAMEWORK.md §16 has the audit
+table with what was already there; this is what had to be *decided* to build
+the rest, because four items in the note contradicted a position this document
+had already taken, and the instruction was to flag rather than silently comply.
+
+None of the four needed the customer to choose. Each had a design that
+satisfies both, and finding it was most of the work.
+
+### 1. Credits looked like XP, and §16 exists to refuse XP
+
+§16 is titled "The trophy case, and why it is not XP": *"XP rewards time spent,
+so it rewards grinding, so the fastest way to the top is to stop thinking. We
+would be building the exact habit that ruins people in markets: activity
+mistaken for skill."*
+
+A currency is not automatically XP. What makes XP corrosive is **what it pays
+for**, and §16 had already written the test that separates them: a badge is for
+"a specific decision that can only be made by someone who understood
+something." So three rules, and all three are asserted in
+[`tests/ledger.test.ts`](tests/ledger.test.ts) rather than left in a comment
+above the table:
+
+1. **No row pays for arriving.** `Deed` is a closed union and none of its
+   members means "turned up". A test greps the union for `open|visit|login|
+   arriv|daily-bonus`, because the way this breaks is somebody adding a
+   well-meaning `opened-the-app`.
+2. **Every row is capped per day.** An uncapped row is farmable however good
+   the behaviour.
+3. **The hardest decision out-pays the easiest activity ten to one.** Turning
+   down an overpriced business is 40. A day at the stand is 2. The ratio is
+   the message, and it is asserted.
+
+### 2. "Held 3 days, here's 50 for more trading" paid for the opposite of the lesson
+
+The note's own example, and the contradiction is in the sentence: paying for
+patience with a licence to trade more teaches that the reward for waiting is
+more chances not to.
+
+Credits buy **capital to hold with**. Nothing else is purchasable — §16's
+ladder is derived from what has been demonstrated and must not have a buyable
+rung, so there are no cosmetics, no boosts and no unlocks in the shop. A child
+who banks credits for a fortnight and spends them ends up with a bigger
+position in something they already reasoned about, which is what staying
+invested actually looks like.
+
+### 3. A streak is "given for showing up", and §15 says nothing is
+
+§15's first engine reads: *"A trophy case, a list of words you earned, and a
+career ledger that survives every reset. **Nothing in it is given for showing
+up.**"*
+
+The streak counts **days on which the child did something**, never days the app
+was opened. There is no deed for arriving, so there is no way to advance it by
+turning up. That is not a technicality: a login streak pays for presence and a
+child learns to collect it, while a streak of days on which they answered a
+question about their own portfolio is a record of judgment exercised on
+separate days — which is spaced repetition, and the only mechanism by which any
+of this becomes durable.
+
+The daily check-in resolves the same way, using the ritual's own fourth step.
+"Does my portfolio need action — sometimes yes, often no" means **"nothing to
+do today" is a right answer**, and it is paid as one. Opening the check-in and
+closing it again pays nothing.
+
+### 4. Six steps at once is the failure §26 already records fixing
+
+§26's rules are "one card a day, one word a day, one finger", and the failure
+they came out of was day one handing over three new words in three stacked
+panels of italic explanation. A six-step ritual delivered as a screenful is
+that failure with a bigger number.
+
+So the check-in is a sequence: one question, answered, then the next. Same for
+Stock Scout's eight — and there the order carries an argument as well. All five
+business questions come before any of the three price questions, so a child
+decides whether it is a good business *before* seeing what it costs. A test
+drives the whole exercise through the app and asserts that ordering, because a
+layout change could reorder them and no unit test would notice.
+
+### What Stock Scout reports, and why it is two numbers
+
+*A great business at a silly price is a bad investment* is the single most
+valuable sentence in this product, and a child cannot learn it from one score
+out of eight. So the two sides are tallied apart, and the verdict is built from
+the **shape** of the result:
+
+| Business | Price | What it says |
+| --- | --- | --- |
+| Good | Good | They can use the framework. |
+| Good | Poor | Names the mistake: the commonest and most dangerous, because it feels like competence. |
+| Poor | Good | A bargain-hunter's error — cheap things are usually cheap for a reason. |
+| Poor | Poor | Says so plainly, and points at the evidence lines. No compliment. |
+
+Every answer is computed from the same SEC fundamentals and the same replayed
+price the market uses, and every one hands back its arithmetic. A quiz with a
+hand-written key would teach a child to guess what an adult wants.
+
+### The messaging decision, which was mine to make and is flagged here
+
+The customer asked for parent-to-child and child-to-child messaging, for the
+demo, built to port. That splits in two and the halves are not alike.
+
+**Grown-up threads work completely, with no server.** The child writes on their
+Messages screen; the grown-up replies from behind the grown-up screen, on the
+same device. That is not a stub — a shared family tablet is the normal case at
+this age, and a note left for somebody who picks the device up later is the
+product.
+
+**Friend threads are modelled, filtered, stored and not delivered.** A friend
+message sits at `state: 'held'` and the screen says "waiting to be sent". It
+does not say "sent", because a child who believes a friend has read something
+they cannot see is the one failure in this feature with real consequences.
+`deliver()` is the single function a transport would call — declared, tested,
+and wired to nothing on purpose. **The difference between a declared seam and a
+§40 defect is entirely whether it was written down.**
+
+And the moderation was built before the transport, which is the part worth
+defending. A children's product that ships a channel and adds filtering later
+has, in the interval, shipped an unmoderated channel for nine-year-olds. The
+filter is aimed at **identifiers rather than swear words** — emails, phone
+numbers, links, addresses, schools, and the names of other apps a conversation
+gets moved to. That last category is the one people leave out and the one that
+ends moderation entirely: no amount of filtering inside this app helps once the
+conversation has left it.
+
+`PRIVACY.md` now has a Messages section saying plainly what a child can and
+cannot do, and its claim that no code anywhere sends a message is a test — a
+grep across all of `src` for `fetch`, `XMLHttpRequest`, `WebSocket`,
+`sendBeacon` and `EventSource`, verified by planting one.
+
+### Six defects, all found by tests or by a browser
+
+- **A dead state in the economy.** The best deed of the day earns 40 credits
+  and the minimum top-up needed 50, so a child who did the single hardest thing
+  available was shown a balance, told it was worth $8, and refused. Replaced
+  with a $5 step, and `affordableDollars` now only ever reports a figure the
+  shop will sell.
+- **"Apple went up 0% this week"**, under a duck saying it had barely moved. A
+  fresh portfolio holds one price per company, so every change is zero for want
+  of anything to subtract.
+- **A right answer marked wrong.** With no story, the check-in still asked
+  "does it touch anything you own?" and judged it against a default — telling a
+  child holding Apple that they did not hold it. `stepsFor` drops the questions
+  that are about the story when there is no story.
+- **"All three right" after asking one question.** Hardcoded, same class as
+  "Two days to try things out" in a component.
+- **The reset did not clear the ledger in memory**, so its save effect wrote a
+  stranger's streak straight back — §61's bug in a slot newer than §61. And the
+  fix then re-created the key one tick later with an empty ledger, making the
+  erase screen's list wrong for the second time in two sessions.
+- **`valueOf` as a field name.** `Object.prototype` has one, so every object
+  literal structurally has one, and a caller that legitimately omitted the
+  field failed to typecheck against `Object`'s. A field name that collides with
+  the prototype is a trap for every caller rather than just the first.
+
+### And one guard that was reading as coverage
+
+The Stock Scout chips printed **"Takings $$416B"** on their first browser run.
+`formatMillions` already carries the dollar sign; four call sites added a second
+one, across a module and a screen, in one sitting. Four instances of one
+mistake in one sitting is a class, and the fact with more than one home is *who
+is responsible for the currency symbol.*
+
+The first fix was a source grep, and it could not be made correct: in a template
+literal `${money(x)}` is right and `$${money(x)}` is the bug, while in JSX text
+`${money(x)}` **is** the bug — the same characters, opposite verdicts, and a
+regex cannot tell which context it is in. It was deleted rather than kept,
+because a guard that does not bite is worse than none: it reads as coverage.
+
+`$$` went into the POISON list in `tests/ui/states.test.tsx` instead, which
+checks rendered output and has no such problem. Except that list only protects
+the screens somebody remembered to add — and **the four new screens were not in
+it**, so it could not have caught the bug that produced the rule. All four are
+in the matrix now, and
+[`tests/layout.test.ts`](tests/layout.test.ts) grew the rule that generalises
+it: every `*Screen.tsx` must be named by some UI test. Verified by adding an
+empty screen and watching it fail.
+
