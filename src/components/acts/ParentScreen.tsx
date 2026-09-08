@@ -20,9 +20,22 @@ export function ParentScreen({
   report,
   onClassroom,
   onEraseAll,
+  fromChild,
+  onReply,
   onBack,
 }: {
   report: ParentReport;
+  /**
+   * What the child has written to a grown-up, oldest first.
+   *
+   * This is the grown-up's half of a conversation that works entirely on this
+   * device. It lives behind the grown-up screen rather than anywhere the child
+   * would find it, for the same reason the erase does: a reply is meant to be
+   * from an adult, and a reply box on the child's own screen is a reply box
+   * the child can answer themselves.
+   */
+  fromChild?: readonly { author: string; body: string }[];
+  onReply?: (text: string) => void;
   /** The teacher's way in. Nothing on the child's side links here. */
   onClassroom?: () => void;
   /**
@@ -176,6 +189,38 @@ export function ParentScreen({
           {/* One teacher is thirty children, and this is the only door to
               that. It sits at the bottom of the grown-up view rather than
               anywhere a child would find it. */}
+          {/*
+            The grown-up's side of the conversation.
+            
+            Above the teacher's door because it is the thing a parent came for
+            if there is anything in it at all — a child explaining, in their
+            own words, why they bought something. That is the evidence this
+            whole screen exists to provide, except written by them.
+          */}
+          {onReply && fromChild && fromChild.length > 0 && (
+            <div className="mb-3 rounded-2xl border-[3px] border-ink/20 bg-white/85 px-3 py-2.5">
+              <div className="font-sign text-lg leading-tight text-ink">
+                They wrote to you
+              </div>
+              <div className="mt-1.5 space-y-1.5">
+                {fromChild.slice(-3).map((message, index) => (
+                  <p
+                    key={`${index}-${message.body.slice(0, 12)}`}
+                    className={`rounded-xl border-2 px-2.5 py-1.5 font-body text-[12px] font-bold leading-snug ${
+                      message.author === 'child'
+                        ? 'border-mint/50 bg-mint/15 text-ink/80'
+                        : 'border-ink/12 bg-white text-ink/60'
+                    }`}
+                  >
+                    {message.author === 'child' ? '' : 'You: '}
+                    {message.body}
+                  </p>
+                ))}
+              </div>
+              <Reply onReply={onReply} />
+            </div>
+          )}
+
           {onClassroom && (
             <button
               type="button"
@@ -420,6 +465,44 @@ function Rungskill({ skill, locked }: { skill: Skill; locked: boolean }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * A grown-up's reply, typed on the same device.
+ *
+ * No filter note shown here: the filter still runs — `send` applies it to
+ * every author — but a grown-up who pastes a phone number into a note to
+ * their own child does not need to be taught about the internet. They need
+ * the message to arrive, minus the number.
+ */
+function Reply({ onReply }: { onReply: (text: string) => void }) {
+  const [text, setText] = useState('');
+  return (
+    <div className="mt-2">
+      <label className="sr-only" htmlFor="grown-up-reply">
+        Write back
+      </label>
+      <textarea
+        id="grown-up-reply"
+        value={text}
+        onChange={(event) => setText(event.target.value.slice(0, 240))}
+        rows={2}
+        placeholder="Write back…"
+        className="w-full rounded-xl border-[3px] border-ink/15 bg-white px-3 py-2 font-body text-[13px] font-bold text-ink/85"
+      />
+      <button
+        type="button"
+        disabled={text.trim().length === 0}
+        onClick={() => {
+          onReply(text);
+          setText('');
+        }}
+        className="mt-1.5 min-h-11 w-full rounded-xl border-[3px] border-ink/20 bg-white font-body text-xs font-extrabold uppercase tracking-wide text-ink/70 disabled:opacity-40"
+      >
+        Send it
+      </button>
     </div>
   );
 }

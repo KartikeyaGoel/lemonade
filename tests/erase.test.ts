@@ -27,12 +27,14 @@ import {
   saveCareer,
   saveGame,
   saveGuideSeen,
+  saveInbox,
   saveLedger,
   saveLive,
 } from '../src/lib/storage';
 import { createGame } from '../src/lib/progress';
 import { setMuted } from '../src/lib/sound';
 import { createLedger, record } from '../src/lib/ledger';
+import { createInbox, openThread, send } from '../src/lib/messages';
 
 const SRC = join(import.meta.dirname, '..', 'src');
 
@@ -60,6 +62,7 @@ const EVERY_KEY = [
   'lemonade.guide.v1',
   'lemonade.muted.v1',
   'lemonade.ledger.v1',
+  'lemonade.inbox.v1',
 ];
 
 /** A device with something in every slot, including the legacy one. */
@@ -74,6 +77,10 @@ function fillEverySlot() {
   // fixture is that every slot is filled the way the game fills it.
   setMuted(true);
   saveLedger(record(createLedger(), 'ran-a-day', '2026-09-07', 2));
+  saveInbox(
+    send(openThread(createInbox(), 'grown-up', 'Mum'), 'grown-up-mum', 'child', 'hello', '2026-09-07')
+      .inbox,
+  );
 }
 
 beforeEach(() => {

@@ -16,11 +16,13 @@ parent can check it rather than take our word for it.
   involved. The stock market act uses real historical prices and real filed
   accounts to move a simulated portfolio.
 - **No free text between children.** Everything shared between players travels
-  as a short code the child types out loud or writes down.
+  as a short code the child types out loud or writes down. There is a
+  messages screen, and the section below says exactly what it does and does
+  not do.
 
 ## Where the child's progress is stored
 
-In their own browser, in `localStorage`, on their own device. Eight keys, and
+In their own browser, in `localStorage`, on their own device. Nine keys, and
 this is all of them:
 
 | Key | What is in it |
@@ -33,12 +35,13 @@ this is all of them:
 | `lemonade.act1.v1` | A save from an early build, read once and then migrated |
 | `lemonade.muted.v1` | Whether the sound is switched off |
 | `lemonade.ledger.v1` | What they did and on which day, so a streak can be counted |
+| `lemonade.inbox.v1` | Notes between the child and a grown-up on this device |
 
 ## How to delete it
 
 Open **For a grown-up** from the title screen, scroll to the foot of the
 report, and press **Delete it from this device**. It asks once, tells you what
-it is about to remove, and then removes all eight keys and lists them back to
+it is about to remove, and then removes all nine keys and lists them back to
 you. Clearing the browser's site data does the same thing.
 
 Either way it is permanent, including the badges and the words, and there is no
@@ -51,6 +54,40 @@ The game offers a child the chance to put a name on their trophy card. It is
 optional, it is capped at twelve characters, it never leaves the device unless
 the child chooses to share a code with a friend, and a first name or a nickname
 is what the prompt asks for.
+
+## Messages
+
+The game has a messages screen. It is worth being precise about it, because
+"my child can send messages in an app" is the sentence a parent most wants a
+straight answer to.
+
+**A child can write to a grown-up, and it works.** Both ends are on this
+device: the child writes on their messages screen, and the grown-up replies
+from inside **For a grown-up**. It is a note left on a shared tablet. Nothing
+is sent anywhere, because there is nowhere to send it and nobody to send it to.
+
+**A child cannot send a message to another child.** They can write one. It is
+kept on this device, marked *waiting to be sent*, and it stays there. There is
+no server, so there is no delivery — and the screen says "waiting to be sent"
+rather than "sent", because telling a child their friend has read something
+they cannot see would be the worst thing this feature could do.
+
+**Every message is filtered before it is stored, whoever wrote it.** The filter
+is aimed at identifiers rather than at rude words: email addresses, phone
+numbers, links, street addresses, the name of a school, and the names of other
+apps a conversation might be moved to. Anything it finds is replaced, and the
+child is told what came out and why. It runs again every time the game loads,
+so a message stored before the filter knew about something is not displayed
+afterwards.
+
+**A child can block or report any conversation, from the conversation.**
+Reporting blocks at the same time. A blocked conversation accepts nothing in
+either direction.
+
+**If this ever becomes a real messaging feature, this page changes first.**
+Delivering a message between two children needs a server, an account for each
+child, and a grown-up's consent — and it needs moderation by a person, not just
+a filter. None of that exists, and none of it will arrive quietly.
 
 ## What travels when children share
 
@@ -81,7 +118,8 @@ The whole game is a static bundle and the source is public.
   request goes to the address the game is served from and nowhere else.
 - Turn the wifi off and reload. It still works.
 - Search the source for `fetch(` — the only network call in the application code
-  is the one the service worker makes to cache the game for offline use.
+  is the one the service worker makes to cache the game for offline use. That
+  includes messages: there is no code anywhere that sends one.
 
 ## Contact
 

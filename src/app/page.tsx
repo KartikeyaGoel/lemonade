@@ -72,6 +72,7 @@ import {
   buy as buyStock,
   currentDate,
   currentPrice,
+  holdingValue,
   markResearched,
   maxSpendOn,
   sell as sellStock,
@@ -118,10 +119,12 @@ import {
   loadCareer,
   loadGame,
   loadGuideSeen,
+  loadInbox,
   loadLedger,
   loadLive,
   saveBoard,
   saveGuideSeen,
+  saveInbox,
   saveLedger,
   saveLive,
   saveCareer,
@@ -189,8 +192,20 @@ import { createLedger, hasAnything, localDay, type Deed, type Ledger } from '@/l
 import { balance as balanceOf, streak as streakOf } from '@/lib/ledger';
 import { CheckInScreen } from '@/components/meta/CheckInScreen';
 import { CreditsScreen } from '@/components/meta/CreditsScreen';
+import { MessagesScreen } from '@/components/meta/MessagesScreen';
+import {
+  block as blockThread,
+  createInbox,
+  grownUpThread,
+  inboxLine,
+  openThread,
+  report as reportThread,
+  send as sendMessage,
+  type Inbox,
+} from '@/lib/messages';
+import { missionsFor } from '@/lib/missions';
 import { topUp } from '@/lib/credits';
-import { checkIn as buildCheckIn, type Answers } from '@/lib/checkin';
+import { checkIn as buildCheckIn, storyFor, type Answers } from '@/lib/checkin';
 import { awardFor } from '@/lib/credits';
 import { CloseScreen } from '@/components/CloseScreen';
 import { WeekEndScreen } from '@/components/WeekEndScreen';
@@ -262,6 +277,7 @@ type Phase =
   | 'reckoning'
   | 'checkin'
   | 'credits'
+  | 'messages'
   | 'erased';
 
 /**
@@ -315,6 +331,7 @@ export default function Page() {
    * on `LEDGER_KEY` in storage.ts.
    */
   const [ledger, setLedger] = useState<Ledger>(createLedger);
+  const [inbox, setInbox] = useState<Inbox>(createInbox);
 
   /**
    * Write a deed down, at the moment it happens.
@@ -417,6 +434,7 @@ export default function Page() {
     if (savedBoard) setBoard(savedBoard);
     setLive(loadLive());
     setLedger(loadLedger());
+    setInbox(loadInbox());
     setGuideSeen(loadGuideSeen());
     setToday(new Date().toISOString().slice(0, 10));
   }, []);
@@ -438,6 +456,12 @@ export default function Page() {
     // save re-created the key one tick after the reset had deleted it.
     if (hasAnything(ledger)) saveLedger(ledger);
   }, [ledger]);
+
+  useEffect(() => {
+    // Same rule as the ledger, for the same reason: an unconditional save
+    // would re-create the key one tick after the reset deleted it.
+    if (inbox.threads.length > 0) saveInbox(inbox);
+  }, [inbox]);
 
   useEffect(() => {
     if (career) saveCareer(career);
@@ -1625,6 +1649,38 @@ export default function Page() {
     [ledger, live],
   );
 
+  /**
+   * Send a message, and pay for the ones that are a child explaining
+   * themselves.
+   *
+   * `taught-a-grown-up` is awarded on *sending*, not on a reply arriving. A
+   * reward that waits for somebody else punishes the child whose grown-up is
+   * busy, and the learning is in the saying — you do not know a thing until
+   * you have had to explain it out loud.
+   *
+   * The credit is only for a mission, though. Any old message would make this
+   * a row that pays for typing, and §16's whole objection to XP is activity
+   * mistaken for skill.
+   */
+  const handleSendMessage = useCallback(
+    (threadId: string, text: string, missionId?: string) => {
+      const result = sendMessage(inbox, threadId, 'child', text, localDay());
+      setInbox(result.inbox);
+      if (result.message && missionId) noteDeed('taught-a-grown-up', missionId);
+    },
+    [inbox, noteDeed],
+  );
+
+  /** The grown-up's side of the conversation, from behind the grown-up screen. */
+  const handleGrownUpReply = useCallback(
+    (text: string) => {
+      const thread = grownUpThread(inbox);
+      if (!thread) return;
+      setInbox(sendMessage(inbox, thread.id, 'grown-up', text, localDay()).inbox);
+    },
+    [inbox],
+  );
+
   const eraseAll = useCallback(() => {
     setErasedKeys(eraseEverything());
     setGame(null);
@@ -1643,6 +1699,7 @@ export default function Page() {
      * written.
      */
     setLedger(createLedger());
+    setInbox(createInbox());
     setHasSave(false);
     setPhase('erased');
   }, []);
@@ -1869,6 +1926,22 @@ export default function Page() {
     : [];
 
   /**
+   * Things to go and tell a grown-up, built from what the child actually did.
+   *
+   * An empty list is a real answer: a mission with no material behind it is a
+   * homework question rather than a conversation, so `missionsFor` returns
+   * only the ones it can fill a draft for. See `missions.ts`.
+   */
+  const missions = game.portfolio
+    ? missionsFor({
+        theses: game.theses,
+        companyFor: (ticker) => SNAPSHOT.find((company) => company.ticker === ticker),
+        story: storyFor(game.portfolio),
+        valueOf: (ticker) => holdingValue(game.portfolio!, ticker),
+      })
+    : [];
+
+  /**
    * Today's check-in, built from whichever portfolio the child is living in.
    *
    * The live practice account first, because once it exists it is the one with
@@ -1986,6 +2059,51 @@ export default function Page() {
       emoji: '🎟️',
       label: `${balanceOf(ledger)} credits`,
       onClick: openFrom('title', 'credits'),
+    });
+  }
+  /*
+   * Messages, once there is something to say.
+   *
+   * Gated on a written reason existing, not on a stage: the missions are all
+   * built from the child's own journal, so before the first thesis there is
+   * nothing to tell anybody and the screen would be a blank box with an
+   * instruction over it — which is where this feature would die.
+   *
+   * Opening the grown-up thread is done here, on the way in, rather than at
+   * install. A child who never writes to anybody keeps an empty Messages
+   * screen instead of an empty conversation.
+   */
+  if (game.theses.length > 0) {
+    titleExtras.push({
+      emoji: '✉️',
+      // Names what is waiting rather than how long it has been. §15.
+      label: grownUpThread(inbox) ? inboxLine(inbox) : 'Messages',
+      onClick: () => {
+        setInbox((current) => {
+          let next = grownUpThread(current)
+            ? current
+            : openThread(current, 'grown-up', 'A grown-up');
+          /*
+           * A thread per club member, opened on the way in.
+           *
+           * This is where "friends" actually exist in this product: a club is
+           * the only place another child's name is known, so it is the only
+           * honest source for a friend thread. Opening one from a name the app
+           * has never seen would be inventing a person.
+           *
+           * They are `held` threads and the screen says so. That is the whole
+           * of what can be built without a server, and it is why the model
+           * carries a delivery state at all — see `deliver()`.
+           */
+          for (const member of game.club?.members ?? []) {
+            if (member.name === career.name) continue;
+            next = openThread(next, 'friend', member.name);
+          }
+          return next;
+        });
+        setReturnPhase('title');
+        setPhase('messages');
+      },
     });
   }
   /*
@@ -2500,6 +2618,25 @@ export default function Page() {
         />
       ) : null;
 
+    case 'messages':
+      return (
+        <MessagesScreen
+          inbox={inbox}
+          missions={missions}
+          onSend={handleSendMessage}
+          onBlock={(id) =>
+            setInbox((current) => {
+              const thread = current.threads.find((t) => t.id === id);
+              return blockThread(current, id, !thread?.blocked);
+            })
+          }
+          onReport={(id, reason) =>
+            setInbox((current) => reportThread(current, id, reason, localDay()))
+          }
+          onBack={() => setPhase(returnPhase)}
+        />
+      );
+
     case 'credits':
       return (
         <CreditsScreen
@@ -2559,6 +2696,8 @@ export default function Page() {
     case 'parent':
       return (
         <ParentScreen
+          fromChild={grownUpThread(inbox)?.messages ?? []}
+          onReply={handleGrownUpReply}
           report={parentReport(game, career, thesisReport.scores)}
           onClassroom={() => setPhase('classroom')}
           onEraseAll={eraseAll}

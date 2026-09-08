@@ -35,6 +35,17 @@ import {
   type PortfolioState,
 } from './market';
 import type { DayRecord, Forecast, GameState } from './simulation';
+import {
+  INBOX_VERSION,
+  THREAD_CAP,
+  createInbox,
+  filterMessage,
+  filterNote,
+  type Inbox,
+  type Message,
+  type MessageState,
+  type Thread,
+} from './messages';
 import { MUTE_KEY } from './sound';
 import {
   DAY_CAP,
@@ -85,6 +96,14 @@ const GUIDE_KEY = 'lemonade.guide.v1';
  * different keys.
  */
 const LEDGER_KEY = 'lemonade.ledger.v1';
+
+/**
+ * Messages between the child and a grown-up, and drafts to friends.
+ *
+ * Its own slot for the same reason as the ledger: a new season clears the run,
+ * and a note a child wrote to their mum is not part of the run.
+ */
+const INBOX_KEY = 'lemonade.inbox.v1';
 
 export function loadGame(): Game | null {
   if (typeof window === 'undefined') return null;
@@ -570,6 +589,83 @@ export function saveLedger(ledger: Ledger): void {
   }
 }
 
+/**
+ * Read the inbox back, per field like every other loader here.
+ *
+ * The filter is re-run on load rather than trusted, and that is the one
+ * unusual thing in this function. Every other field is validated for *shape*;
+ * a message body is validated for *content*, because the stored text is the
+ * only thing here that a person typed and the only thing whose safety rules
+ * might have got stricter since it was written. A save carrying a phone number
+ * from a build before the filter knew about phone numbers must not display it.
+ */
+export function loadInbox(): Inbox {
+  if (typeof window === 'undefined') return createInbox();
+  try {
+    const raw = window.localStorage.getItem(INBOX_KEY);
+    if (!raw) return createInbox();
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!Array.isArray(parsed.threads)) return createInbox();
+
+    const threads = (parsed.threads as unknown[])
+      .filter(
+        (thread): thread is Thread =>
+          !!thread &&
+          typeof thread === 'object' &&
+          typeof (thread as Thread).id === 'string' &&
+          typeof (thread as Thread).withWhom === 'string' &&
+          ((thread as Thread).kind === 'grown-up' || (thread as Thread).kind === 'friend'),
+      )
+      .map((thread) => ({
+        id: thread.id,
+        kind: thread.kind,
+        withWhom: thread.withWhom.slice(0, 24),
+        blocked: Boolean(thread.blocked),
+        reports: Array.isArray(thread.reports)
+          ? thread.reports.filter(
+              (entry): entry is { on: string; reason: string } =>
+                !!entry && typeof entry === 'object' && typeof entry.reason === 'string',
+            )
+          : [],
+        messages: (Array.isArray(thread.messages) ? thread.messages : [])
+          .filter(
+            (message): message is Message =>
+              !!message &&
+              typeof message === 'object' &&
+              typeof (message as Message).body === 'string' &&
+              typeof (message as Message).id === 'string',
+          )
+          .map((message): Message => {
+            const filtered = filterMessage(message.body);
+            const note = filterNote(filtered) ?? message.note;
+            const state: MessageState =
+              message.state === 'delivered' || message.state === 'blocked'
+                ? message.state
+                : 'held';
+            return {
+              ...message,
+              body: filtered.body,
+              state,
+              ...(note ? { note } : {}),
+            };
+          })
+          .slice(-THREAD_CAP),
+      }));
+
+    return { version: INBOX_VERSION, threads };
+  } catch {
+    return createInbox();
+  }
+}
+
+export function saveInbox(inbox: Inbox): void {
+  try {
+    window.localStorage.setItem(INBOX_KEY, JSON.stringify(inbox));
+  } catch {
+    // Out of quota. The conversation is still correct in memory.
+  }
+}
+
 export function saveGuideSeen(seen: readonly string[]): void {
   try {
     window.localStorage.setItem(GUIDE_KEY, JSON.stringify([...seen]));
@@ -616,6 +712,7 @@ const ALL_KEYS = [
    */
   MUTE_KEY,
   LEDGER_KEY,
+  INBOX_KEY,
 ] as const;
 
 /**
