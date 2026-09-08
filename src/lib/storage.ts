@@ -105,6 +105,15 @@ const LEDGER_KEY = 'lemonade.ledger.v1';
  */
 const INBOX_KEY = 'lemonade.inbox.v1';
 
+/**
+ * Which nudges have already been said.
+ *
+ * Separate from the ledger, which records what the *child* did. This records
+ * what *we* said, and conflating the two would make "have we told them this
+ * already" a question about their behaviour.
+ */
+const NUDGE_KEY = 'lemonade.nudges.v1';
+
 export function loadGame(): Game | null {
   if (typeof window === 'undefined') return null;
 
@@ -666,6 +675,35 @@ export function saveInbox(inbox: Inbox): void {
   }
 }
 
+/**
+ * Nudge ids already shown, capped.
+ *
+ * Ids carry the day they belong to, so old ones are dead weight rather than
+ * dangerous — but they are still weight, and this list would otherwise grow
+ * for the life of the install.
+ */
+export function loadNudgesShown(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(NUDGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id): id is string => typeof id === 'string').slice(-60);
+  } catch {
+    return [];
+  }
+}
+
+export function saveNudgesShown(shown: readonly string[]): void {
+  try {
+    window.localStorage.setItem(NUDGE_KEY, JSON.stringify([...shown].slice(-60)));
+  } catch {
+    // Out of quota. The cap holds for this session and resets next load, which
+    // is a repeated nudge rather than a crash.
+  }
+}
+
 export function saveGuideSeen(seen: readonly string[]): void {
   try {
     window.localStorage.setItem(GUIDE_KEY, JSON.stringify([...seen]));
@@ -713,6 +751,7 @@ const ALL_KEYS = [
   MUTE_KEY,
   LEDGER_KEY,
   INBOX_KEY,
+  NUDGE_KEY,
 ] as const;
 
 /**

@@ -32,6 +32,8 @@ export function TitleScreen({
   road,
   rank,
   guide,
+  waiting = [],
+  onWaiting,
 }: {
   onStart: () => void;
   hasSave: boolean;
@@ -59,6 +61,17 @@ export function TitleScreen({
    * does not block the button — the five-second cold open still holds.
    */
   guide?: { lines: readonly string[]; onDismiss: () => void } | null;
+  /**
+   * What is waiting, shown in the app rather than only on the lock screen.
+   *
+   * This is what makes the notification policy worth having before there is a
+   * transport: the same nudges, in the same order, on the screen a returning
+   * child actually lands on. A grown-up who refuses the browser permission
+   * loses the lock screen and nothing else, which is the property that makes
+   * it safe to ask at all.
+   */
+  waiting?: readonly { id: string; title: string; body: string; goTo: string }[];
+  onWaiting?: (goTo: string) => void;
 }) {
   return (
     <Sky mood="probably-hot">
@@ -96,6 +109,29 @@ export function TitleScreen({
         <ChunkyButton variant="mint" full onClick={onStart} className="!text-3xl">
           {hasSave ? 'Keep going' : 'Start selling'}
         </ChunkyButton>
+
+        {/*
+          One, never a list.
+          
+          §26: one thing lit up with a finger pointing at it. A returning child
+          handed three things to do will do none of them, and the nudges are
+          already sorted so that the first is the one that matters most.
+        */}
+        {waiting.length > 0 && onWaiting && (
+          <button
+            type="button"
+            onClick={() => onWaiting(waiting[0].goTo)}
+            data-coach="waiting"
+            className="mt-3 w-full rounded-2xl border-[3px] border-ink/15 bg-white/85 px-3 py-2.5 text-left transition active:translate-y-[1px]"
+          >
+            <div className="font-body text-[13px] font-extrabold leading-snug text-ink/85">
+              {waiting[0].title}
+            </div>
+            <div className="mt-0.5 font-body text-[11px] font-bold leading-snug text-ink/55">
+              {waiting[0].body}
+            </div>
+          </button>
+        )}
 
         {road && (
           <div className="mt-4 w-full">

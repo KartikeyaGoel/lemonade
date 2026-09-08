@@ -35,8 +35,11 @@ import {
   send,
   threadFor,
   unreadFrom,
+  asCode,
+  receive,
   type Inbox,
 } from '../src/lib/messages';
+import { encodeLong } from '../src/lib/sharecode';
 
 const TODAY = '2026-09-07';
 
@@ -195,7 +198,7 @@ describe('writing to a friend, with nowhere to send it', () => {
     let inbox = withThreads();
     inbox = send(inbox, friendId(), 'child', 'one', TODAY).inbox;
     inbox = send(inbox, friendId(), 'child', 'two', TODAY).inbox;
-    expect(inboxLine(inbox)).toBe('2 waiting to be sent.');
+    expect(inboxLine(inbox)).toBe('2 waiting to be turned into a code.');
   });
 
   /*
@@ -329,6 +332,104 @@ describe('nothing leaves the device', () => {
     const sent = send(withThreads(), friendId(), 'child', 'anything', TODAY);
     expect(sent.message!.state).toBe('held');
     expect(held(sent.inbox).map((m) => m.body)).toEqual(['anything']);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * The code transport
+ * ------------------------------------------------------------------ */
+
+describe('handing a message to a friend as a code', () => {
+  it('turns a held message into a code, and marks it handed over', () => {
+    const sent = send(withThreads(), friendId(), 'child', 'I bought Costco', TODAY);
+    expect(sent.message!.state).toBe('held');
+
+    const made = asCode(sent.inbox, sent.message!.id, 'Ada');
+    expect(made.code).toMatch(/^MSG-/);
+    // `deliver()` — the seam that used to be wired to nothing — is what this
+    // calls. Producing a code is the act of sending, in the only sense this
+    // product can observe.
+    const after = threadFor(made.inbox, friendId())!.messages[0];
+    expect(after.state).toBe('delivered');
+    expect(held(made.inbox)).toHaveLength(0);
+  });
+
+  it('will not make a code out of a note to a grown-up', () => {
+    // Those are already delivered, on this device. There is nothing to hand over.
+    const sent = send(withThreads(), grownUpId(), 'child', 'hello', TODAY);
+    expect(asCode(sent.inbox, sent.message!.id, 'Ada').code).toBeNull();
+  });
+
+  it('carries the message to another device', () => {
+    const sent = send(withThreads(), friendId(), 'child', 'I bought Costco', TODAY);
+    const { code } = asCode(sent.inbox, sent.message!.id, 'Ada');
+
+    // A different child, a different inbox.
+    const theirs = receive(createInbox(), code!, '2026-09-08');
+    expect(theirs.message?.body).toBe('I bought Costco');
+    expect(theirs.message?.author).toBe('friend');
+    expect(theirs.message?.state).toBe('delivered');
+    // A thread opened in their name, not in the sender's own.
+    expect(theirs.inbox.threads[0].withWhom).toBe('Ada');
+  });
+
+  /*
+   * The reason the filter runs twice.
+   *
+   * A code might have been written on an older build whose filter knew about
+   * less than this one does. The receiving device is the only one that can
+   * apply its own rules, so it does — and this is the test that says a phone
+   * number cannot arrive even in a code that was not filtered on the way out.
+   */
+  it('filters again on the way in, even for a code we did not write', () => {
+    const forged = encodeLong('MSG', { f: 'Ada', b: 'ring me on 07700 900123', o: TODAY });
+    const got = receive(createInbox(), forged, TODAY);
+    expect(got.message!.body).not.toMatch(/900123/);
+    expect(got.note).toMatch(/phone number/);
+  });
+
+  it('refuses a code that is not one', () => {
+    for (const rubbish of ['', 'hello', 'MSG-', 'CLUB-AA-abc', 'MSG-ZZ-notbase64!!']) {
+      const got = receive(createInbox(), rubbish, TODAY);
+      expect(got.message, rubbish).toBeNull();
+      expect(got.inbox.threads, rubbish).toHaveLength(0);
+    }
+  });
+
+  it('refuses a tampered code rather than showing something wrong', () => {
+    // Every code carries a checksum. A mistyped character is an error, never a
+    // silently different message.
+    const good = encodeLong('MSG', { f: 'Ada', b: 'hello there', o: TODAY });
+    const bent = good.slice(0, -3) + 'aaa';
+    const got = receive(createInbox(), bent, TODAY);
+    expect(got.message).toBeNull();
+    expect(got.note).toMatch(/not a message/i);
+  });
+
+  it('refuses an incoming code on a blocked thread', () => {
+    /*
+     * Checked on the way in as well as on the way out. A block that only stops
+     * the child writing is the less useful half of a block.
+     */
+    let inbox = openThread(createInbox(), 'friend', 'Ada');
+    inbox = block(inbox, inbox.threads[0].id);
+    const code = encodeLong('MSG', { f: 'Ada', b: 'let me back in', o: TODAY });
+
+    const got = receive(inbox, code, TODAY);
+    expect(got.message).toBeNull();
+    expect(got.note).toMatch(/blocked/i);
+    expect(threadFor(got.inbox, inbox.threads[0].id)!.messages).toHaveLength(0);
+  });
+
+  it('caps the name it will open a thread under', () => {
+    const code = encodeLong('MSG', { f: 'x'.repeat(200), b: 'hello', o: TODAY });
+    const got = receive(createInbox(), code, TODAY);
+    expect(got.inbox.threads[0].withWhom.length).toBeLessThanOrEqual(24);
+  });
+
+  it('still says nothing has been sent until a code is made', () => {
+    const sent = send(withThreads(), friendId(), 'child', 'hello', TODAY);
+    expect(inboxLine(sent.inbox)).toMatch(/waiting to be turned into a code/);
   });
 });
 

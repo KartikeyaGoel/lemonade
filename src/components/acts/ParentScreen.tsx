@@ -22,6 +22,7 @@ export function ParentScreen({
   onEraseAll,
   fromChild,
   onReply,
+  notices,
   onBack,
 }: {
   report: ParentReport;
@@ -36,6 +37,20 @@ export function ParentScreen({
    */
   fromChild?: readonly { author: string; body: string }[];
   onReply?: (text: string) => void;
+  /**
+   * The notification switch, and it is here rather than anywhere a child is.
+   *
+   * Partly because a permission prompt in front of a nine-year-old is a prompt
+   * that gets tapped rather than read. Mostly because the audience is under 13:
+   * a browser permission is **not** verifiable parental consent in the COPPA
+   * sense — nothing on a shared device can be — but putting the switch behind
+   * this screen is the closest a local-only build gets, and it is the shape the
+   * real consent flow will need anyway.
+   */
+  notices?: {
+    state: 'unsupported' | 'default' | 'granted' | 'denied';
+    onAsk: () => void;
+  };
   /** The teacher's way in. Nothing on the child's side links here. */
   onClassroom?: () => void;
   /**
@@ -186,9 +201,16 @@ export function ParentScreen({
 
       <PinnedBar className="z-30 pb-5 pt-8 bg-gradient-to-t from-black/25 to-transparent">
         <div className="mx-auto w-full max-w-md px-4">
-          {/* One teacher is thirty children, and this is the only door to
-              that. It sits at the bottom of the grown-up view rather than
-              anywhere a child would find it. */}
+          {/* The price board.
+              
+              Was framed as a teacher's door — "one teacher is thirty children"
+              — and the customer asked whether it could be for parents instead.
+              It can, and not by renaming it: the week is seeded, so one child
+              replaying it at six prices produces the same six dots six
+              children would. That is the route a parent has, so it leads.
+              
+              Still at the bottom of the grown-up view rather than anywhere a
+              child would find it, because it is a thing an adult runs. */}
           {/*
             The grown-up's side of the conversation.
             
@@ -221,6 +243,28 @@ export function ParentScreen({
             </div>
           )}
 
+          {notices && notices.state !== 'unsupported' && (
+            <div className="mb-3 rounded-2xl border-[3px] border-ink/20 bg-white/85 px-3 py-2.5">
+              <div className="font-sign text-lg leading-tight text-ink">Reminders</div>
+              <p className="mt-0.5 font-body text-[11px] font-bold leading-snug text-ink/60">
+                {notices.state === 'granted'
+                  ? 'On. At most two a day, and never a telling-off for not playing. They only arrive while the game is open on this device — sending them to a closed app needs an account, which does not exist yet.'
+                  : notices.state === 'denied'
+                    ? 'Off, because this browser was told no. Everything they would have said still shows inside the game.'
+                    : 'Off. Turning them on lets the game put a reminder on this device — at most two a day, and never a telling-off for not playing.'}
+              </p>
+              {notices.state === 'default' && (
+                <button
+                  type="button"
+                  onClick={notices.onAsk}
+                  className="mt-2 min-h-11 w-full rounded-xl border-[3px] border-ink/20 bg-white font-body text-xs font-extrabold uppercase tracking-wide text-ink/70"
+                >
+                  Turn reminders on
+                </button>
+              )}
+            </div>
+          )}
+
           {onClassroom && (
             <button
               type="button"
@@ -232,10 +276,13 @@ export function ParentScreen({
                   🧑‍🏫
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="font-sign text-lg leading-tight text-ink">Teaching a class?</div>
+                  <div className="font-sign text-lg leading-tight text-ink">
+                    Find the best price together
+                  </div>
                   <div className="font-body text-[11px] font-bold leading-tight text-ink/55">
-                    One code, everyone plays the same week, and the class plots its own demand
-                    curve from thirty results.
+                    One code is one week of weather. Play it a few times at different prices, write
+                    down what each go made, and the chart draws its own demand curve. Works with one
+                    child or with thirty.
                   </div>
                 </div>
                 <span aria-hidden className="font-sign text-xl text-ink/30">

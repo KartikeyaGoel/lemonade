@@ -15,13 +15,23 @@
  * note left for a parent who picks the device up later is the actual product.
  * Nothing leaves the device, so PRIVACY.md stays true as written.
  *
- * **Friend threads are modelled, moderated and stored, but not delivered.**
- * Delivery needs a server, an identity per child, and the consent work that
- * FRAMEWORK.md §17 records as the customer's decision. So a message to a
- * friend sits in the outbox with `state: 'held'`, the screen says so, and
- * `deliver()` is the single function a transport has to call. One seam, named,
- * tested, and wired to nothing on purpose — which is the opposite of the §40
- * defect only because it is *declared* rather than discovered.
+ * **Friend threads travel as a pasted code**, the way everything else in this
+ * product does. `asCode` turns one message into a `MSG-…` string and
+ * `receive` takes one back, so two children can hold a conversation with no
+ * server, no accounts and no network call — the same trust model as the club
+ * codes that already pass between friends who know each other.
+ *
+ * That is a real change to what this product promises, and PRIVACY.md says so
+ * in its own words rather than being left true-by-omission: free text now does
+ * travel between children. What has *not* changed is that it does not travel
+ * through us, because there is still no us.
+ *
+ * The safety consequence is stated plainly here because it is the thing a
+ * server would otherwise have provided: **the filter runs on the way out and
+ * again on the way in**, so an identifier cannot arrive even from a code
+ * written by an older build — but there is no human moderation, and there
+ * cannot be without somebody to do it. Block and report are the child's own
+ * tools, and they are on every conversation.
  *
  * ## Why the moderation is here before the transport
  *
@@ -33,8 +43,10 @@
  * a hard cap on length. All local, all cheap, all pointless until delivery
  * exists — and all impossible to retrofit calmly under pressure.
  *
- * Pure module. No React, no I/O.
+ * Pure module. No React, no I/O, no network.
  */
+
+import { decodeLong, encodeLong } from './sharecode';
 
 /** The longest a message may be. Short on purpose; this is not a mail client. */
 export const MAX_MESSAGE = 240;
@@ -55,9 +67,10 @@ export type Author = 'child' | 'grown-up' | 'friend';
 /**
  * Where a message has got to.
  *
- * `held` is the honest state for a friend message today: written, kept, and
- * not sent, because there is nowhere to send it. A screen that showed it as
- * "sent" would be lying to a child about whether their friend can see it.
+ * `held` means written and kept but not yet handed over — a friend message
+ * before a code has been made for it. A screen that showed it as "sent" would
+ * be lying to a child about whether their friend can see it, which is the one
+ * failure in this feature with real consequences.
  */
 export type MessageState = 'held' | 'delivered' | 'blocked';
 
@@ -313,7 +326,128 @@ export function deliver(inbox: Inbox, messageId: string): Inbox {
   };
 }
 
-/** Everything still waiting for a transport that does not exist yet. */
+/* ------------------------------------------------------------------ *
+ * The code transport
+ * ------------------------------------------------------------------ */
+
+/** What travels. Deliberately three fields and no identifiers among them. */
+interface Carried {
+  /** Who wrote it, as they chose to be called. Capped like every other name. */
+  f: string;
+  /** The body, already filtered once on the way out. */
+  b: string;
+  /** The day it was written, so the receiving thread can order it. */
+  o: string;
+}
+
+/**
+ * Turn a held message into a code a friend can paste.
+ *
+ * This is what `deliver()` was the seam for, and it is now called by something
+ * real. Producing the code *is* the act of sending, so the message becomes
+ * `delivered` — a child who asks for a code in order to give it to somebody
+ * has sent it, in the only sense this product can observe. It is the same
+ * bargain the club codes already make.
+ *
+ * Nothing here is encrypted and nothing pretends to be. A code is a note
+ * passed across a table: whoever holds it can read it, which is exactly what a
+ * child would expect of a note.
+ */
+export function asCode(inbox: Inbox, messageId: string, from: string): { inbox: Inbox; code: string | null } {
+  for (const thread of inbox.threads) {
+    const message = thread.messages.find((current) => current.id === messageId);
+    if (!message) continue;
+    if (thread.kind !== 'friend') return { inbox, code: null };
+
+    const carried: Carried = { f: from.slice(0, 24) || 'A friend', b: message.body, o: message.on };
+    return { inbox: deliver(inbox, messageId), code: encodeLong('MSG', carried) };
+  }
+  return { inbox, code: null };
+}
+
+export interface Received {
+  inbox: Inbox;
+  message: Message | null;
+  /**
+   * Which thread it landed in.
+   *
+   * Returned rather than left for the caller to work out, because a browser
+   * found what happens otherwise: the message arrived correctly and the screen
+   * stayed on whatever conversation was already open, so a child had to go
+   * hunting for the thing they had just pasted.
+   */
+  threadId?: string;
+  note?: string;
+}
+
+/**
+ * Take a code back.
+ *
+ * **Filtered again on the way in, and that is not belt-and-braces.** The
+ * message was filtered when it was written, by whatever build the *sender* was
+ * running — which might be older than this one, and might not have known about
+ * whatever the filter learned since. The receiving device is the only one that
+ * can apply its own rules, so it does.
+ *
+ * A blocked thread refuses an incoming code as well as an outgoing message.
+ * Checking only on send would make a block mean "we will not let you write to
+ * them", which is the less useful half.
+ */
+export function receive(inbox: Inbox, code: string, on: string): Received {
+  const carried = decodeLong<Carried>('MSG', code);
+  if (!carried || typeof carried.b !== 'string' || typeof carried.f !== 'string') {
+    return { inbox, message: null, note: 'That code is not a message. Check it and try again.' };
+  }
+
+  const from = carried.f.slice(0, 24) || 'A friend';
+  const opened = openThread(inbox, 'friend', from);
+  const thread = opened.threads.find((current) => current.kind === 'friend' && current.withWhom === from)!;
+
+  if (thread.blocked) {
+    return {
+      inbox: opened,
+      message: null,
+      threadId: thread.id,
+      note: `${from} is blocked. Nothing comes in from them.`,
+    };
+  }
+
+  const filtered = filterMessage(carried.b);
+  if (filtered.body.length === 0) {
+    return {
+      inbox: opened,
+      message: null,
+      threadId: thread.id,
+      note: 'There was nothing in that message once we had checked it.',
+    };
+  }
+
+  const note = filterNote(filtered);
+  const message: Message = {
+    id: `${thread.id}-in-${thread.messages.length}-${on}`,
+    author: 'friend',
+    body: filtered.body,
+    on,
+    state: 'delivered',
+    ...(note ? { note } : {}),
+  };
+
+  return {
+    inbox: {
+      ...opened,
+      threads: opened.threads.map((current) =>
+        current.id === thread.id
+          ? { ...current, messages: [...current.messages, message].slice(-THREAD_CAP) }
+          : current,
+      ),
+    },
+    message,
+    threadId: thread.id,
+    note,
+  };
+}
+
+/** Everything still waiting to be turned into a code. */
 export function held(inbox: Inbox): Message[] {
   return inbox.threads.flatMap((thread) =>
     thread.messages.filter((message) => message.state === 'held'),
@@ -363,6 +497,6 @@ export function inboxLine(inbox: Inbox): string {
   const waiting = grownUp ? unreadFrom(grownUp, 'grown-up') : 0;
   if (waiting > 0) return waiting === 1 ? 'A note from a grown-up.' : `${waiting} notes from a grown-up.`;
   const holding = held(inbox).length;
-  if (holding > 0) return `${holding} waiting to be sent.`;
+  if (holding > 0) return `${holding} waiting to be turned into a code.`;
   return 'Tell a grown-up what you worked out.';
 }

@@ -15,14 +15,15 @@ parent can check it rather than take our word for it.
 - **No real money.** At no point, in any part of the game, is real money
   involved. The stock market act uses real historical prices and real filed
   accounts to move a simulated portfolio.
-- **No free text between children.** Everything shared between players travels
-  as a short code the child types out loud or writes down. There is a
-  messages screen, and the section below says exactly what it does and does
-  not do.
+- **Free text between children travels only as a code they hand over.** There
+  is no server and no delivery: a message becomes a `MSG-…` string the child
+  gives to their friend, exactly like the challenge and club codes. The
+  Messages section below says what that means, including what it does not
+  protect against.
 
 ## Where the child's progress is stored
 
-In their own browser, in `localStorage`, on their own device. Nine keys, and
+In their own browser, in `localStorage`, on their own device. Ten keys, and
 this is all of them:
 
 | Key | What is in it |
@@ -36,12 +37,13 @@ this is all of them:
 | `lemonade.muted.v1` | Whether the sound is switched off |
 | `lemonade.ledger.v1` | What they did and on which day, so a streak can be counted |
 | `lemonade.inbox.v1` | Notes between the child and a grown-up on this device |
+| `lemonade.nudges.v1` | Which reminders have already been shown, so none repeats |
 
 ## How to delete it
 
 Open **For a grown-up** from the title screen, scroll to the foot of the
 report, and press **Delete it from this device**. It asks once, tells you what
-it is about to remove, and then removes all nine keys and lists them back to
+it is about to remove, and then removes all ten keys and lists them back to
 you. Clearing the browser's site data does the same thing.
 
 Either way it is permanent, including the badges and the words, and there is no
@@ -66,13 +68,31 @@ device: the child writes on their messages screen, and the grown-up replies
 from inside **For a grown-up**. It is a note left on a shared tablet. Nothing
 is sent anywhere, because there is nowhere to send it and nobody to send it to.
 
-**A child cannot send a message to another child.** They can write one. It is
-kept on this device, marked *waiting to be sent*, and it stays there. There is
-no server, so there is no delivery — and the screen says "waiting to be sent"
-rather than "sent", because telling a child their friend has read something
-they cannot see would be the worst thing this feature could do.
+**A child can write to another child, and hand it over as a code.** There is
+still no server. The message becomes a `MSG-…` string; the child gives it to
+their friend, who pastes it in. Until a code has been made the message reads
+*not sent yet* and never *sent*, because telling a child their friend has read
+something they have not would be the worst thing this feature could do.
 
-**Every message is filtered before it is stored, whoever wrote it.** The filter
+This is the same mechanism as the challenge and club codes, and the same trust
+model: **a code is a note passed across a table.** Whoever holds it can read
+it. It is not encrypted and does not pretend to be.
+
+**What that does not protect against, stated plainly.** The filter catches
+identifiers. It does not catch unkindness, and there is no human moderation —
+there cannot be without somebody employed to do it. What a child has instead
+is block and report, on every conversation, reachable from inside it, and a
+grown-up on the same device who can read the whole thread. Before this becomes
+a feature that reaches children who do not already know each other, it needs
+moderation by a person, and that is an operating commitment rather than a
+release.
+
+**Every message is filtered on the way out *and* on the way in.** The second
+one matters: a code might have been written on an older build whose filter knew
+about less than this one does, so the receiving device applies its own rules
+rather than trusting the sender's.
+
+**The filter, whoever wrote it.** The filter
 is aimed at identifiers rather than at rude words: email addresses, phone
 numbers, links, street addresses, the name of a school, and the names of other
 apps a conversation might be moved to. Anything it finds is replaced, and the
@@ -88,6 +108,26 @@ either direction.
 Delivering a message between two children needs a server, an account for each
 child, and a grown-up's consent — and it needs moderation by a person, not just
 a filter. None of that exists, and none of it will arrive quietly.
+
+## Reminders
+
+The game can put a reminder on this device — and the switch for it is inside
+**For a grown-up**, never on a screen a child is looking at.
+
+- **At most two a day.** Never more, whatever is going on.
+- **Never a telling-off.** Nothing a reminder says names how long it has been
+  since the child last played. They say what is waiting, not what was missed.
+- **They only arrive while the game is open on this device.** Reaching a closed
+  app needs a server holding a subscription, and there is no server. There is
+  nothing to switch off remotely because there is nothing switched on remotely.
+- **Refusing costs nothing.** Everything a reminder would have said is shown
+  inside the game anyway, on the first screen.
+
+A browser permission granted on a shared device is **not** verifiable parental
+consent, and this page will not pretend it is. It is the closest a build with
+no accounts can get. If reminders ever reach a closed app, that needs an
+account, a server, and a real consent flow — and this page changes before any
+of it ships.
 
 ## What travels when children share
 

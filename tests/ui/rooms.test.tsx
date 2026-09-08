@@ -143,7 +143,10 @@ describe('the classroom', () => {
     seed();
     await boot();
     await must(/For a grown-up/i);
-    await must(/class|classroom/i);
+    // The door was "Teaching a class?"; it is now framed for whoever is
+    // running it, because a seeded week means one child can do the whole
+    // experiment alone. Matched on what it does rather than on who for.
+    await must(/best price together/i);
 
     // The board exists and can be reset, which is the one destructive thing a
     // teacher does and the reason it lives behind the adult screen.
@@ -157,7 +160,10 @@ describe('the classroom', () => {
     seed();
     await boot();
     await must(/For a grown-up/i);
-    await must(/class|classroom/i);
+    // The door was "Teaching a class?"; it is now framed for whoever is
+    // running it, because a seeded week means one child can do the whole
+    // experiment alone. Matched on what it does rather than on who for.
+    await must(/best price together/i);
     await must(/back|←/i);
     // The adult is still reading; the child's game has not been reopened.
     expect(body()).not.toMatch(/Open up shop/i);

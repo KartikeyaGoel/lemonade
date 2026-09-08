@@ -14,7 +14,7 @@ import {
   type CurvePoint,
   type Entry,
 } from '@/lib/classroom';
-import { ChunkyButton, CodeBox, SignHeading, Sky, money } from '../ui';
+import { ChunkyButton, CodeBox, SignHeading, Sky, money, plural } from '../ui';
 
 /**
  * The classroom board.
@@ -79,19 +79,37 @@ export function ClassroomScreen({
           ← Back
         </button>
 
-        <SignHeading className="mt-2 text-3xl">The class board</SignHeading>
+        <SignHeading className="mt-2 text-3xl">The price board</SignHeading>
+        {/*
+          Framed for whoever is running it, which turns out not to need a class.
+          
+          It was "The class board", and the customer asked whether it could be
+          for parents instead. The interesting part of that question is that it
+          is not a rename: this feature's value is `ENOUGH_FOR_A_CURVE` dots on
+          one chart, and a family does not have six children.
+          
+          What makes it work anyway is the thing the simulation already
+          guarantees — **the week is seeded**, so it can be replayed. One child
+          can produce all six dots by playing the same week at six prices, which
+          is a *better* activity than six children doing one each: they run the
+          whole experiment rather than contributing a point to somebody else's.
+          
+          So the copy names both routes and leads with the one a parent has.
+        */}
         <p className="mt-1 font-body text-[13px] font-bold leading-snug text-ink/70">
-          Everyone plays the same week. Collect two numbers from each of them and the class has
-          measured a demand curve.
+          The same week, played at different prices, with the two numbers written down each time.
+          About {plural(ENOUGH_FOR_A_CURVE, 'go', 'goes')} and the shape appears — one child
+          playing it that many times, or that many children playing it once.
         </p>
 
         {/* 1. The code. Big, because it is going on a whiteboard. */}
         <div className="mt-4">
-          <Step n={1} title="Write this on the board" />
-          <CodeBox label="Class code" code={code} />
+          <Step n={1} title="Keep this code" />
+          <CodeBox label="Week code" code={code} />
           <div className="mt-1 flex items-center justify-between gap-2">
             <span className="font-body text-[11px] font-bold text-ink/55">
-              Children enter it under Friends → Same sky → play this week.
+              Enter it under Friends → Same sky. The same code is the same weather every time, so
+              every go is a fair comparison.
             </span>
             <button
               type="button"
@@ -105,7 +123,7 @@ export function ClassroomScreen({
 
         {/* 2. Collection. Two fields, because thirty children is five minutes. */}
         <div className="mt-5">
-          <Step n={2} title="Type in what each of them got" />
+          <Step n={2} title="Write down what each go made" />
           <div className="rounded-2xl border-[3px] border-ink/20 bg-white p-3">
             <div className="flex gap-2">
               <Field label="Name" value={who} onChange={setWho} placeholder="optional" wide />

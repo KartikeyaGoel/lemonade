@@ -122,11 +122,13 @@ import {
   loadGuideSeen,
   loadInbox,
   loadLedger,
+  loadNudgesShown,
   loadLive,
   saveBoard,
   saveGuideSeen,
   saveInbox,
   saveLedger,
+  saveNudgesShown,
   saveLive,
   saveCareer,
   saveGame,
@@ -196,12 +198,21 @@ import { CreditsScreen } from '@/components/meta/CreditsScreen';
 import { MessagesScreen } from '@/components/meta/MessagesScreen';
 import { ScoutScreen } from '@/components/meta/ScoutScreen';
 import { scoutable } from '@/lib/scout';
+import { nudges as nudgesFor, roomLeftToday, unshown } from '@/lib/notify';
 import {
+  ask as askForNoticePermission,
+  permission as noticePermission,
+  show as showNotice,
+  type NoticePermission,
+} from '@/lib/systemNotice';
+import {
+  asCode,
   block as blockThread,
   createInbox,
   grownUpThread,
   inboxLine,
   openThread,
+  receive as receiveMessage,
   report as reportThread,
   send as sendMessage,
   type Inbox,
@@ -336,6 +347,20 @@ export default function Page() {
    */
   const [ledger, setLedger] = useState<Ledger>(createLedger);
   const [inbox, setInbox] = useState<Inbox>(createInbox);
+  /** The last code made for a friend, and whatever the last paste had to say. */
+  const [messageCode, setMessageCode] = useState<string | null>(null);
+  const [codeNote, setCodeNote] = useState<string | null>(null);
+  const [codeThread, setCodeThread] = useState<string | null>(null);
+  /** Nudge ids already said, so nothing fires twice and the daily cap holds. */
+  const [nudgesShown, setNudgesShown] = useState<string[]>([]);
+  /**
+   * What the browser will let us put on this device.
+   *
+   * `permission()` never prompts and never throws, so it is safe to read — but
+   * it is read in an effect rather than as the initial state, because on the
+   * server there is no `Notification` and the two renders would disagree.
+   */
+  const [noticeState, setNoticeState] = useState<NoticePermission>('unsupported');
 
   /**
    * Write a deed down, at the moment it happens.
@@ -439,6 +464,8 @@ export default function Page() {
     setLive(loadLive());
     setLedger(loadLedger());
     setInbox(loadInbox());
+    setNudgesShown(loadNudgesShown());
+    setNoticeState(noticePermission());
     setGuideSeen(loadGuideSeen());
     setToday(new Date().toISOString().slice(0, 10));
   }, []);
@@ -466,6 +493,71 @@ export default function Page() {
     // would re-create the key one tick after the reset deleted it.
     if (inbox.threads.length > 0) saveInbox(inbox);
   }, [inbox]);
+
+  useEffect(() => {
+    if (nudgesShown.length > 0) saveNudgesShown(nudgesShown);
+  }, [nudgesShown]);
+  /**
+   * Show one notification, if we are allowed and have not used today's two.
+   *
+   * Up here with the other effects rather than next to the nudge list, because
+   * that list is computed after the early returns for the reward cards — and a
+   * hook after an early return is a hook that sometimes does not run. So the
+   * inputs are rebuilt here from state, the same way `handleCheckIn` does it.
+   *
+   * The recording is the careful part. `showNotice` returns whether it
+   * actually appeared, and the id is marked said only when it did — otherwise
+   * a browser that refused, or threw, would silently burn a child's two-a-day
+   * on notifications nobody saw.
+   *
+   * One per commit rather than a loop: two arriving together is the failure
+   * mode that gets an app uninstalled, and §26's rule about one thing at a
+   * time does not stop applying at the lock screen.
+   */
+  useEffect(() => {
+    if (noticeState !== 'granted') return;
+    const today = localDay();
+    if (roomLeftToday(nudgesShown, today) <= 0) return;
+
+    const portfolio = live ?? game?.portfolio;
+    if (!portfolio || !career) return;
+
+    const context = {
+      ledger,
+      today,
+      checkIn: buildCheckIn(
+        portfolio,
+        career,
+        ledger,
+        today,
+        portfolio.standEarnings + totalValue(portfolio),
+      ),
+      drifts: game?.portfolio
+        ? drifted(
+            game.theses,
+            (ticker) => SNAPSHOT.find((company) => company.ticker === ticker),
+            (ticker) => currentPrice(game.portfolio!, ticker),
+            currentDate(game.portfolio),
+          )
+        : [],
+      fromGrownUp:
+        grownUpThread(inbox)?.messages.filter((message) => message.author === 'grown-up').length ??
+        0,
+      canSpend: true,
+    };
+
+    const next = unshown(context, nudgesShown)[0];
+    if (!next) return;
+
+    let alive = true;
+    void showNotice(next.title, next.body, next.kind).then((shown) => {
+      if (alive && shown) setNudgesShown((current) => [...current, next.id].slice(-60));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [noticeState, nudgesShown, ledger, inbox, live, game, career]);
+
 
   useEffect(() => {
     if (career) saveCareer(career);
@@ -1714,6 +1806,39 @@ export default function Page() {
     [inbox],
   );
 
+  /**
+   * Turn a held friend message into a code, and mark it handed over.
+   *
+   * `asCode` calls `deliver()` — the seam that used to be wired to nothing is
+   * now wired to this. Producing a code *is* the act of sending, in the only
+   * sense this product can observe.
+   */
+  const handleMakeCode = useCallback(
+    (messageId: string) => {
+      const result = asCode(inbox, messageId, career?.name || 'A friend');
+      setInbox(result.inbox);
+      setMessageCode(result.code);
+      setCodeNote(result.code ? null : 'That one cannot be turned into a code.');
+    },
+    [inbox, career?.name],
+  );
+
+  /** Take a code from a friend. Filtered again on the way in — see `receive`. */
+  const handlePasteCode = useCallback(
+    (code: string) => {
+      const result = receiveMessage(inbox, code, localDay());
+      setInbox(result.inbox);
+      setCodeNote(result.note ?? null);
+      setCodeThread(result.threadId ?? null);
+      setMessageCode(null);
+    },
+    [inbox],
+  );
+
+  const askForNotices = useCallback(() => {
+    void askForNoticePermission().then(setNoticeState);
+  }, []);
+
   const eraseAll = useCallback(() => {
     setErasedKeys(eraseEverything());
     setGame(null);
@@ -1733,6 +1858,7 @@ export default function Page() {
      */
     setLedger(createLedger());
     setInbox(createInbox());
+    setNudgesShown([]);
     setHasSave(false);
     setPhase('erased');
   }, []);
@@ -2007,6 +2133,22 @@ export default function Page() {
     : null;
 
   /**
+   * Everything worth saying today, computed exactly as it would be in
+   * production — the policy half of notifications, which needs no server.
+   */
+  const nudgeContext = {
+    ledger,
+    today: localDay(),
+    checkIn: checkInState,
+    drifts,
+    fromGrownUp: grownUpThread(inbox)?.messages.filter((m) => m.author === 'grown-up').length ?? 0,
+    canSpend: Boolean(live ?? game.portfolio),
+  };
+  const waiting = nudgesFor(nudgeContext);
+
+
+
+  /**
    * The kid's own card at the table.
    *
    * Built once here rather than inside the table screen, because the friends
@@ -2182,6 +2324,11 @@ export default function Page() {
     case 'title':
       return (
         <TitleScreen
+          waiting={waiting}
+          onWaiting={(goTo) => {
+            setReturnPhase('title');
+            setPhase(goTo as Phase);
+          }}
           guide={guideOn('welcome')}
           onStart={start}
           hasSave={hasSave && (game.stand.history.length > 0 || game.act > 1)}
@@ -2706,6 +2853,11 @@ export default function Page() {
           inbox={inbox}
           missions={missions}
           onSend={handleSendMessage}
+          onMakeCode={handleMakeCode}
+          code={messageCode}
+          onPasteCode={handlePasteCode}
+          codeNote={codeNote}
+          focusThread={codeThread}
           onBlock={(id) =>
             setInbox((current) => {
               const thread = current.threads.find((t) => t.id === id);
@@ -2780,6 +2932,7 @@ export default function Page() {
       return (
         <ParentScreen
           fromChild={grownUpThread(inbox)?.messages ?? []}
+          notices={{ state: noticeState, onAsk: askForNotices }}
           onReply={handleGrownUpReply}
           report={parentReport(game, career, thesisReport.scores)}
           onClassroom={() => setPhase('classroom')}

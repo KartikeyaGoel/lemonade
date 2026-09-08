@@ -1515,3 +1515,98 @@ other exit on the list requires the business to have actually changed.
 Found by a test asserting no exit is about the price. The right answer was not
 a better regex.
 
+## 19. What a server would actually cost, and the holes to fill when there is one
+
+The customer asked three things in quick succession: build as much as possible
+without a server, could the Vercel free tier carry the rest, and can messages
+just *work* rather than passing codes about. Taken together they are one
+question — **what exactly is the server for?** — and it has a precise answer.
+
+### The straight technical answer on the free tier
+
+**Yes. Messages and push both fit inside Vercel's free tier, and it is not
+close.** The blockers are not cost and never were.
+
+| Piece | Free tier reality |
+| --- | --- |
+| Two route handlers (`POST /api/msg`, `GET /api/msg`) | Included. This is what serverless functions are for. |
+| Somewhere to keep messages | A free managed KV or Postgres tier is ample. A beta's entire message volume is kilobytes. |
+| Bandwidth | 100 GB on Hobby. A 240-character message is not a rounding error on that. |
+| Web Push itself | **Free, always.** You generate a VAPID key pair yourself and POST to the endpoint the browser gives you. No paid service is involved at any point. |
+| A daily job to decide what to send | Hobby allows one cron, running once a day — which is exactly the shape of a daily check-in reminder. |
+
+Two caveats worth knowing rather than discovering:
+
+- **Hobby is licensed for non-commercial use.** A product being beta-tested on
+  the way to being sold is arguably commercial, so budget for Pro rather than
+  plan around Hobby forever. It is $20 a month, which is not the reason to
+  hesitate either.
+- **A cron that runs once a day cannot send a reminder at 4pm local time to
+  children in several timezones.** For a beta that does not matter. It is worth
+  knowing before somebody promises otherwise.
+
+### So the reason to wait is not the bill
+
+It is three things, and none of them is solved by a credit card:
+
+1. **An identity per child.** There are no accounts. This one is genuinely
+   solvable without them — a device generates a random opaque id, the child
+   hands a friend code to a friend, and messages route by id with no email, no
+   password and no name required. That is a real design and it is a day's work.
+2. **COPPA.** The moment a server holds a persistent identifier for an under-13
+   user *and* their user-generated content, that is personal information
+   collected from a child, and it needs verifiable parental consent. A browser
+   permission on a shared tablet is not that. This is the actual gate.
+3. **Moderation, and the duties that come with it.** Server-delivered messages
+   between children need proactive filtering (built), reporting and blocking
+   (built), **and a person** (not built, and not buildable — it is a salary).
+   It also brings retention obligations and, in the United States, mandatory
+   NCMEC reporting if child sexual abuse material ever appears in the channel.
+
+The order matters: 2 gates 1, and 3 gates going live at all. Free hosting moves
+none of them.
+
+### Why the codes are not a placeholder
+
+"Can messages just work without the code stuff" has a hard answer: **two
+devices with no server and no network cannot exchange data.** There is no trick
+and no clever client-only scheme. The code *is* the transport, and it is the
+same one the challenge and the club already use — which is why it is not a
+mock: a child really can send a friend a message today, and their friend really
+does receive it.
+
+What was fixed instead was the *presentation*, because the complaint was fair.
+The code was a full-width primary button and a text field asking for a `MSG-…`
+string, which is the least child-like thing in the product. It is now a small
+secondary link on the message and a folded-away "Got a code from a friend?" —
+a fallback, not the feature. And a browser found a dead end while that was
+being changed: the paste box was inside the friend-thread block, so a child
+receiving their **first** code had nowhere to put it. The thread is created *by*
+the paste, so the box cannot be gated on a thread existing.
+
+### The holes, in one list
+
+`MISSING_FOR_REAL` in [`notify.ts`](src/lib/notify.ts) is the same list in code,
+next to the thing it describes, because that is where the next person will look.
+
+**For messages to deliver themselves:**
+1. `POST /api/msg` — takes `{to, from, body}`, filters again server-side, stores.
+2. `GET /api/msg?for=<id>` — returns and clears. Both are thin.
+3. A random per-device id, and a friend code to exchange it. No PII needed.
+4. Replace one call: `asCode` becomes a POST. `receive` already exists and
+   already filters, so the receiving half is done.
+
+**For notifications to reach a closed app:**
+5. A `push` handler in [`sw.js`](public/sw.js) calling `showNotification`.
+6. A VAPID key pair, private half out of the bundle.
+7. `PushManager.subscribe`, and somewhere to send the subscription.
+8. A daily job reading the same `nudges()` this already uses.
+
+**Before any of 1–8 ships:**
+9. Verifiable parental consent.
+10. A person who reads reports.
+11. `PRIVACY.md` rewritten first, not afterwards — it currently promises no
+    servers, and a teacher is invited to check it.
+
+Items 1–8 are about a week. Items 9–11 are the product.
+

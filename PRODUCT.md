@@ -3843,3 +3843,114 @@ minute: list the behaviours the customer asked for, and grep for a call site
 for each. It should have been the last step of §64 rather than the first step
 of §65.
 
+## 66. Reminders, friend delivery, and a board that stopped being for teachers
+
+Three requests, and the first two share an answer worth writing down: **the
+half of a feature that needs a server is usually the easy half.**
+
+### Reminders
+
+What was built has no server in it and is the part that decides whether a
+notification system is any good: what is worth saying, in what order, how often
+— and mostly what to shut up about.
+
+[`notify.ts`](src/lib/notify.ts) computes every nudge, ranks it, caps it at two
+a day *held across reloads*, and dedupes per reason per day. The ranking is by
+what a child can act on rather than by what flatters us, so a written reason
+that has stopped being true outranks a streak — one of those is about their
+money and the other is about our retention.
+
+Most of the tests assert **silence**, which is the right ratio for this
+feature. §15 is the standard: the engines are records of the child, never
+complaints about them. So a grep across every shape of context asserts that
+nothing ever says *have not*, *missed*, *been a while*, *come back*, or *days
+ago*. The streak nudge was the hard one to write: it fires only on a live
+uncounted streak and names the run — "3 days running" — never the gap.
+
+Three smaller rules that each came out of asking what could go wrong:
+
+- **Nothing before there is a subject.** No market, no nudges. `unlocks.ts`'s
+  rule applied to a message.
+- **Nothing about credits there is nowhere to spend**, or a balance too small
+  to buy anything. A notification about nothing is worse than silence.
+- **The id is only recorded when the notification actually appeared.**
+  `showNotice` returns whether it did, and marking it either way would
+  silently burn a child's two-a-day on notifications nobody saw.
+
+Real system notifications work today, while the app is open, once a grown-up
+allows them — and the switch is inside the grown-up screen, never on a screen a
+child is looking at. Partly because a permission prompt in front of a
+nine-year-old gets tapped rather than read; mostly because the audience is
+under 13, and while a browser permission is **not** verifiable parental consent
+— nothing on a shared device can be — behind the grown-up screen is the closest
+a local build gets, and it is the shape the real flow needs anyway.
+
+Refusing costs nothing, which is what makes it safe to ask. The same nudges
+appear on the title screen either way, one at a time, sorted so the first is
+the one that matters.
+
+### Friend delivery
+
+"Can messages just work without the code stuff" has a hard answer: **two
+devices with no server and no network cannot exchange data.** So the code is
+the transport, and it is the same one the club and the challenge already use.
+A child really can message a friend today.
+
+The fair part of the complaint was that it *looked* like a workaround. It was a
+full-width primary button and a text field asking for a `MSG-…` string, which
+is the least child-like thing in the product. Now: a small secondary link on
+the message, and a folded-away "Got a code from a friend?". A fallback, not the
+feature.
+
+Two things found by opening it in a browser rather than by a test:
+
+- **A child receiving their first code had nowhere to paste it.** The box was
+  inside the friend-thread block, and the thread is created *by* the paste — so
+  gating the box on a thread existing was a dead end for exactly the case that
+  matters, the first one.
+- **The message arrived and the screen stayed put.** `receive` now returns
+  which thread it landed in, so the screen opens it. Otherwise a child pastes a
+  code, something works, and they have to go looking for it.
+
+And the filter runs **again on the way in**, which is not belt-and-braces: a
+code may have been written by an older build whose filter knew about less than
+this one does, and the receiving device is the only one that can apply its own
+rules. There is a test that forges a code carrying a phone number and watches
+it arrive without one.
+
+### The board that was for teachers
+
+The customer's cofounder thought the classroom feature unnecessary and asked
+whether it could be for parents instead. The interesting thing about that
+question is that **it is not a rename.**
+
+The feature's value is `ENOUGH_FOR_A_CURVE` — six — dots on one chart, and a
+family does not have six children. Its own docblock makes the argument:
+*"thirty dots say it"*. Reframing it for a parent with one child would have
+hollowed it out.
+
+What rescues it is something the simulation already guarantees for a different
+reason: **the week is seeded.** The Same-Sky Challenge exists because
+`buildCustomers` draws a number of times that depends only on the weather and
+never on a decision — which means one child can replay the identical week at
+six different prices and produce all six dots themselves.
+
+That is not a workaround, it is a better activity. Six children each doing one
+price contribute a point to somebody else's experiment; one child doing six
+runs the experiment. So the board is now "Find the best price together", the
+copy leads with the route a parent actually has, and it still says it works
+with thirty.
+
+The persisted key stays `lemonade.class.v1`. Renaming it would cost a migration
+for no benefit, and the one thing a storage key must never do is change name
+for cosmetic reasons — §63 is the record of what a key nobody was tracking
+costs.
+
+### And a pronoun
+
+The friend-thread empty state said *"…turn it into a code to give her."* The
+friend's name comes from a child typing it, and nothing in this product knows
+anything about them. Changed to *them*, and I checked the rest of the new copy
+for the same mistake. A wrong guess misgenders a real child in a way the
+neutral word never does.
+

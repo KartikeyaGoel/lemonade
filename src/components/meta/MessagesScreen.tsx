@@ -1,13 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import {
-  MAX_MESSAGE,
-  grownUpThread,
-  held,
-  type Inbox,
-  type Thread,
-} from '@/lib/messages';
+import { useEffect, useState } from 'react';
+import { MAX_MESSAGE, grownUpThread, type Inbox, type Thread } from '@/lib/messages';
 import type { Mission } from '@/lib/missions';
 import { ChunkyButton, PinnedBar, SignHeading, Sky, clearsBar } from '../ui';
 import { PipSays } from '../Pip';
@@ -23,9 +17,13 @@ import { PipSays } from '../Pip';
  * case at this age, and a note left for somebody who picks the device up later
  * is the actual product rather than a stand-in for one.
  *
- * **A friend thread is held.** There is no server, so there is nowhere to send
- * it, and this screen says exactly that: "waiting to be sent". It does not say
- * "sent". A child who believes a friend has read something they cannot see is
+ * **A friend thread travels as a code.** Written here, filtered, then turned
+ * into a `MSG-…` string the child hands over — the same transport the club
+ * already uses, and the same trust model: a code is a note passed across a
+ * table, and whoever holds it can read it.
+ *
+ * Until a code has been made, the message reads "not sent yet" and never
+ * "sent". A child who believes a friend has read something they have not is
  * the one failure in this feature with real consequences, and the fix is a
  * word.
  *
@@ -38,6 +36,11 @@ export function MessagesScreen({
   inbox,
   missions,
   onSend,
+  onMakeCode,
+  code,
+  onPasteCode,
+  codeNote,
+  focusThread,
   onBlock,
   onReport,
   onBack,
@@ -45,6 +48,22 @@ export function MessagesScreen({
   inbox: Inbox;
   missions: readonly Mission[];
   onSend: (threadId: string, text: string, missionId?: string) => void;
+  /** Turn a held friend message into a code, and hand it back to be shown. */
+  onMakeCode?: (messageId: string) => void;
+  /** The most recent code made, so it can be copied. */
+  code?: string | null;
+  /** Paste a code from a friend. */
+  onPasteCode?: (code: string) => void;
+  /** Whatever the last paste had to say — a filter note, or a refusal. */
+  codeNote?: string | null;
+  /**
+   * The thread a pasted code landed in, so the screen can open it.
+   *
+   * Without it the message arrives and the screen stays where it was, leaving
+   * a child to go looking for the thing they just pasted — which a browser
+   * found before any test did.
+   */
+  focusThread?: string | null;
   onBlock: (threadId: string) => void;
   onReport: (threadId: string, reason: string) => void;
   onBack: () => void;
@@ -53,9 +72,15 @@ export function MessagesScreen({
   const [openId, setOpenId] = useState<string | null>(grownUp?.id ?? null);
   const [draft, setDraft] = useState('');
   const [usingMission, setUsingMission] = useState<string | undefined>(undefined);
+  const [pasted, setPasted] = useState('');
+  const [pasting, setPasting] = useState(false);
+
+  // Follow the caller when a paste lands somewhere.
+  useEffect(() => {
+    if (focusThread) setOpenId(focusThread);
+  }, [focusThread]);
 
   const thread = inbox.threads.find((current) => current.id === openId) ?? null;
-  const waiting = held(inbox).length;
 
   return (
     <Sky mood="dusk">
@@ -124,6 +149,68 @@ export function MessagesScreen({
           </div>
         )}
 
+        {/*
+          Pasting a code is an inbox-level action, not a thread-level one, and
+          it is folded away until asked for.
+          
+          It lived inside the friend-thread block, and a browser found the dead
+          end immediately: a child receiving their *first* code has no friend
+          thread yet, so there was nowhere to paste it. The thread is created
+          *by* the paste — `receive` opens it under whatever name the code
+          carries — so the box cannot be gated on a thread existing.
+          
+          Folded because a text field asking for a `MSG-…` string is the least
+          child-like thing in the product, and it should not be the first thing
+          on the screen. It is a fallback, not the feature.
+        */}
+        {onPasteCode && (
+          <div className="mt-3">
+            {!pasting ? (
+              <button
+                type="button"
+                onClick={() => setPasting(true)}
+                className="min-h-11 font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/45 underline decoration-ink/25"
+              >
+                Got a code from a friend?
+              </button>
+            ) : (
+              <div className="rounded-2xl border-[3px] border-ink/12 bg-white/70 px-3 py-2.5">
+                <label
+                  className="font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/55"
+                  htmlFor="paste-code"
+                >
+                  Paste it here
+                </label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    id="paste-code"
+                    value={pasted}
+                    onChange={(event) => setPasted(event.target.value)}
+                    placeholder="MSG-…"
+                    className="min-h-11 min-w-0 flex-1 rounded-xl border-[3px] border-ink/15 bg-white px-3 font-ledger text-[12px] font-bold text-ink/85"
+                  />
+                  <button
+                    type="button"
+                    disabled={pasted.trim().length === 0}
+                    onClick={() => {
+                      onPasteCode(pasted);
+                      setPasted('');
+                    }}
+                    className="min-h-11 shrink-0 rounded-xl border-[3px] border-ink/20 bg-white px-3 font-body text-xs font-extrabold uppercase tracking-wide text-ink/70 disabled:opacity-40"
+                  >
+                    Read it
+                  </button>
+                </div>
+                {codeNote && (
+                  <p className="mt-1.5 rounded-lg border-2 border-berry/40 bg-white px-2 py-1 font-body text-[11px] font-bold leading-snug text-ink/70">
+                    {codeNote}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {thread ? (
           <>
             <div className="mt-4 flex-1 space-y-2 overflow-y-auto">
@@ -132,7 +219,7 @@ export function MessagesScreen({
                   lines={[
                     thread.kind === 'grown-up'
                       ? 'Tell them one thing you worked out. They can answer on this same device.'
-                      : `Anything you write to ${thread.withWhom} is kept here until we can send it.`,
+                      : `${thread.withWhom} cannot get these on their own yet. Write one, then turn it into a code to give them.`,
                   ]}
                 />
               )}
@@ -155,8 +242,28 @@ export function MessagesScreen({
                       and a child who believes a friend has read this is the one
                       failure here that would matter.
                     */}
-                    {message.state === 'held' && <span className="text-berry">· waiting to be sent</span>}
+                    {message.state === 'held' && (
+                      <span className="text-berry">· not sent yet</span>
+                    )}
                   </div>
+                  {/*
+                    A held friend message can be turned into a code.
+                    
+                    This is the transport: the same pasteable code the club
+                    already travels as. It is not a server and does not pretend
+                    to be — a code is a note passed across a table, and whoever
+                    holds it can read it, which is what a child would expect of
+                    a note.
+                  */}
+                  {message.state === 'held' && onMakeCode && (
+                    <button
+                      type="button"
+                      onClick={() => onMakeCode(message.id)}
+                      className="mt-1 min-h-11 font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/50 underline decoration-ink/30"
+                    >
+                      Turn into a code
+                    </button>
+                  )}
                   {message.note && (
                     <div className="mt-1.5 rounded-lg border-2 border-berry/40 bg-white px-2 py-1 font-body text-[11px] font-bold leading-snug text-ink/70">
                       {message.note}
@@ -165,6 +272,17 @@ export function MessagesScreen({
                 </div>
               ))}
             </div>
+
+            {code && (
+              <div className="mt-2 rounded-xl border-[3px] border-mint/50 bg-mint/15 px-3 py-2">
+                <div className="font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/60">
+                  Give them this
+                </div>
+                <code className="mt-1 block break-all font-ledger text-[11px] font-bold text-ink/85">
+                  {code}
+                </code>
+              </div>
+            )}
 
             {thread.blocked ? (
               <div className="mt-3 rounded-xl border-[3px] border-berry/50 bg-white px-3 py-2 font-body text-[12px] font-bold text-ink/75">
@@ -221,7 +339,7 @@ export function MessagesScreen({
               setUsingMission(undefined);
             }}
           >
-            {waiting > 0 && thread?.kind === 'friend' ? 'Keep it →' : 'Send →'}
+            {thread?.kind === 'friend' ? 'Write it →' : 'Send →'}
           </ChunkyButton>
         </PinnedBar>
       </div>

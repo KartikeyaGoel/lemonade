@@ -29,6 +29,7 @@ import {
   saveGuideSeen,
   saveInbox,
   saveLedger,
+  saveNudgesShown,
   saveLive,
 } from '../src/lib/storage';
 import { createGame } from '../src/lib/progress';
@@ -63,6 +64,7 @@ const EVERY_KEY = [
   'lemonade.muted.v1',
   'lemonade.ledger.v1',
   'lemonade.inbox.v1',
+  'lemonade.nudges.v1',
 ];
 
 /** A device with something in every slot, including the legacy one. */
@@ -81,6 +83,7 @@ function fillEverySlot() {
     send(openThread(createInbox(), 'grown-up', 'Mum'), 'grown-up-mum', 'child', 'hello', '2026-09-07')
       .inbox,
   );
+  saveNudgesShown(['check-in-ready:2026-09-07']);
 }
 
 beforeEach(() => {
