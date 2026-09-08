@@ -163,7 +163,7 @@ describe('picking the game back up', () => {
        * screen properly with fake timers; measuring it here would only teach
        * this property to lie.
        */
-      if (/sold|passed|Hurrying|Tap to speed up/i.test(body())) break;
+      if (/sold|passed|Hurrying|Tap to speed up|Let the rest come/i.test(body())) break;
 
       const before = body();
       /*

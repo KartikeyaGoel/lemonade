@@ -42,14 +42,14 @@ const NOUNS =
 /**
  * Counts that are constants and can never be one.
  *
- * `CUPS_PER_LEMON` is 4 and `SUGAR_SERVINGS_PER_PACK` is 10, so "4 cups each"
+ * `CUPS_PER_LEMON` is 4 and `HONEY_SERVINGS_PER_JAR` is 10, so "4 cups each"
  * is correct and rewriting it through the helper would only add noise. Listed
  * explicitly rather than pattern-matched, so that changing one of them to 1
  * fails this test instead of quietly shipping "1 cups each".
  */
 const NEVER_ONE = [
   'ECON.CUPS_PER_LEMON',
-  'ECON.SUGAR_SERVINGS_PER_PACK',
+  'ECON.HONEY_SERVINGS_PER_JAR',
   'ECON.TOTAL_DAYS',
   'MARKET_WEEKS',
   'HOLD_WEEKS',

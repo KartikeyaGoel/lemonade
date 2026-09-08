@@ -108,3 +108,32 @@ describe('tap targets', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/*
+ * A price a child reads is never a literal in a component.
+ *
+ * The first thing anybody ever saw of this game was a stand with $1.50 painted
+ * on its sign. The first price they were then offered was $1.00, because the
+ * day-one slider opened there — and the later plan screen fell back to $1.50
+ * again, so the same figure existed three times with two answers.
+ *
+ * Nothing failed. Every screen was internally right and the sign appeared to
+ * change by itself, on the one stage whose entire lesson is reading a price off
+ * that sign. It is the same defect as the split rule written twice with two
+ * answers (§55) and the six call sites that omitted a grade (§59): a fact with
+ * more than one home. The fix is one constant, and this is the grep that keeps
+ * it one.
+ */
+describe('prices on the screens', () => {
+  it('never hard-codes a price a child will read', () => {
+    const offenders: string[] = [];
+    for (const { src, path } of files) {
+      // `price={1.5}` and friends. A prop fed from state, a constant or a
+      // computation is what this is asking for and reads as `price={...}`.
+      for (const m of src.matchAll(/\bprice=\{([\d.]+)\}/g)) {
+        offenders.push(`${path}: price={${m[1]}}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});

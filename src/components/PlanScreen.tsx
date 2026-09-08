@@ -139,7 +139,7 @@ export function PlanScreen({
     const suggestion = yesterday ? Math.ceil(yesterday.cupsSold * 1.25) : 28;
     return Math.max(8, Math.min(maxCups, capacity, suggestion));
   });
-  const [price, setPrice] = useState(() => yesterday?.price ?? 1.5);
+  const [price, setPrice] = useState(() => yesterday?.price ?? ECON.OPENING_PRICE);
   /*
    * Lever 1, carried forward from yesterday rather than reset.
    *
@@ -522,9 +522,9 @@ export function PlanScreen({
               note={`${ECON.CUPS_PER_LEMON} cups each`}
             />
             <Row
-              label={`Sugar ×${plan.order.buySugarPacks}`}
-              value={money(plan.cost.sugar)}
-              note={`${ECON.SUGAR_SERVINGS_PER_PACK} cups each`}
+              label={`Honey ×${plan.order.buyHoneyJars}`}
+              value={money(plan.cost.honey)}
+              note={`${ECON.HONEY_SERVINGS_PER_JAR} cups each`}
             />
             <Row
               label={`Cups ×${plan.order.buyCupPacks}`}
@@ -534,10 +534,10 @@ export function PlanScreen({
             <Row label="Total to spend" value={money(plan.cost.total)} strong />
           </div>
 
-          {totalLemons(state.lemonLots) + state.sugarServings + state.cupsInStock > 0 && (
+          {totalLemons(state.lemonLots) + state.honeyServings + state.cupsInStock > 0 && (
             <p className="mt-2 font-body text-[12px] font-bold text-ink/55">
               Using what you already have first: {plural(totalLemons(state.lemonLots), 'lemon')},{' '}
-              {state.sugarServings} sugar, {plural(state.cupsInStock, 'cup')}.
+              {state.honeyServings} honey, {plural(state.cupsInStock, 'cup')}.
             </p>
           )}
           {atCapacity && (
@@ -910,7 +910,7 @@ function TryDetail({ attempt }: { attempt: Try }) {
       </div>
       <div className="mt-2">
         <Row label={`Sold ${attempt.cupsSold} of ${plural(attempt.cupsMade, 'cup')}`} value={money(attempt.revenue)} muted />
-        <Row label="Lemons, sugar and cups" value={`−${money(attempt.ingredientCost)}`} muted />
+        <Row label="Lemons, honey and cups" value={`−${money(attempt.ingredientCost)}`} muted />
         {attempt.fixedCost > 0 && (
           <Row label="Owed whatever happened" value={`−${money(attempt.fixedCost)}`} muted />
         )}

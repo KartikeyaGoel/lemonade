@@ -159,7 +159,9 @@ async function resume(): Promise<void> {
 async function playOutTheDay(): Promise<void> {
   vi.useFakeTimers();
   try {
-    const hurry = find(/Tap to speed up/);
+    // Stage 1 hands the pace to the child, so the day offers a way in
+    // rather than a way to hurry. Either door gets a test through it.
+    const hurry = find(/Tap to speed up|Let the rest come/);
     if (hurry) fireEvent.click(hurry);
     for (let i = 0; i < 80; i++) {
       const done = find(/Count up the money/);
@@ -216,7 +218,7 @@ async function playUntil(pattern: RegExp, steps = 80): Promise<void> {
   for (let step = 0; step < steps && !there(); step++) {
     await dismissRewards();
     if (there()) return;
-    if (find(/Tap to speed up|Hurrying|Count up the money/)) {
+    if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) {
       await playOutTheDay();
       await dismissRewards();
       continue;
@@ -553,7 +555,7 @@ describe('the choices that end a week or a stage', () => {
     for (let step = 0; step < 60; step++) {
       await dismissRewards();
       if (Number(saved().listing?.weeks?.length ?? 0) > 0) break;
-      if (find(/Tap to speed up|Hurrying|Count up the money/)) {
+      if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) {
         await playOutTheDay();
         continue;
       }
@@ -715,8 +717,8 @@ describe('the doors that leave the run alone', () => {
         (await maybe(/Go shopping/)) ||
         (await maybe(/Set my price/)) ||
         (await maybe(/Start day \d+|See your week|Carry on/));
-      if (find(/Tap to speed up|Hurrying|Count up the money/)) await playOutTheDay();
-      if (!moved && !find(/Tap to speed up|Hurrying|Count up the money/)) break;
+      if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) await playOutTheDay();
+      if (!moved && !find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) break;
       await dismissRewards();
     }
     if (await maybe(/Start over/)) {

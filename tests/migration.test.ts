@@ -206,4 +206,36 @@ describe('a save from the four-stage arc', () => {
     expect(loaded.listing.price).toBe(4.55);
     expect(loaded.listing.founderShare).toBe(0.7);
   });
+  /*
+   * The sweetener was renamed sugar -> honey, and the persisted key with it.
+   *
+   * Every tester holding a link has a save carrying `sugarServings`. Reading
+   * only the new key would empty their jar mid-week with no error to notice:
+   * the shopping list would quietly tell them to buy honey they already own.
+   * So the loader reads the old name too, and this is the test that says so.
+   */
+  it('reads a pre-rename pantry, where the honey was still called sugar', () => {
+    const game = createGame(11) as unknown as Record<string, unknown>;
+    const stand = { ...(game.stand as Record<string, unknown>) };
+    stand.honeyServings = undefined;
+    delete stand.honeyServings;
+    stand.sugarServings = 17;
+    window.localStorage.setItem(
+      KEY,
+      JSON.stringify({ ...game, version: SAVE_VERSION, stand }),
+    );
+
+    expect(loadGame()!.stand.honeyServings).toBe(17);
+  });
+
+  it('prefers the new key when a save somehow carries both', () => {
+    const game = createGame(12) as unknown as Record<string, unknown>;
+    const stand = { ...(game.stand as Record<string, unknown>), honeyServings: 4, sugarServings: 99 };
+    window.localStorage.setItem(
+      KEY,
+      JSON.stringify({ ...game, version: SAVE_VERSION, stand }),
+    );
+
+    expect(loadGame()!.stand.honeyServings).toBe(4);
+  });
 });

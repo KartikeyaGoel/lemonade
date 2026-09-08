@@ -1929,7 +1929,21 @@ export default function Page() {
 
     case 'run':
       return outcome ? (
-        <RunDayScreen outcome={outcome} onDone={() => setPhase('close')} />
+        /*
+         * Stage 1 lets the child open the stand; every stage after runs itself.
+         *
+         * The pace is handed over exactly where the scene is the lesson. In the
+         * first stage a day *is* the street — one price, one sign, and people
+         * deciding in front of it — so tapping the crowd in is the child causing
+         * the thing they are being taught to read. By stage 2 a day is one line
+         * in a week across several stands, and asking for eight taps a day
+         * against that would be a toll, not a game.
+         */
+        <RunDayScreen
+          outcome={outcome}
+          interactive={game.act === 1}
+          onDone={() => setPhase('close')}
+        />
       ) : null;
 
     case 'close':

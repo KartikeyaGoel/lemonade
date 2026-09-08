@@ -165,7 +165,7 @@ export function compareTries(from: Try, to: Try): TryDiff {
   }
   if (ingredientsEffect !== 0) {
     lines.push({
-      label: ingredientsEffect < 0 ? 'More lemons and sugar' : 'Fewer lemons and sugar',
+      label: ingredientsEffect < 0 ? 'More lemons and honey' : 'Fewer lemons and honey',
       amount: ingredientsEffect,
       detail: 'what the cups you sold cost to pour',
     });

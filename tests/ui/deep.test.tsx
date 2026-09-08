@@ -114,7 +114,7 @@ const history = Array.from({ length: 21 }, (_, i) =>
 function playedState(days: number, seed = 5) {
   let state = { ...createInitialState(seed), cash: 500 };
   for (let i = 0; i < days; i++) {
-    const outcome = runDay(state, { buyLemons: 20, buySugarPacks: 3, buyCupPacks: 3, price: 1.5 });
+    const outcome = runDay(state, { buyLemons: 20, buyHoneyJars: 3, buyCupPacks: 3, price: 1.5 });
     state = outcome.nextState;
     if (state.status === 'finished') break;
   }

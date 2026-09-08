@@ -26,8 +26,8 @@ export const ECON = {
   LEMON_COST: 0.5,
   CUPS_PER_LEMON: 4,
 
-  SUGAR_PACK_COST: 0.4,
-  SUGAR_SERVINGS_PER_PACK: 10,
+  HONEY_JAR_COST: 0.4,
+  HONEY_SERVINGS_PER_JAR: 10,
 
   CUP_PACK_COST: 0.3,
   CUPS_PER_CUP_PACK: 10,
@@ -115,6 +115,23 @@ export const ECON = {
 
   MIN_PRICE: 0,
   MAX_PRICE: 5,
+
+  /**
+   * The price the game opens at, everywhere it opens.
+   *
+   * This existed three times with two answers. The title screen's stand had a
+   * hard-coded $1.50 painted on its sign, the day-one slider started at $1.00,
+   * and the later plan screen fell back to $1.50 — so the first thing a child
+   * ever read was a price the game then refused to offer them. It looks like
+   * the sign changed by itself, which is the one thing a sign must not do when
+   * the entire stage is about reading a price off it.
+   *
+   * A dollar rather than $1.50 because it is the number a nine-year-old
+   * reasons in, and because the profit-maximising price is $1.60: opening
+   * below it leaves the discovery to be made rather than handed over. Anything
+   * showing a price before the child has picked one reads it from here.
+   */
+  OPENING_PRICE: 1,
 } as const;
 
 /**
@@ -329,7 +346,7 @@ export interface GameState {
   day: number;
   cash: number;
   lemonLots: LemonLot[];
-  sugarServings: number;
+  honeyServings: number;
   cupsInStock: number;
   /** Forecast for `day`. Generated one day ahead so the morning can show it. */
   forecast: Forecast;
@@ -340,7 +357,7 @@ export interface GameState {
 
 export interface Decisions {
   buyLemons: number;
-  buySugarPacks: number;
+  buyHoneyJars: number;
   buyCupPacks: number;
   /** Price per cup, in dollars. */
   price: number;
@@ -365,7 +382,7 @@ export function totalLemons(lots: LemonLot[]): number {
 }
 
 export function purchaseCost(
-  decisions: Pick<Decisions, 'buyLemons' | 'buySugarPacks' | 'buyCupPacks' | 'grade'>,
+  decisions: Pick<Decisions, 'buyLemons' | 'buyHoneyJars' | 'buyCupPacks' | 'grade'>,
 ) {
   /*
    * The unit price is worked out once and reported, because the shopping list
@@ -374,13 +391,13 @@ export function purchaseCost(
    */
   const perLemon = lemonUnitCost(decisions.grade ?? DEFAULT_GRADE, decisions.buyLemons);
   const lemons = round2(decisions.buyLemons * perLemon);
-  const sugar = round2(decisions.buySugarPacks * ECON.SUGAR_PACK_COST);
+  const honey = round2(decisions.buyHoneyJars * ECON.HONEY_JAR_COST);
   const cups = round2(decisions.buyCupPacks * ECON.CUP_PACK_COST);
   return {
     lemons,
-    sugar,
+    honey,
     cups,
-    total: round2(lemons + sugar + cups),
+    total: round2(lemons + honey + cups),
     perLemon,
     bulkOff: bulkDiscountFor(decisions.buyLemons),
   };
@@ -391,13 +408,13 @@ export function purchaseCost(
  * ingredient runs out first is the binding constraint — that is the whole
  * point, and the UI names it.
  */
-export function cupsMakeableFrom(lemons: number, sugarServings: number, cupsInStock: number) {
+export function cupsMakeableFrom(lemons: number, honeyServings: number, cupsInStock: number) {
   const fromLemons = Math.floor(lemons * ECON.CUPS_PER_LEMON);
-  const cups = Math.min(fromLemons, Math.floor(sugarServings), Math.floor(cupsInStock));
-  let limitedBy: 'lemons' | 'sugar' | 'cups' | 'none' = 'none';
+  const cups = Math.min(fromLemons, Math.floor(honeyServings), Math.floor(cupsInStock));
+  let limitedBy: 'lemons' | 'honey' | 'cups' | 'none' = 'none';
   if (cups === 0 || cups === fromLemons) limitedBy = 'lemons';
-  if (cups === Math.floor(sugarServings) && Math.floor(sugarServings) <= fromLemons) limitedBy = 'sugar';
-  if (Math.floor(cupsInStock) <= Math.min(fromLemons, Math.floor(sugarServings))) limitedBy = 'cups';
+  if (cups === Math.floor(honeyServings) && Math.floor(honeyServings) <= fromLemons) limitedBy = 'honey';
+  if (Math.floor(cupsInStock) <= Math.min(fromLemons, Math.floor(honeyServings))) limitedBy = 'cups';
   return { cups: Math.max(0, cups), limitedBy };
 }
 
@@ -405,7 +422,7 @@ export function cupsMakeableFrom(lemons: number, sugarServings: number, cupsInSt
 export function pantryAfterPurchase(state: GameState, decisions: Decisions) {
   return {
     lemons: totalLemons(state.lemonLots) + decisions.buyLemons,
-    sugarServings: state.sugarServings + decisions.buySugarPacks * ECON.SUGAR_SERVINGS_PER_PACK,
+    honeyServings: state.honeyServings + decisions.buyHoneyJars * ECON.HONEY_SERVINGS_PER_JAR,
     cupsInStock: state.cupsInStock + decisions.buyCupPacks * ECON.CUPS_PER_CUP_PACK,
   };
 }
@@ -468,13 +485,13 @@ export function ingredientCostOf(cupsSold: number, lemonSpend?: number) {
    * written before grades existed — gets exactly the number it always got.
    */
   const lemons = round2(lemonSpend ?? lemonsUsed * ECON.LEMON_COST);
-  const sugar = round2(cupsSold * (ECON.SUGAR_PACK_COST / ECON.SUGAR_SERVINGS_PER_PACK));
+  const honey = round2(cupsSold * (ECON.HONEY_JAR_COST / ECON.HONEY_SERVINGS_PER_JAR));
   const cups = round2(cupsSold * (ECON.CUP_PACK_COST / ECON.CUPS_PER_CUP_PACK));
-  const total = round2(lemons + sugar + cups);
+  const total = round2(lemons + honey + cups);
   return {
     lemonsUsed,
     lemons,
-    sugar,
+    honey,
     cups,
     total,
     perCup: cupsSold > 0 ? total / cupsSold : 0,
@@ -522,7 +539,7 @@ export interface DayOutcome {
 
   purchases: {
     lemons: number;
-    sugarPacks: number;
+    honeyJars: number;
     cupPacks: number;
     cost: ReturnType<typeof purchaseCost>;
     clamped: boolean;
@@ -604,7 +621,7 @@ export function createInitialState(seed = 20240601): GameState {
     day: 1,
     cash: ECON.STARTING_CASH,
     lemonLots: [],
-    sugarServings: 0,
+    honeyServings: 0,
     cupsInStock: 0,
     forecast,
     seed: rng.currentSeed,
@@ -932,7 +949,7 @@ export function runDay(
   // Never let a mistyped order overdraw the account — or poison the day.
   const requested = {
     buyLemons: whole(decisions.buyLemons),
-    buySugarPacks: whole(decisions.buySugarPacks),
+    buyHoneyJars: whole(decisions.buyHoneyJars),
     buyCupPacks: whole(decisions.buyCupPacks),
   };
   const grade = decisions.grade ?? DEFAULT_GRADE;
@@ -940,7 +957,7 @@ export function runDay(
   const cost = purchaseCost({ ...affordable, grade });
 
   const pantry = pantryAfterPurchase(state, { ...affordable, price });
-  const { cups: pourable } = cupsMakeableFrom(pantry.lemons, pantry.sugarServings, pantry.cupsInStock);
+  const { cups: pourable } = cupsMakeableFrom(pantry.lemons, pantry.honeyServings, pantry.cupsInStock);
   // You can only serve as fast as your stand and staff allow, however much
   // lemonade is sitting in the pantry.
   const cupsMakeable = Math.min(pourable, Math.floor(params.serviceCapacity));
@@ -1055,8 +1072,8 @@ export function runDay(
     day: state.day + 1,
     cash: cashAfter,
     lemonLots: aged.lots,
-    // Unsold lemonade is discarded, but unopened sugar and cups keep.
-    sugarServings: Math.max(0, pantry.sugarServings - cupsSold),
+    // Unsold lemonade is discarded, but unopened honey and cups keep.
+    honeyServings: Math.max(0, pantry.honeyServings - cupsSold),
     cupsInStock: Math.max(0, pantry.cupsInStock - cupsSold),
     forecast: nextForecast,
     seed: rng.currentSeed,
@@ -1071,12 +1088,12 @@ export function runDay(
     price,
     purchases: {
       lemons: affordable.buyLemons,
-      sugarPacks: affordable.buySugarPacks,
+      honeyJars: affordable.buyHoneyJars,
       cupPacks: affordable.buyCupPacks,
       cost,
       clamped:
         affordable.buyLemons !== requested.buyLemons ||
-        affordable.buySugarPacks !== requested.buySugarPacks ||
+        affordable.buyHoneyJars !== requested.buyHoneyJars ||
         affordable.buyCupPacks !== requested.buyCupPacks,
     },
     passersby: crowd.passersby,
@@ -1195,11 +1212,11 @@ export function clampPrice(price: number): number {
 
 /** Trims an order, cheapest-priority-last, until it fits the available cash. */
 export function clampPurchaseToCash(
-  requested: { buyLemons: number; buySugarPacks: number; buyCupPacks: number },
+  requested: { buyLemons: number; buyHoneyJars: number; buyCupPacks: number },
   cash: number,
 ) {
   const result = { ...requested };
-  const order: Array<keyof typeof result> = ['buyLemons', 'buySugarPacks', 'buyCupPacks'];
+  const order: Array<keyof typeof result> = ['buyLemons', 'buyHoneyJars', 'buyCupPacks'];
   while (purchaseCost(result).total > cash) {
     // Shave the biggest line first so the order stays balanced.
     let biggest: keyof typeof result | null = null;
@@ -1209,8 +1226,8 @@ export function clampPurchaseToCash(
       const unit =
         key === 'buyLemons'
           ? ECON.LEMON_COST
-          : key === 'buySugarPacks'
-            ? ECON.SUGAR_PACK_COST
+          : key === 'buyHoneyJars'
+            ? ECON.HONEY_JAR_COST
             : ECON.CUP_PACK_COST;
       const lineCost = result[key] * unit;
       if (lineCost > biggestCost) {
@@ -1237,7 +1254,7 @@ export function clampPurchaseToCash(
 
 export interface Order {
   buyLemons: number;
-  buySugarPacks: number;
+  buyHoneyJars: number;
   buyCupPacks: number;
 }
 
@@ -1246,17 +1263,17 @@ export function orderForTargetCups(state: GameState, targetCups: number): Order 
   const target = Math.max(0, Math.floor(targetCups));
   const have = {
     lemons: totalLemons(state.lemonLots),
-    sugar: state.sugarServings,
+    honey: state.honeyServings,
     cups: state.cupsInStock,
   };
 
   const lemonsNeeded = Math.max(0, lemonsNeededFor(target) - have.lemons);
-  const sugarShort = Math.max(0, target - have.sugar);
+  const honeyShort = Math.max(0, target - have.honey);
   const cupsShort = Math.max(0, target - have.cups);
 
   return {
     buyLemons: lemonsNeeded,
-    buySugarPacks: Math.ceil(sugarShort / ECON.SUGAR_SERVINGS_PER_PACK),
+    buyHoneyJars: Math.ceil(honeyShort / ECON.HONEY_SERVINGS_PER_JAR),
     buyCupPacks: Math.ceil(cupsShort / ECON.CUPS_PER_CUP_PACK),
   };
 }
@@ -1269,7 +1286,7 @@ export function maxAffordableCups(state: GameState, fixedCost: number = ECON.STA
   const budget = round2(state.cash - fixedCost);
   if (budget <= 0) {
     // Broke: they can still sell whatever is already in the pantry.
-    const { cups } = cupsMakeableFrom(totalLemons(state.lemonLots), state.sugarServings, state.cupsInStock);
+    const { cups } = cupsMakeableFrom(totalLemons(state.lemonLots), state.honeyServings, state.cupsInStock);
     return cups;
   }
   let best = 0;
@@ -1302,7 +1319,7 @@ export function counterfactualProfit(
  *
  * The kid picks a batch size; this is everything the shop screen needs to
  * show them. Note that `cupsMakeable` can exceed what they asked for:
- * lemons are whole and sugar and cups come in tens, so a request for 5 cups
+ * lemons are whole and honey and cups come in tens, so a request for 5 cups
  * buys enough for 8. We show the true number rather than the requested one,
  * because minimum order sizes are themselves part of unit economics.
  * ------------------------------------------------------------------ */
@@ -1315,11 +1332,11 @@ export interface BatchPlan {
   cost: ReturnType<typeof purchaseCost>;
   /** What they will genuinely be able to pour today. */
   cupsMakeable: number;
-  limitedBy: 'lemons' | 'sugar' | 'cups' | 'none';
+  limitedBy: 'lemons' | 'honey' | 'cups' | 'none';
   /** Cost per cup of this batch if every cup sells. */
   costPerCup: number;
   affordable: boolean;
-  pantryAfter: { lemons: number; sugarServings: number; cupsInStock: number };
+  pantryAfter: { lemons: number; honeyServings: number; cupsInStock: number };
 }
 
 export function batchPlan(
@@ -1335,7 +1352,7 @@ export function batchPlan(
    */
   const cost = purchaseCost({ ...order, grade });
   const pantry = pantryAfterPurchase(state, { ...order, price: 0 });
-  const { cups, limitedBy } = cupsMakeableFrom(pantry.lemons, pantry.sugarServings, pantry.cupsInStock);
+  const { cups, limitedBy } = cupsMakeableFrom(pantry.lemons, pantry.honeyServings, pantry.cupsInStock);
   return {
     targetCups: Math.max(0, Math.floor(targetCups)),
     order,
@@ -1474,7 +1491,7 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     found.push({
       id: 'unit-cost',
       term: 'Unit cost',
-      evidence: `The lemons, sugar and cups came to ${money(outcome.ingredients.total)} for ${plural(outcome.cupsSold, 'cup')}. So each cup cost about ${money(outcome.ingredients.perCup)} to make.`,
+      evidence: `The lemons, honey and cups came to ${money(outcome.ingredients.total)} for ${plural(outcome.cupsSold, 'cup')}. So each cup cost about ${money(outcome.ingredients.perCup)} to make.`,
       carriesForward:
         'What one more of a thing costs to make. It is the number a price has to beat, and the first thing to check when a busy day still made no money.',
     });

@@ -114,7 +114,7 @@ const thinHistory = [dayRecord()];
 function playedState(days: number, seed = 7): GameState {
   let state = { ...createInitialState(seed), cash: 300 };
   for (let i = 0; i < days; i++) {
-    const o = runDay(state, { buyLemons: 20, buySugarPacks: 3, buyCupPacks: 3, price: 1.5 });
+    const o = runDay(state, { buyLemons: 20, buyHoneyJars: 3, buyCupPacks: 3, price: 1.5 });
     state = o.nextState;
     if (state.status === 'finished') break;
   }
@@ -198,7 +198,7 @@ describe('the stand', () => {
       ['broke', { ...createInitialState(1), cash: 0 }],
       ['a penny left', { ...createInitialState(1), cash: 0.01 }],
       ['rich', { ...createInitialState(1), cash: 99999 }],
-      ['a full pantry', { ...createInitialState(1), lemonLots: [{ lemons: 200, purchasedOnDay: 1 }], sugarServings: 200, cupsInStock: 200 }],
+      ['a full pantry', { ...createInitialState(1), lemonLots: [{ lemons: 200, purchasedOnDay: 1 }], honeyServings: 200, cupsInStock: 200 }],
     ];
     for (const [label, state] of cases) {
       check(`shop: ${label}`, <ShopScreen state={state} onConfirm={noop} onBack={noop} />);
@@ -237,36 +237,36 @@ describe('the stand', () => {
    */
   it('renders the close screen across every ledger branch', () => {
     const cases: [string, ReturnType<typeof runDay>][] = [
-      ['a first profitable day', runDay({ ...createInitialState(1), cash: 100 }, { buyLemons: 20, buySugarPacks: 3, buyCupPacks: 3, price: 1.5 })],
-      ['a sell-out', runDay({ ...createInitialState(2), cash: 100 }, { buyLemons: 4, buySugarPacks: 1, buyCupPacks: 1, price: 0.5 })],
-      ['nothing sold', runDay({ ...createInitialState(3), cash: 100 }, { buyLemons: 30, buySugarPacks: 4, buyCupPacks: 4, price: 5 })],
-      ['bought nothing at all', runDay({ ...createInitialState(4), cash: 100 }, { buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0, price: 1.5 })],
+      ['a first profitable day', runDay({ ...createInitialState(1), cash: 100 }, { buyLemons: 20, buyHoneyJars: 3, buyCupPacks: 3, price: 1.5 })],
+      ['a sell-out', runDay({ ...createInitialState(2), cash: 100 }, { buyLemons: 4, buyHoneyJars: 1, buyCupPacks: 1, price: 0.5 })],
+      ['nothing sold', runDay({ ...createInitialState(3), cash: 100 }, { buyLemons: 30, buyHoneyJars: 4, buyCupPacks: 4, price: 5 })],
+      ['bought nothing at all', runDay({ ...createInitialState(4), cash: 100 }, { buyLemons: 0, buyHoneyJars: 0, buyCupPacks: 0, price: 1.5 })],
       [
         'the cash floor firing under a rent and a loan',
         runDay(
           { ...createInitialState(5), cash: 25 },
-          { buyLemons: 2, buySugarPacks: 1, buyCupPacks: 1, price: 4 },
+          { buyLemons: 2, buyHoneyJars: 1, buyCupPacks: 1, price: 4 },
           { fixedCosts: [{ label: 'Rent', amount: 45 }, { label: 'Loan', amount: 25 }] },
         ),
       ],
       [
         'fruit in the bin',
         runDay(
-          { ...createInitialState(6), day: 6, cash: 500, lemonLots: [{ lemons: 26, purchasedOnDay: 1 }], sugarServings: 40, cupsInStock: 40 },
-          { buyLemons: 6, buySugarPacks: 0, buyCupPacks: 0, price: 1.5 },
+          { ...createInitialState(6), day: 6, cash: 500, lemonLots: [{ lemons: 26, purchasedOnDay: 1 }], honeyServings: 40, cupsInStock: 40 },
+          { buyLemons: 6, buyHoneyJars: 0, buyCupPacks: 0, price: 1.5 },
         ),
       ],
       [
         'an investor taking a cut',
-        runDay({ ...createInitialState(7), cash: 300 }, { buyLemons: 20, buySugarPacks: 3, buyCupPacks: 3, price: 1.5 }, { equityShare: 0.3 }),
+        runDay({ ...createInitialState(7), cash: 300 }, { buyLemons: 20, buyHoneyJars: 3, buyCupPacks: 3, price: 1.5 }, { equityShare: 0.3 }),
       ],
       [
         'subscribers served first',
-        runDay({ ...createInitialState(8), cash: 300 }, { buyLemons: 20, buySugarPacks: 3, buyCupPacks: 3, price: 2 }, { subscribers: 12, subscriberDiscount: 0.25 }),
+        runDay({ ...createInitialState(8), cash: 300 }, { buyLemons: 20, buyHoneyJars: 3, buyCupPacks: 3, price: 2 }, { subscribers: 12, subscriberDiscount: 0.25 }),
       ],
       [
         'a shop with the weather floored',
-        runDay({ ...createInitialState(9), cash: 800 }, { buyLemons: 40, buySugarPacks: 6, buyCupPacks: 6, price: 1.5 }, { indoorShare: 1, demandMultiplier: 3, fixedCosts: [{ label: 'Rent', amount: 45 }] }),
+        runDay({ ...createInitialState(9), cash: 800 }, { buyLemons: 40, buyHoneyJars: 6, buyCupPacks: 6, price: 1.5 }, { indoorShare: 1, demandMultiplier: 3, fixedCosts: [{ label: 'Rent', amount: 45 }] }),
       ],
     ];
     for (const [label, outcome] of cases) {
@@ -680,10 +680,10 @@ describe('the screens that were never rendered at all', () => {
    */
   it('renders the day running, sold out, and with nobody there', () => {
     const cases: [string, ReturnType<typeof runDay>][] = [
-      ['a normal day', runDay({ ...createInitialState(1), cash: 200 }, { buyLemons: 20, buySugarPacks: 3, buyCupPacks: 3, price: 1.5 })],
-      ['sold out with a queue', runDay({ ...createInitialState(2), cash: 200 }, { buyLemons: 2, buySugarPacks: 1, buyCupPacks: 1, price: 0.5 })],
-      ['nobody bought anything', runDay({ ...createInitialState(3), cash: 200 }, { buyLemons: 20, buySugarPacks: 3, buyCupPacks: 3, price: 5 })],
-      ['nothing to sell', runDay({ ...createInitialState(4), cash: 200 }, { buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0, price: 1.5 })],
+      ['a normal day', runDay({ ...createInitialState(1), cash: 200 }, { buyLemons: 20, buyHoneyJars: 3, buyCupPacks: 3, price: 1.5 })],
+      ['sold out with a queue', runDay({ ...createInitialState(2), cash: 200 }, { buyLemons: 2, buyHoneyJars: 1, buyCupPacks: 1, price: 0.5 })],
+      ['nobody bought anything', runDay({ ...createInitialState(3), cash: 200 }, { buyLemons: 20, buyHoneyJars: 3, buyCupPacks: 3, price: 5 })],
+      ['nothing to sell', runDay({ ...createInitialState(4), cash: 200 }, { buyLemons: 0, buyHoneyJars: 0, buyCupPacks: 0, price: 1.5 })],
     ];
     for (const [label, outcome] of cases) {
       check(`run day: ${label}`, <RunDayScreen outcome={outcome} onDone={noop} />);

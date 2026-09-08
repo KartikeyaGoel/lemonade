@@ -1,6 +1,7 @@
 'use client';
 
 import { FORECAST_COPY, type GameState, ECON, weekSummary } from '@/lib/simulation';
+import { act1Progress } from '@/lib/progress';
 import { PipBubble } from './Pip';
 import { ActionFooter, ChunkyButton, GoalStrip, Ground, HeaderBar, SignHeading, Sky, WeatherArt, money } from './ui';
 import { Stand } from './Stand';
@@ -40,8 +41,15 @@ export function MorningScreen({ state, onContinue }: { state: GameState; onConti
               clock, and the plan screen names "$25 in a day, twice" from day
               three. Two different goals inside one stage, and a child cannot
               tell which one they are being judged on.
+
+              And then it read "Two days to try things out" — hand-written, in
+              a component, with the count spelled out as a word. The plan
+              screen said something else on the same morning, and the number
+              two was a fact with a second home: change `ACT1_EXPLORE_DAYS` and
+              this strip keeps promising two. Both screens now read the one
+              line `act1Progress` produces.
             */}
-            <GoalStrip>Two days to try things out</GoalStrip>
+            <GoalStrip>{act1Progress(state).goal}</GoalStrip>
           </div>
         )}
 

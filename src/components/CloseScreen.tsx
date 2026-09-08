@@ -219,7 +219,7 @@ export function CloseScreen({
               <span>
                 🍋 {outcome.ingredients.lemonsUsed} · {money(outcome.ingredients.lemons)}
               </span>
-              <span>🥄 {money(outcome.ingredients.sugar)}</span>
+              <span>🍯 {money(outcome.ingredients.honey)}</span>
               <span>🥤 {money(outcome.ingredients.cups)}</span>
               <span className="text-ink/35">≈ {money(outcome.ingredients.perCup)} a cup</span>
             </div>
@@ -311,7 +311,7 @@ export function CloseScreen({
               pays for the lemons *bought*, and those are different on any day
               the pantry is not empty at both ends. Found by playing: a $10.02
               loss took the cash box from $250.00 to $240.90, and the ninety
-              two cents in between were a lot of sugar bought the day before.
+              two cents in between were a lot of honey bought the day before.
               Pennies on a one-table business; not pennies with three pitches
               and a shop.
 
@@ -380,12 +380,12 @@ export function CloseScreen({
               </p>
             )}
             {(outcome.nextState.lemonLots.length > 0 ||
-              outcome.nextState.sugarServings > 0 ||
+              outcome.nextState.honeyServings > 0 ||
               outcome.nextState.cupsInStock > 0) && (
               <p className="mt-1 font-body text-[11px] font-bold text-ink/55">
                 Still in the pantry for tomorrow:{' '}
                 {plural(outcome.nextState.lemonLots.reduce((s, l) => s + l.lemons, 0), 'lemon')},{' '}
-                {outcome.nextState.sugarServings} sugar,{' '}
+                {outcome.nextState.honeyServings} honey,{' '}
                 {plural(outcome.nextState.cupsInStock, 'cup')}.
               </p>
             )}

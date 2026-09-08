@@ -53,7 +53,7 @@ export const GLOSSARY: GlossaryWord[] = [
   {
     id: 'unit-cost',
     word: 'Unit cost',
-    kidLine: 'What one cup costs you to make, lemons and sugar and the cup itself.',
+    kidLine: 'What one cup costs you to make, lemons and honey and the cup itself.',
     grownUpLine: 'Cost of goods sold. Firms fight over fractions of a cent here, because it repeats on every sale.',
     act: 1,
   },

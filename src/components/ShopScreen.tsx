@@ -17,7 +17,7 @@ import { ActionFooter, ChunkyButton, HeaderBar, SignHeading, Sky, money, plural 
 /**
  * Shopping, as one decision.
  *
- * A kid does not buy lemons, sugar and cups separately here — they choose a
+ * A kid does not buy lemons, honey and cups separately here — they choose a
  * batch size and the game does the shopping list. The itemised receipt is
  * then shown to them, which is where unit cost is actually taught: they see
  * that 28 cups costs $5.60, that it works out at about 20c a cup, and that
@@ -82,7 +82,7 @@ export function ShopScreen({
   const [touched, setTouched] = useState(false);
 
   const pantryLemons = totalLemons(state.lemonLots);
-  const hasPantry = pantryLemons > 0 || state.sugarServings > 0 || state.cupsInStock > 0;
+  const hasPantry = pantryLemons > 0 || state.honeyServings > 0 || state.cupsInStock > 0;
 
   return (
     <Sky mood="dawn">
@@ -161,7 +161,7 @@ export function ShopScreen({
             A receipt, and it has to read as one.
 
             A first-time player looked at this and asked where the slider for
-            the lemons and the sugar was. There isn't one, and there should not
+            the lemons and the honey was. There isn't one, and there should not
             be: the recipe is fixed — one lemon is four cups — so the batch is
             the single bet, and a second and third dial for ingredients that
             follow from it would be three taps to say one thing. §4: reduce
@@ -180,19 +180,19 @@ export function ShopScreen({
             </div>
               <ReceiptLine
                 emoji="🍋"
-                label={`Lemons x${plan.order.buyLemons}`}
+                label={`Lemons ×${plan.order.buyLemons}`}
                 note={`${ECON.CUPS_PER_LEMON} cups each`}
                 amount={plan.cost.lemons}
               />
               <ReceiptLine
-                emoji="🥄"
-                label={`Sugar x${plan.order.buySugarPacks}`}
-                note={`${ECON.SUGAR_SERVINGS_PER_PACK} cups each`}
-                amount={plan.cost.sugar}
+                emoji="🍯"
+                label={`Honey ×${plan.order.buyHoneyJars}`}
+                note={`${ECON.HONEY_SERVINGS_PER_JAR} cups each`}
+                amount={plan.cost.honey}
               />
               <ReceiptLine
                 emoji="🥤"
-                label={`Cups x${plan.order.buyCupPacks}`}
+                label={`Cups ×${plan.order.buyCupPacks}`}
                 note={`${ECON.CUPS_PER_CUP_PACK} per pack`}
                 amount={plan.cost.cups}
               />
@@ -200,7 +200,7 @@ export function ShopScreen({
               {hasPantry && (
                 <p className="mt-3 font-body text-xs font-bold text-ink/60">
                   Using what you already have first: {plural(pantryLemons, 'lemon')},{' '}
-                  {state.sugarServings} sugar, {plural(state.cupsInStock, 'cup')}.
+                  {state.honeyServings} honey, {plural(state.cupsInStock, 'cup')}.
                 </p>
               )}
               {plan.cupsMakeable > plan.targetCups && plan.targetCups > 0 && (

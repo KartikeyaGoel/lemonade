@@ -44,7 +44,7 @@ export function PriceScreen({
   onBack: () => void;
 }) {
   const yesterday = state.history[state.history.length - 1];
-  const [price, setPrice] = useState(() => yesterday?.price ?? 1);
+  const [price, setPrice] = useState(() => yesterday?.price ?? ECON.OPENING_PRICE);
 
   const perCup = perCupCost;
   const marginPerCup = price - perCup;

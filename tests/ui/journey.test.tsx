@@ -124,7 +124,9 @@ async function playOutTheDay(): Promise<void> {
    */
   vi.useFakeTimers();
   try {
-    const hurry = find(/Tap to speed up/);
+    // Stage 1 hands the pace to the child, so the day offers a way in
+    // rather than a way to hurry. Either door gets a test through it.
+    const hurry = find(/Tap to speed up|Let the rest come/);
     if (hurry) fireEvent.click(hurry);
     for (let i = 0; i < 80; i++) {
       const done = find(/Count up the money/);
@@ -164,7 +166,7 @@ async function playADay(): Promise<boolean> {
   for (let step = 0; step < 12; step++) {
     await dismissRewards();
     // The day is running: see it out and bank it.
-    if (find(/Tap to speed up|Hurrying|Count up the money/)) {
+    if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) {
       await playOutTheDay();
       clean('the close screen');
       await dismissRewards();

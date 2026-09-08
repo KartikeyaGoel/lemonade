@@ -17,6 +17,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { PlanScreen } from '@/components/PlanScreen';
 import { PriceScreen } from '@/components/PriceScreen';
 import { ShopScreen } from '@/components/ShopScreen';
+import { MorningScreen } from '@/components/MorningScreen';
 import { act1Progress, createGame } from '@/lib/progress';
 import { money } from '@/components/ui';
 import {
@@ -74,13 +75,48 @@ function plan(state: GameState) {
 describe('the goal strip in the first stage', () => {
   afterEach(cleanup);
 
-  it('asks for nothing while the child is still exploring', () => {
+  it('asks for nothing while the child is still exploring, but says how long for', () => {
     const state = after(1, 1.5);
     expect(act1Progress(state).exploring).toBe(true);
     plan(state);
-    expect(screen.getByText(/Try things out/i)).toBeInTheDocument();
-    // And it does not name a figure a child has not been set yet.
+    /*
+     * The old line was "Try things out. Nothing to hit yet.", and the
+     * complaint about it was exact: the header counts seven days, so a child
+     * reading that has no way to tell what these two are or when they end.
+     * A practice day has to place itself in the week.
+     */
+    expect(screen.getByText(/Practice 2 of 2/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(`goal starts on day ${ECON.ACT1_EXPLORE_DAYS + 1}`, 'i')),
+    ).toBeInTheDocument();
+    // And it still does not name a figure a child has not been set yet.
     expect(screen.queryByText(new RegExp(`\\$${ECON.ACT1_PROFIT_TARGET}`))).not.toBeInTheDocument();
+  });
+
+  /*
+   * The morning and the plan screen are two screens a child sees inside one
+   * day, and they were answering the same question differently: the morning
+   * had "Two days to try things out" written into the component, with the
+   * count spelled out as a word, while the plan screen said "Try things out.
+   * Nothing to hit yet." Either could go stale on its own, and the pair could
+   * disagree in front of a child who had done nothing wrong.
+   */
+  it('says the same thing on the morning as on the plan screen', () => {
+    const fresh = after(0, 1.5);
+    render(<MorningScreen state={fresh} onContinue={() => {}} />);
+    expect(screen.getByText(act1Progress(fresh).goal)).toBeInTheDocument();
+  });
+
+  it('derives the practice count from the constant, not from a spelled-out word', () => {
+    const line = act1Progress(after(0, 1.5)).goal;
+    expect(line).toContain(String(ECON.ACT1_EXPLORE_DAYS));
+    expect(line).toContain(String(ECON.ACT1_EXPLORE_DAYS + 1));
+  });
+
+  it('counts the practice days up as they are played', () => {
+    expect(act1Progress(after(0, 1.5)).goal).toMatch(/Practice 1 of 2/);
+    expect(act1Progress(after(1, 1.5)).goal).toMatch(/Practice 2 of 2/);
+    expect(act1Progress(after(2, 1.5)).goal).not.toMatch(/Practice/);
   });
 
   it('names the target once exploration is over', () => {

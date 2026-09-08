@@ -148,7 +148,7 @@ describe('batch plan tells the truth about lumpy supplies', () => {
   it('reports what the kid can really pour, not what they asked for', () => {
     const state = stateWith({ cash: 200 });
     const plan = batchPlan(state, 5);
-    // 2 whole lemons pour 8 cups; sugar and cups come in tens.
+    // 2 whole lemons pour 8 cups; honey and cups come in tens.
     expect(plan.cupsMakeable).toBe(8);
     expect(plan.targetCups).toBe(5);
   });
@@ -165,7 +165,7 @@ describe('batch plan tells the truth about lumpy supplies', () => {
     const state = stateWith({
       cash: 200,
       lemonLots: [{ lemons: 20, purchasedOnDay: 1 }],
-      sugarServings: 0,
+      honeyServings: 0,
       cupsInStock: 0,
     });
     const plan = batchPlan(state, 0);
@@ -182,7 +182,7 @@ describe('batch plan tells the truth about lumpy supplies', () => {
     const state = stateWith({
       cash: 200,
       lemonLots: [{ lemons: 10, purchasedOnDay: 1 }],
-      sugarServings: 40,
+      honeyServings: 40,
       cupsInStock: 40,
     });
     const plan = batchPlan(state, 40);

@@ -300,7 +300,7 @@ describe('the words a run earns', () => {
   it('hands over capex-and-opex once there is a machine and a wage', () => {
     const outcome = runDay(
       { ...createInitialState(1), cash: 400 },
-      { buyLemons: 20, buySugarPacks: 3, buyCupPacks: 3, price: 1.5 },
+      { buyLemons: 20, buyHoneyJars: 3, buyCupPacks: 3, price: 1.5 },
       {
         fixedCosts: [
           { label: 'Pitch', amount: 5 },
@@ -324,7 +324,7 @@ describe('the words a run earns', () => {
   it('hands over compounding to a business that actually grew', () => {
     const outcome = runDay(
       { ...createInitialState(2), cash: 600 },
-      { buyLemons: 30, buySugarPacks: 4, buyCupPacks: 4, price: 1.5 },
+      { buyLemons: 30, buyHoneyJars: 4, buyCupPacks: 4, price: 1.5 },
     );
     /*
      * `ownsCapex` is part of the condition and should be: "profit bought
@@ -348,7 +348,7 @@ describe('the words a run earns', () => {
   it('reports what today earned, and leaves the de-duplication to its caller', () => {
     const outcome = runDay(
       { ...createInitialState(3), cash: 400 },
-      { buyLemons: 20, buySugarPacks: 3, buyCupPacks: 3, price: 1.5 },
+      { buyLemons: 20, buyHoneyJars: 3, buyCupPacks: 3, price: 1.5 },
       { fixedCosts: [{ label: 'Helper wages', amount: 12 }] },
     );
     const business = {
@@ -389,7 +389,7 @@ describe('the Saturday stand, which outlives the business', () => {
     for (let i = 0; i < 3; i++) {
       const outcome = runDay(state, {
         buyLemons: 6,
-        buySugarPacks: 1,
+        buyHoneyJars: 1,
         buyCupPacks: 1,
         price: 1.5,
       });

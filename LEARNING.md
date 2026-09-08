@@ -323,7 +323,7 @@ decomposed:
 | --- | --- |
 | Charging more, +$0.75 a cup on the 36 you were selling | +$27.00 |
 | Selling fewer cups, 11 fewer at $1.75 | −$19.25 |
-| Fewer lemons and sugar | +$1.77 |
+| Fewer lemons and honey | +$1.77 |
 | **Gap** | **+$9.52** |
 
 Three lines, summing exactly to the gap, produced by a decision the kid made on

@@ -300,13 +300,29 @@ export function act1Progress(stand: GameState): Act1Progress {
     .filter((day) => day.profit >= target).length;
 
   if (played < ECON.ACT1_EXPLORE_DAYS) {
+    /*
+     * A practice day says which practice day it is, and when practice ends.
+     *
+     * It used to say "Try things out. Nothing to hit yet." — which is a mood,
+     * not a goal, and it left the honest question unanswerable: the header
+     * counts seven days, so what are these two? A child cannot see the two
+     * exploratory rounds from inside them. They can only see a week that has
+     * not told them what it wants, and the way that reads is that the game
+     * forgot to.
+     *
+     * So the line names the count, the job, and the day the goal arrives. The
+     * figure itself is still withheld until day three, because the point of
+     * the exploratory rounds is a price found by trying rather than a price
+     * reverse-engineered from a target.
+     */
+    const day = played + 1;
     return {
       exploring: true,
       target,
       hits,
       required,
       complete: false,
-      goal: 'Try things out. Nothing to hit yet.',
+      goal: `Practice ${day} of ${ECON.ACT1_EXPLORE_DAYS}: pick any price and watch. Your goal starts on day ${ECON.ACT1_EXPLORE_DAYS + 1}.`,
     };
   }
 

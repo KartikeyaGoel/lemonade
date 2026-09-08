@@ -45,20 +45,20 @@ describe('the P&L is arithmetic a kid can redo by hand', () => {
     expect(outcome.grossMarginPerCup).toBeCloseTo(outcome.price - outcome.ingredients.perCup, 2);
   });
 
-  it('breaks the ingredient bill into lemons, sugar and cups that sum to the total', () => {
+  it('breaks the ingredient bill into lemons, honey and cups that sum to the total', () => {
     const bill = ingredientCostOf(28);
     expect(bill.lemonsUsed).toBe(7); // 28 cups / 4 cups per lemon
     expect(bill.lemons).toBeCloseTo(3.5, 2);
-    expect(bill.sugar).toBeCloseTo(1.12, 2);
+    expect(bill.honey).toBeCloseTo(1.12, 2);
     expect(bill.cups).toBeCloseTo(0.84, 2);
     expect(bill.total).toBeCloseTo(5.46, 2);
-    expect(bill.lemons + bill.sugar + bill.cups).toBeCloseTo(bill.total, 2);
+    expect(bill.lemons + bill.honey + bill.cups).toBeCloseTo(bill.total, 2);
     expect(bill.perCup).toBeCloseTo(0.195, 3);
   });
 
   it('charges the stand fee even on a day with no sales at all', () => {
     const state = stateWith({ cash: 50 });
-    const outcome = runDay(state, { buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0, price: 5 });
+    const outcome = runDay(state, { buyLemons: 0, buyHoneyJars: 0, buyCupPacks: 0, price: 5 });
     expect(outcome.cupsSold).toBe(0);
     expect(outcome.revenue).toBe(0);
     expect(outcome.profit).toBe(-ECON.STAND_FEE);
@@ -83,7 +83,7 @@ describe('the P&L is arithmetic a kid can redo by hand', () => {
         outcome.revenue - outcome.ingredients.total - outcome.standFee - outcome.spoilageCost,
         2,
       );
-      expect(outcome.ingredients.lemons + outcome.ingredients.sugar + outcome.ingredients.cups)
+      expect(outcome.ingredients.lemons + outcome.ingredients.honey + outcome.ingredients.cups)
         .toBeCloseTo(outcome.ingredients.total, 2);
     }
   });
@@ -108,7 +108,7 @@ describe('every figure on screen reconciles with the others on paper', () => {
   it('the itemised ingredient lines add up to the ingredient total exactly', () => {
     for (const cups of [1, 7, 13, 28, 40, 63]) {
       const bill = ingredientCostOf(cups);
-      const shown = Number((bill.lemons + bill.sugar + bill.cups).toFixed(2));
+      const shown = Number((bill.lemons + bill.honey + bill.cups).toFixed(2));
       expect(shown).toBeCloseTo(Number(bill.total.toFixed(2)), 2);
     }
   });
@@ -147,9 +147,9 @@ describe('sales are capped by what the kid could actually pour', () => {
 
   it('cups makeable is limited by whichever ingredient runs out first', () => {
     expect(cupsMakeableFrom(10, 100, 100).cups).toBe(40); // lemons bind
-    expect(cupsMakeableFrom(10, 12, 100).cups).toBe(12); // sugar binds
+    expect(cupsMakeableFrom(10, 12, 100).cups).toBe(12); // honey binds
     expect(cupsMakeableFrom(10, 100, 7).cups).toBe(7); // cups bind
-    expect(cupsMakeableFrom(10, 12, 100).limitedBy).toBe('sugar');
+    expect(cupsMakeableFrom(10, 12, 100).limitedBy).toBe('honey');
     expect(cupsMakeableFrom(10, 100, 7).limitedBy).toBe('cups');
     expect(cupsMakeableFrom(2, 100, 100).limitedBy).toBe('lemons');
   });
@@ -178,11 +178,11 @@ describe('sales are capped by what the kid could actually pour', () => {
 });
 
 describe('inventory and spoilage', () => {
-  it('carries unused sugar and cups to the next day', () => {
+  it('carries unused honey and cups to the next day', () => {
     const state = stateWith({ cash: 200 });
     const outcome = runDay(state, { ...orderForTargetCups(state, 40), price: 2.5 });
     expect(outcome.cupsSold).toBeLessThan(40);
-    expect(outcome.nextState.sugarServings).toBeGreaterThan(0);
+    expect(outcome.nextState.honeyServings).toBeGreaterThan(0);
     expect(outcome.nextState.cupsInStock).toBeGreaterThan(0);
   });
 
@@ -191,11 +191,11 @@ describe('inventory and spoilage', () => {
       cash: 200,
       day: 3,
       lemonLots: [{ lemons: 8, purchasedOnDay: 1 }],
-      sugarServings: 0,
+      honeyServings: 0,
       cupsInStock: 0,
     });
-    // No sugar or cups, so nothing can be poured and every lemon is stale.
-    const outcome = runDay(state, { buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0, price: 1.6 });
+    // No honey or cups, so nothing can be poured and every lemon is stale.
+    const outcome = runDay(state, { buyLemons: 0, buyHoneyJars: 0, buyCupPacks: 0, price: 1.6 });
     expect(outcome.cupsSold).toBe(0);
     expect(outcome.spoiledLemons).toBe(8);
     expect(outcome.spoilageCost).toBeCloseTo(4, 2);
@@ -204,7 +204,7 @@ describe('inventory and spoilage', () => {
 
   it('keeps lemons that are still fresh', () => {
     const state = stateWith({ cash: 200, day: 1, lemonLots: [{ lemons: 8, purchasedOnDay: 1 }] });
-    const outcome = runDay(state, { buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0, price: 3 });
+    const outcome = runDay(state, { buyLemons: 0, buyHoneyJars: 0, buyCupPacks: 0, price: 3 });
     expect(outcome.spoiledLemons).toBe(0);
     expect(totalLemons(outcome.nextState.lemonLots)).toBe(8);
   });
@@ -217,10 +217,10 @@ describe('inventory and spoilage', () => {
         { lemons: 4, purchasedOnDay: 1 },
         { lemons: 4, purchasedOnDay: 2 },
       ],
-      sugarServings: 100,
+      honeyServings: 100,
       cupsInStock: 100,
     });
-    const outcome = runDay(state, { buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0, price: 2.6 });
+    const outcome = runDay(state, { buyLemons: 0, buyHoneyJars: 0, buyCupPacks: 0, price: 2.6 });
     // 8 cups sold uses 2 lemons, both from the day-1 lot.
     expect(outcome.ingredients.lemonsUsed).toBe(2);
     const dayOneLot = outcome.nextState.lemonLots.find((l) => l.purchasedOnDay === 1);
@@ -241,21 +241,21 @@ describe('one decision in, a real shopping list out', () => {
     const state = stateWith({ cash: 200 });
     const order = orderForTargetCups(state, 28);
     expect(order.buyLemons).toBe(7);
-    expect(order.buySugarPacks).toBe(3);
+    expect(order.buyHoneyJars).toBe(3);
     expect(order.buyCupPacks).toBe(3);
-    const pantry = { lemons: 7, sugar: 30, cups: 30 };
-    expect(cupsMakeableFrom(pantry.lemons, pantry.sugar, pantry.cups).cups).toBe(28);
+    const pantry = { lemons: 7, honey: 30, cups: 30 };
+    expect(cupsMakeableFrom(pantry.lemons, pantry.honey, pantry.cups).cups).toBe(28);
   });
 
   it('uses up the pantry before buying more', () => {
     const state = stateWith({
       cash: 200,
       lemonLots: [{ lemons: 7, purchasedOnDay: 1 }],
-      sugarServings: 30,
+      honeyServings: 30,
       cupsInStock: 30,
     });
     const order = orderForTargetCups(state, 28);
-    expect(order).toEqual({ buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0 });
+    expect(order).toEqual({ buyLemons: 0, buyHoneyJars: 0, buyCupPacks: 0 });
     expect(purchaseCost(order).total).toBe(0);
   });
 
@@ -305,13 +305,13 @@ describe('progression is monotonic — a kid never ends below where they started
 
   it('never lets a purchase overdraw the account', () => {
     const state = stateWith({ cash: 3 });
-    const outcome = runDay(state, { buyLemons: 100, buySugarPacks: 100, buyCupPacks: 100, price: 1.6 });
+    const outcome = runDay(state, { buyLemons: 100, buyHoneyJars: 100, buyCupPacks: 100, price: 1.6 });
     expect(outcome.purchases.cost.total).toBeLessThanOrEqual(3);
     expect(outcome.purchases.clamped).toBe(true);
   });
 
   it('clamps an unaffordable order down to something that fits', () => {
-    const trimmed = clampPurchaseToCash({ buyLemons: 50, buySugarPacks: 50, buyCupPacks: 50 }, 5);
+    const trimmed = clampPurchaseToCash({ buyLemons: 50, buyHoneyJars: 50, buyCupPacks: 50 }, 5);
     expect(purchaseCost(trimmed).total).toBeLessThanOrEqual(5);
   });
 });
@@ -337,7 +337,7 @@ describe('the week', () => {
     for (let day = 1; day <= ECON.TOTAL_DAYS; day++) {
       state = runDay(state, { ...orderForTargetCups(state, 30), price: 1.6 }).nextState;
     }
-    expect(() => runDay(state, { buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0, price: 1 })).toThrow();
+    expect(() => runDay(state, { buyLemons: 0, buyHoneyJars: 0, buyCupPacks: 0, price: 1 })).toThrow();
   });
 
   it('records price and profit each day so the closing chart is the kid\'s real data', () => {
@@ -386,7 +386,7 @@ describe('the week', () => {
     const outcomes = new Set<string>();
     for (let seed = 0; seed < 200; seed++) {
       const state = stateWith({ cash: 200, seed, forecast: 'probably-hot' });
-      outcomes.add(runDay(state, { buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0, price: 1.6 }).weather);
+      outcomes.add(runDay(state, { buyLemons: 0, buyHoneyJars: 0, buyCupPacks: 0, price: 1.6 }).weather);
     }
     expect(outcomes.size).toBeGreaterThan(1);
     expect(outcomes.has('hot')).toBe(true);
@@ -487,7 +487,7 @@ describe('profit, the pantry and the cash box', () => {
     // Buy nothing today: every cup comes out of what is already in the pantry.
     const o = runDay(first.nextState, {
       buyLemons: 0,
-      buySugarPacks: 0,
+      buyHoneyJars: 0,
       buyCupPacks: 0,
       price: 1.5,
     });
@@ -507,7 +507,7 @@ describe('profit, the pantry and the cash box', () => {
       const target = [0, 60, 20, 0, 45, 90, 10][day];
       const order =
         target === 0
-          ? { buyLemons: 0, buySugarPacks: 0, buyCupPacks: 0 }
+          ? { buyLemons: 0, buyHoneyJars: 0, buyCupPacks: 0 }
           : orderForTargetCups(state, target);
       const o = runDay(state, { ...order, price: 1.4 + (day % 3) * 0.2 });
       expect(o.cashBefore + o.profit + shiftOf(o) + o.cashTopUp).toBeCloseTo(o.cashAfter, 2);
@@ -530,10 +530,10 @@ describe('the cash box on a day with spoiled lemons', () => {
       day: 6,
       cash: 500,
       lemonLots: [{ lemons: 26, purchasedOnDay: 1 }],
-      sugarServings: 40,
+      honeyServings: 40,
       cupsInStock: 40,
     };
-    const o = runDay(state, { buyLemons: 6, buySugarPacks: 0, buyCupPacks: 0, price: 1.5 });
+    const o = runDay(state, { buyLemons: 6, buyHoneyJars: 0, buyCupPacks: 0, price: 1.5 });
     expect(o.spoiledLemons).toBeGreaterThan(0);
 
     const withSpoilage =

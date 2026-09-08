@@ -360,7 +360,7 @@ or takes a consequence* — not where a word is displayed.
 | Concept | Stage | Mechanic | Status |
 |---|---|---|---|
 | **revenue** | 1 | Cups × price, shown as the multiplication | ✅ [simulation.ts](src/lib/simulation.ts) |
-| **cost** | 1 | Lemons/sugar/cups bought in units; $5 stand fee | ✅ [ShopScreen](src/components/ShopScreen.tsx) |
+| **cost** | 1 | Lemons/honey/cups bought in units; $5 stand fee | ✅ [ShopScreen](src/components/ShopScreen.tsx) |
 | **margin** | 1 | Price − unit cost, live on the price dial | ✅ [PriceScreen](src/components/PriceScreen.tsx) |
 | **profit** | 1 | The one number the day resolves to | ✅ [CloseScreen](src/components/CloseScreen.tsx) |
 | **competition** | 2 | Rival opens on day 3, undercuts to a floor, follows you | ✅ [`advanceRival`](src/lib/business.ts) |
@@ -1054,7 +1054,7 @@ goal — has no mechanic behind it.
 | 80 | $15.60 | $0.1950 |
 
 Flat from twenty cups upward. The higher figure at eight cups is not a volume
-discount working in reverse — it is pack lumpiness, because lemons and sugar
+discount working in reverse — it is pack lumpiness, because lemons and honey
 come in whole units and a small batch wastes part of one. A child cannot
 discover "bigger orders make each cup cheaper" here, because it is not true.
 
@@ -1299,3 +1299,159 @@ cutting a company into a thousand pieces has no real-world shape a nine-year-old
 has met. A test now asserts **every stage has a tour**, so adding a sixth fails
 rather than shipping a room nobody explains. Three steps maximum each, for §13's
 reason.
+
+## 16. Level 2 as specified, against Level 2 as built
+
+A Level 2 design arrived from the customer: three stages, a central loop, a list
+of behaviours worth rewarding, a daily ritual, an investment journal, and parent
+missions. Recorded here in full, and then audited — because the useful thing to
+say about it is not "noted" but **which parts already exist**, and the answer
+turns out to be most of the hard half.
+
+### The specification, as given
+
+**Goal: learning investing. The duck is the investor coach throughout.**
+
+| Stage | Player experience | Main learning |
+| --- | --- | --- |
+| 1. Stock Scout | Learn framework → analyse/rate companies | What makes a business and a stock attractive? |
+| 2. Portfolio Builder | Earn credits → research → buy paper stocks → construct portfolio | Thesis, stock selection, position sizing, diversification |
+| 3. Investor | Follow markets → manage through time → clubs → parent sharing | Patience, news vs. noise, portfolio management, learning from decisions |
+
+**Central loop:** Learn → Research → Decide → Invest → Observe → Reflect →
+Improve.
+
+**The framework has two sides, and both must be taught.** *Is this a good
+business?* — does it make money or have a path to it, is it growing, do
+customers want what it sells, does it have an advantage over competitors, is
+management using money well. *Is this an attractive stock?* — what am I paying,
+what expectations are already in the price, what could go wrong.
+
+**Credits reward investor behaviour**, not activity: applying the framework,
+researching before buying, writing a thesis, diversifying, spotting excessive
+concentration, understanding why the market moved, telling company news from
+market noise, checking whether the thesis changed, **holding when no action is
+warranted**, reviewing a mistake, teaching a concept to a parent, staying
+invested over time.
+
+**Daily ritual — "Today's Investor Check-in":** what happened (30–60 seconds,
+kid-friendly) → why (company news / industry / economy and rates / general
+market) → does it affect anything I own → does my portfolio need action
+(*sometimes yes, often no*) → discover something new → earn today's credits.
+
+**Investment journal, very lightweight.** Every purchase captures: I bought ___
+/ Because ___ / Biggest risk ___ / I plan to hold unless ___. Weeks later the
+duck can say: *"You bought this because revenue was growing quickly. Revenue
+growth has now slowed. Want to revisit your thesis?"*
+
+**Parent sharing**, as a mission: teach your parent why you bought one of your
+stocks; explain today's market move to someone at home; show your portfolio and
+say which holding you are most confident about.
+
+### What is already built
+
+| Specified | Status | Where |
+| --- | --- | --- |
+| Two-sided framework, taught | **Partly** | [`thesis.ts`](src/lib/thesis.ts) — the *stock* side is the number reason, checked against the company's real accounts at the price actually paid. The *business* side exists as metrics but is not a rated exercise. |
+| Rate companies before investing | **No** | Stage 1 "Stock Scout" as a graded exercise does not exist. |
+| Real companies and real accounts | **Yes** | [`companies.ts`](src/lib/companies.ts), 24 companies from SEC EDGAR, 263 weeks of real prices. |
+| Thesis before money | **Yes, and stronger than specified** | A purchase requires a number reason *and* a story reason. Two of the story options are bearish, and pairing one with a buy is recorded as the contradiction it is. |
+| "Biggest risk", "I plan to hold unless" | **No** | The two journal fields not yet in `Thesis`. |
+| Revisit the thesis when the facts change | **No** | `scoreThesis` grades at the end. Nothing watches a live thesis go stale. |
+| Judged on reasoning, not on the money | **Yes** | Four verdicts, including *made money and the reason was wrong* — "That one was luck". |
+| Diversification and concentration | **Partly** | `summarisePortfolio().diversified`; the parent view says when money is concentrated. Not a rewarded behaviour. |
+| Position sizing | **No** | |
+| Clubs | **Yes** | [`club.ts`](src/lib/club.ts) — a shared portfolio with votes. |
+| Parent sharing | **Partly** | [`parent.ts`](src/lib/parent.ts) is a parent *view*, deliberately evidence rather than analytics. Missions *to* the child do not exist. |
+| Readiness to commit money | **Yes, and unspecified** | Four demonstrated behaviours, including the hard one — turned down a good business at a bad price. |
+| Credits as a currency | **No** | 40 badges exist ([`achievements.ts`](src/lib/achievements.ts)); none is spendable. |
+| Daily check-in ritual | **No** | The closest thing is the date-seeded daily challenge in [`challenge.ts`](src/lib/challenge.ts). |
+| Streaks, return rewards, notifications | **No** | Nothing in the repository tracks *when* a child played. |
+
+So the specification's stage 2 and stage 3 are substantially built, and its
+stage 1 — Stock Scout, the graded framework exercise — is the genuine gap. That
+is the inverse of the intuition that the later stages need the work.
+
+### Three notes on the specification itself
+
+**1. "Holding when no action is warranted" is the best item on the credits list
+and the hardest to pay for.** Rewarding patience with a currency that buys more
+trading — "you held a stock for 3 days, here's 50 for more trading" — teaches
+that the reward for patience is more chances to trade. If credits buy anything,
+the thing they should buy is capital to hold *more*, or a cosmetic, or nothing
+at all. The behaviour is right; the payout needs to not contradict it.
+
+**2. §14 of PRODUCT.md already committed to a position that a daily-login reward
+breaks.** It reads: *"Nothing in it is given for showing up."* A daily check-in
+that pays credits for opening the app is given for showing up, by definition. The
+resolution is available and it is the ritual's own step 4: *sometimes yes, often
+no.* Pay for the **answer**, not the visit — a child who correctly says "nothing
+to do today" has done the thing being taught, and a child who never opens it has
+not been paid for a day they missed. That keeps the streak honest and it keeps
+§15.
+
+**3. The journal's two missing fields are what make the duck's line possible.**
+"You bought this because revenue was growing quickly, and growth has slowed" is
+producible from the existing number reason. "I plan to hold unless ___" is what
+turns that from an observation into a **test the child wrote themselves**, which
+is the difference between the duck being interesting and the duck being right.
+Those two fields are the cheapest high-value thing on the whole list.
+
+---
+
+## 17. Notifications, streaks, and the last stage: the infrastructure question
+
+> Obviously we can't build the notification part, the physical front end part of
+> it, because this is a Vercel-hosted website not an app — but we can build the
+> background infrastructure right now, right?
+
+Half right, and the halves are the other way round.
+
+**The front end is the part that already works.** Web Push is not app-only. It
+has shipped on Chrome, Edge and Firefox for years, and on iOS since 16.4 — with
+one condition: on iOS the site must be added to the Home Screen first. This app
+is already installable — [`manifest.ts`](src/app/manifest.ts) declares
+`display: standalone` with icons — and it **already registers a service
+worker**, in [`OfflineReady`](src/components/OfflineReady.tsx), for offline
+play. So both of the things people usually mean by "we can't do notifications
+on the web" are already in place here. What is missing on the client is a
+`push` handler in [`sw.js`](public/sw.js) and a `PushManager.subscribe` call.
+
+**The back end is the part that does not exist, and it is the same thing
+blocking accounts.** A push needs a server holding a subscription, and something
+to decide when to send. Vercel hosts that happily — a route handler and a cron —
+so hosting is not the obstacle. The obstacle is that there is no identity to
+address. Everything in this product lives in `localStorage` under four keys, and
+§61 exists because two testers sharing one link share one save. "Notify the child
+about their portfolio" requires knowing which child, which is the account work
+that was deferred.
+
+**And there is a third thing, which is not technical.** The audience is around
+nine years old. Push subscriptions are persistent identifiers, and sending them
+to under-13s puts this squarely inside COPPA's verifiable-parental-consent
+requirement. That is a product and legal decision before it is an engineering
+one. It should be made deliberately, not discovered after the fact.
+
+### What is actually worth building now
+
+Not the transport, and not the rewards. **The event ledger.**
+
+Every item on the credits list, every streak, every "you haven't been here in a
+while", and every notification is a *query over a record of what a child did and
+when*. That record does not exist: the save holds a position, not a history of
+arrivals. Nothing in the repository knows what day it is from the child's point
+of view.
+
+That is the piece with the longest lead time and the one everything else is
+downstream of, and it is buildable today with no server, no account and no
+consent question — because it is a local append-only log, exactly like
+`career.v1` already is. Get it right and credits, streaks, the check-in and
+eventually push are all reads against it. Get it wrong or get it late and every
+one of them invents its own half of it, which is the defect class PRODUCT.md has
+now recorded five times.
+
+**Order, therefore:** the ledger, then the daily check-in reading from it (paying
+for the answer, not the visit), then credits, then the two journal fields, then
+Stock Scout — and push last, behind the account decision it depends on, not
+before it.
+

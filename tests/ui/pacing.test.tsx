@@ -146,7 +146,9 @@ async function resume(): Promise<void> {
 async function playOutTheDay(): Promise<void> {
   vi.useFakeTimers();
   try {
-    const hurry = find(/Tap to speed up/);
+    // Stage 1 hands the pace to the child, so the day offers a way in
+    // rather than a way to hurry. Either door gets a test through it.
+    const hurry = find(/Tap to speed up|Let the rest come/);
     if (hurry) fireEvent.click(hurry);
     for (let i = 0; i < 80; i++) {
       const done = find(/Count up the money/);
@@ -192,7 +194,7 @@ describe('one card at a time, however many were earned at once', () => {
     for (let step = 0; step < 40 && !/Two ways out/i.test(body()); step++) {
       expect(wordCardsOnScreen(), 'two word cards at once').toBeLessThanOrEqual(1);
       if (await maybe(/Got it|TAP TO CLOSE|BADGE EARNED|WORD EARNED/i)) continue;
-      if (find(/Tap to speed up|Hurrying|Count up the money/)) {
+      if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) {
         await playOutTheDay();
         continue;
       }
@@ -273,7 +275,7 @@ describe('the manager shortcut', () => {
     // Get to a close screen, which is where the shortcut is offered.
     for (let step = 0; step < 24 && !find(/Let your manager run it/); step++) {
       if (await maybe(/Got it|TAP TO CLOSE|BADGE EARNED|WORD EARNED/i)) continue;
-      if (find(/Tap to speed up|Hurrying|Count up the money/)) {
+      if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) {
         await playOutTheDay();
         continue;
       }
@@ -416,7 +418,7 @@ describe('the market a child arrives at, from either ending', () => {
     await resume();
     for (let step = 0; step < 40 && !/Two ways out/i.test(body()); step++) {
       if (await maybe(/Got it|TAP TO CLOSE|BADGE EARNED|WORD EARNED/i)) continue;
-      if (find(/Tap to speed up|Hurrying|Count up the money/)) {
+      if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) {
         await playOutTheDay();
         continue;
       }
@@ -442,7 +444,7 @@ describe('the market a child arrives at, from either ending', () => {
     for (let step = 0; step < 30; step++) {
       if (/price of your own|money and no business/i.test(body())) return;
       if (await maybe(/Got it|TAP TO CLOSE|BADGE EARNED|WORD EARNED/i)) continue;
-      if (find(/Tap to speed up|Hurrying|Count up the money/)) {
+      if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) {
         await playOutTheDay();
         continue;
       }

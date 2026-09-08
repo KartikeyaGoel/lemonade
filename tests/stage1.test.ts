@@ -150,8 +150,8 @@ describe('Bulk — buying more makes each one cheaper', () => {
      * "...but requires more spending upfront." Both halves have to be true or
      * the lesson is just a discount.
      */
-    const few = purchaseCost({ buyLemons: 8, buySugarPacks: 0, buyCupPacks: 0 });
-    const many = purchaseCost({ buyLemons: 24, buySugarPacks: 0, buyCupPacks: 0 });
+    const few = purchaseCost({ buyLemons: 8, buyHoneyJars: 0, buyCupPacks: 0 });
+    const many = purchaseCost({ buyLemons: 24, buyHoneyJars: 0, buyCupPacks: 0 });
     expect(many.perLemon).toBeLessThan(few.perLemon);
     expect(many.total).toBeGreaterThan(few.total);
   });
@@ -188,7 +188,7 @@ describe('the receipt still reconciles, at every grade', () => {
     for (const grade of GRADE_ORDER) {
       for (const day of week(1.5, grade).days) {
         expect(day.ingredients.total).toBe(
-          round2(day.ingredients.lemons + day.ingredients.sugar + day.ingredients.cups),
+          round2(day.ingredients.lemons + day.ingredients.honey + day.ingredients.cups),
         );
         if (day.cupsSold > 0) {
           expect(day.ingredients.perCup).toBeCloseTo(day.ingredients.total / day.cupsSold, 6);

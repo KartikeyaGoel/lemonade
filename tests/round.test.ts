@@ -81,7 +81,7 @@ describe('regulars are served first', () => {
     expect(outcome.cupsSold).toBe(8);
     expect(outcome.ingredients.lemonsUsed).toBe(lemonsNeededFor(8));
     expect(outcome.ingredients.total).toBe(
-      round2(outcome.ingredients.lemons + outcome.ingredients.sugar + outcome.ingredients.cups),
+      round2(outcome.ingredients.lemons + outcome.ingredients.honey + outcome.ingredients.cups),
     );
     expect(outcome.ingredients.total).toBeGreaterThan(0);
     // Same eight cups on a flat price would be dearer, because this order

@@ -251,7 +251,20 @@ function reviveStand(stand: unknown, fresh: GameState): GameState {
     day: Math.max(1, Math.round(day)),
     cash: Math.max(0, num(raw.cash, fresh.cash)),
     lemonLots: lots,
-    sugarServings: Math.max(0, Math.round(num(raw.sugarServings, 0))),
+    /*
+     * `sugarServings` is the same field under its old name.
+     *
+     * The sweetener was renamed sugar -> honey and the persisted key moved
+     * with it. A save written before the rename carries the old key, and
+     * reading only the new one would hand a tester mid-week an empty jar and
+     * a shopping list that says they need one — silently, with no error to
+     * notice. The save version was not bumped because nothing else about the
+     * shape changed; this fallback is the whole migration.
+     */
+    honeyServings: Math.max(
+      0,
+      Math.round(num(raw.honeyServings ?? raw['sugarServings'], 0)),
+    ),
     cupsInStock: Math.max(0, Math.round(num(raw.cupsInStock, 0))),
     forecast: FORECASTS.includes(raw.forecast as Forecast)
       ? (raw.forecast as Forecast)

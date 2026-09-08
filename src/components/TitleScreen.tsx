@@ -4,6 +4,7 @@ import { PipSays } from './Pip';
 import { ChunkyButton, Ground, Sky, SoundToggle } from './ui';
 import { Stand } from './Stand';
 import { Road } from './Road';
+import { ECON } from '@/lib/simulation';
 import type { Stop } from '@/lib/journey';
 
 /**
@@ -85,7 +86,7 @@ export function TitleScreen({
         </div>
 
         <div className="my-6 animate-bob">
-          <Stand price={1.5} fill={0.4} />
+          <Stand price={ECON.OPENING_PRICE} fill={0.4} />
         </div>
 
         {guide && (

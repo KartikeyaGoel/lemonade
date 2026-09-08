@@ -113,7 +113,7 @@ If a concept has no mechanic, it does not go in the game.
 | Concept | The mechanic that teaches it | Act |
 |---|---|---|
 | Revenue | Cups sold times price. Shown as that multiplication, not a total. | 1 |
-| Unit cost | Lemons, sugar, cups bought in units; per-cup cost derived and displayed | 1 |
+| Unit cost | Lemons, honey, cups bought in units; per-cup cost derived and displayed | 1 |
 | Gross margin | Price minus unit cost, per cup, live on the dial | 1 |
 | Fixed costs | A daily stand fee that doesn't scale with volume | 1 |
 | Break-even | Cups you must sell to cover the fee at this margin | 1 |
@@ -282,7 +282,7 @@ Act 1 constants, tuned to produce a clean discoverable optimum. Load-bearing.
 
 - Starting cash: $20
 - Lemons $0.50 each, 4 cups per lemon
-- Sugar $0.40 per 10 cups; cups $0.30 per 10
+- Honey $0.40 per 10 cups; cups $0.30 per 10
 - Per-cup ingredient cost: ~$0.195
 - Daily stand fee: $5.00
 - `cups_wanted = max(0, 60 - 20 * price) * weather`
@@ -638,7 +638,7 @@ compared with the gap decomposed into the decisions that caused it:
 You charged more and sold fewer — and still came out ahead.   +$9.52
   Charging more        +$0.75 a cup on the 36 you were selling      +$27.00
   Selling fewer cups   11 cups fewer, at $1.75                      −$19.25
-  Fewer lemons and sugar                                             +$1.77
+  Fewer lemons and honey                                             +$1.77
 ```
 
 Those lines sum to the gap exactly, and a test holds them to it. That paragraph
@@ -746,7 +746,7 @@ not prose.
 Concretely, and each of these was a real paragraph that is now not one:
 
 - The ingredient breakdown was `7 lemons $3.50 + sugar $1.12 + cups $0.84`,
-  followed by a sentence about the per-cup cost. It is now `🍋 7 · $3.50   🥄
+  followed by a sentence about the per-cup cost. It is now `🍋 7 · $3.50   🍯
   $1.12   🥤 $0.84   ≈ $0.20 a cup`. Same four figures, a third of the words.
 - Every new word had two paragraphs: what just happened, and why it will matter
   with real companies. The first is the lesson and stays visible. The second is
@@ -3262,3 +3262,233 @@ Reset → confirm → all four keys gone → the erased screen naming each one
 truthfully → restart → a fresh install offering **"Start selling"** rather than
 "Keep going". Which is the whole requirement: the next tester gets a clean
 start without being taught about browser settings.
+
+## 62. Seven notes from a cofounder, and the two defects underneath them
+
+A batch of build feedback arrived in prose, mixed in with a Level 2 design. The
+prose is not the interesting part. Two of the seven notes were the same defect
+class this document has now recorded five times, and one of the fixes for them
+introduced a sixth thing that no gate in the repository can see.
+
+### The notes, and what each one was
+
+| Note | What it actually was |
+| --- | --- |
+| "On first slide it shows 1.5 then it shows 1" | A defect. One price, three homes, two answers. |
+| "Goal to try things out — need a better defined goal" | A defect in copy. It was a mood, not a goal. |
+| "2 days to try things out, but 7 days to play — why the extra 2 days?" | The same defect, from the player's side. |
+| "Change sugar to honey" | A rename. 133 occurrences, one persisted key. |
+| "It turned out hot, you're going to sell out soon" | A missing sentence, and it turns out a missing moment. |
+| "Tap to have the people stream in… maybe only level 1" | A mechanic. Built, stage 1 only. |
+| Parental check-ins | Explicitly deferred by the sender. Not started. |
+
+### The price that changed by itself
+
+The first thing anybody ever sees of this game is a lemonade stand with a price
+painted on its sign. It said **$1.50**. The first price they are then offered,
+one tap later, is the day-one slider — which opened at **$1.00**. And the plan
+screen from day two fell back to $1.50 again.
+
+So the figure existed three times and gave two answers, and the sign appeared to
+change by itself between the title screen and the first decision, on the one
+stage whose entire lesson is *reading a price off that sign*.
+
+Nothing failed. Every screen was internally consistent; there was no wrong
+arithmetic anywhere, and no test could have had an opinion, because no test
+knew the two numbers were meant to be the same number. This is now the fifth
+instance of one defect class in this document:
+
+- §55, the split rule written twice with two answers.
+- §59, six call sites that omitted a grade and priced the wrong recipe.
+- §60, a tour step naming a target that had moved.
+- §61's neighbour: the erase comment that described a reachability that had
+  changed underneath it.
+- And this.
+
+Every one is *a fact with more than one home.* The fix is always the same shape
+— give it one home — and the fix is never the interesting part. What is
+interesting is that four of the five were invisible to a suite of well over a
+thousand tests, because a test asserts what a screen says, and this class is
+about two screens disagreeing.
+
+So `ECON.OPENING_PRICE` now exists and all three read it, and
+[`tests/layout.test.ts`](tests/layout.test.ts) grew the rule that generalises
+it: **no component may hard-code a price a child will read.** A grep, in the
+file that already holds two layout rules for exactly this reason — it is blunt,
+and it is the only instrument that runs on every commit. Verified by putting
+`price={1.5}` back and watching it name the file.
+
+### The goal that was a mood, and the two days nobody could see
+
+The exploration window said:
+
+> Try things out. Nothing to hit yet.
+
+The complaint was sharper than "improve the wording", and it is worth quoting
+because it identifies the actual error:
+
+> the user needs to be able to look at the screen and understand what's going
+> on, you have the entire context right now but the user doesn't until they
+> unlock more stuff, you've designed the game for yourself and not the user.
+
+That is correct, and the evidence is on the screen: the header counts **7
+days**, and the goal strip describes an unnumbered stretch of trying things out.
+A child cannot see the two exploratory rounds *from inside them*. They can only
+see a week that has not said what it wants, and the way that reads is that the
+game forgot to say.
+
+The framework's requirement — "1-2 exploratory rounds without a target" — is
+still right, and it is not in conflict with the complaint. What was missing was
+never the target. It was the *shape*:
+
+> Practice 1 of 2: pick any price and watch. Your goal starts on day 3.
+
+Names the count, the job, and the day the demand arrives. The figure itself is
+still withheld until day three, because the point of an exploratory round is a
+price found by trying rather than a price reverse-engineered from a target. And
+on day three the strip says "Make $25 in one day. Twice." — which is the promise
+kept, in the place it was made.
+
+**And then the same defect class again.** The morning screen had its own copy of
+this, hand-written into the component:
+
+> Two days to try things out
+
+The count spelled out as a word, in a second file, on a screen a child sees in
+the same *minute* as the first. `ACT1_EXPLORE_DAYS` could change and this strip
+would keep promising two. Both screens now render the one line `act1Progress`
+produces, and a test asserts they agree rather than asserting each separately —
+which is the only kind of test that catches this class.
+
+### Sugar to honey
+
+Mechanically dull: 133 occurrences, `SUGAR_PACK_COST` → `HONEY_JAR_COST`,
+`sugarServings` → `honeyServings`, 🥄 → 🍯, and the two metaphorical uses of
+"sugar" in this document left alone, because §15's "engagement is not the sugar
+we hide the lesson in" is not about a pantry.
+
+One part was not dull. `sugarServings` is a **persisted key**, and every tester
+holding the link has a save carrying it. Reading only the new name would have
+handed somebody mid-week an empty jar and a shopping list telling them to buy
+honey they already owned — silently, with no error to notice and nothing on
+screen that looked like a bug. So the loader reads the old name too, and
+[`tests/migration.test.ts`](tests/migration.test.ts) says so. Verified by
+deleting the fallback and watching the test fail.
+
+The save version was deliberately *not* bumped: nothing about the shape changed,
+and a version bump would have implied a migration bigger than the one line this
+needed.
+
+### The warning that arrived after the thing it warned about
+
+"It turned out hot, you're going to sell out soon" reads like a copy request. It
+is half a copy request. The screen already said **It turned out hot** — that is
+the heading — and it already said **SOLD OUT**, at the exact instant there was
+nothing left to sell, which is the instant the information stops being worth
+anything.
+
+What was missing was the sentence in between, said while cups remain:
+
+> You're going to sell out soon.
+
+Before the wall it is a lesson about how much to make. After it, it is a
+receipt. It is gated on the day genuinely running short, so it is never a false
+alarm — a batch that gets down to its last few cups and serves everybody who
+wanted one says nothing at all.
+
+The threshold was then wrong, and only a browser could say so. A quarter of the
+batch sounds fine and measures badly: 32 cups at 40c on a hot day clears eleven
+cups a tap, so the warning appeared for a single beat and was replaced by SOLD
+OUT. A warning that arrives one frame before the thing it warns about is
+decoration. It is now sized against the pace as well as the batch — at least
+one group's worth — so it always has a whole beat to be read in.
+
+### Tap to let them in
+
+The pace of the watched day is now the child's, in stage 1 only.
+
+Worth doing because watching was the one part of a day a child had no hand in.
+They price it, they stock it, and then they sit still for twelve seconds while
+the consequence plays. A tap turns the payoff into something they are causing.
+
+**Eight taps, whatever the crowd.** Not one tap per customer: a hot day at a
+cheap price draws sixty-odd people and sixty presses is a chore. The group size
+is derived from the crowd, so a day is about eight presses long whether four
+people show up or forty. Measured in a browser: 36 customers, 8 taps, and the
+scoreboard reconciled at every step — 24 sold × $1.00 = $24.00.
+
+**And a way to stop tapping.** "Let the rest come" hands the day back, after
+which the footer falls back to the ordinary speed-up button. There is never a
+state whose only exit is a press the child did not want to make.
+
+**Stage 1 only, as asked, and the reason is worth writing down.** In the first
+stage a day *is* the street: one price, one sign, and people deciding in front
+of it. Tapping the crowd in is the child causing the thing they are being taught
+to read. By stage 2 a day is one line in a week across several stands, and eight
+taps a day against that is a toll, not a game.
+
+**One trap, found by arithmetic rather than by looking.** The counters trail the
+crowd by a fixed offset on purpose, so a verdict lands as a sprite reaches the
+sign rather than as it walks on. That offset closes by itself *while a tick is
+running* — and an interactive day stops between taps. Left alone, the scoreboard
+would rest a few customers short of what the child had just watched happen, and
+only catch up when they tapped again. Wrong on screen, and wrong in the way that
+teaches a child not to trust the number. Fixed, and the test asserts
+`sold + passed === group` rather than asserting who bought, because who bought
+depends on the seed and *being counted* does not.
+
+**The mechanic is tested through itself.** Every existing helper that drives a
+day through the whole app takes the escape hatch, because a test has no business
+tapping eight times to reach the next screen. That would have left the tap path
+covered only by its own bypass — precisely the §40 shape. So
+[`tests/ui/day.test.tsx`](tests/ui/day.test.tsx) exists to press the button.
+
+### The defect a gate cannot see
+
+The sell-out warning shipped, in my first version, as berry text directly on the
+sky. In a browser it measures **2.40:1**.
+
+WCAG AA wants 4.5:1 for body text. It fails the large-text threshold of 3:1 as
+well, and the *best* it reaches anywhere on that gradient is 4.37:1. It looked
+completely fine in a screenshot. It looked fine to me.
+
+`check-contrast.mjs` passed, and passed honestly, because it checks a **curated
+list of pairs** — and berry-on-sky is not a pair anybody would deliberately add
+to a list of combinations that must work. Worse, the gate's own comment already
+contains the finding:
+
+> Measured against the solid panel those figures sit on rather than against the
+> sky, because the sky is a gradient and its bottom stop is far too light to
+> carry a tinted figure at all.
+
+The knowledge was in the repository. The enforcement was not, and could not be:
+a source grep cannot tell that a `text-berry` span sits on a panel in
+thirty-one places and on open sky in one, because the background belongs to an
+ancestor. I checked — the naive rule flags all thirty-one, which is a rule
+nobody would keep.
+
+So this class is caught by measuring a running browser, and it is worth being
+plain about that rather than inventing a gate that would not work. The honest
+statement of the limit: **`check-contrast.mjs` proves the palette is sound. It
+cannot prove a screen used it soundly.**
+
+The fix follows the convention the gate's comment already implies — the sentence
+sits on the same white chip the three counters above it sit on, where berry
+measures 5.18:1. Fully opaque rather than the chip's usual white/85, and that
+part is measured too: at 85% the sky shows through enough to bring the worst of
+the three moods to **4.52:1**, which passes by two hundredths. A warning is the
+wrong place to spend a margin that thin.
+
+### What was not done, and why
+
+**The two exploratory days were kept.** The note asks why seven days needs two
+spent on trying things, and the answer is that the framework's Experiment →
+Notice → Optimize → Challenge sequence depends on the first two arriving before
+the third. The complaint was legitimate and the fix was legibility, not
+deletion: a child now knows there are two, what they are for, and when they
+end. If the customer wants the window shortened after playing it, it is one
+constant and the copy follows it — which is the point of having taken the word
+"two" out of a component.
+
+**Parental check-ins were not started.** The sender deferred them explicitly.
+

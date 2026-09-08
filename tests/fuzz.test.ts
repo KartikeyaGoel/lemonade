@@ -62,7 +62,7 @@ function randomState(r: () => number): GameState {
     day: 1 + Math.floor(r() * 6),
     cash: Math.round(between(r, 0, 3000) * 100) / 100,
     lemonLots: r() < 0.4 ? [] : [{ lemons: Math.floor(r() * 40), purchasedOnDay: 1 }],
-    sugarServings: Math.floor(r() * 60),
+    honeyServings: Math.floor(r() * 60),
     cupsInStock: Math.floor(r() * 60),
     forecast: pick(r, ['probably-cold', 'probably-mild', 'probably-hot'] as const),
   };
@@ -95,7 +95,7 @@ function randomParams(r: () => number): DayParams {
 function randomOrder(r: () => number, state: GameState) {
   return {
     buyLemons: Math.floor(between(r, 0, 60)),
-    buySugarPacks: Math.floor(between(r, 0, 8)),
+    buyHoneyJars: Math.floor(between(r, 0, 8)),
     buyCupPacks: Math.floor(between(r, 0, 8)),
     // Deliberately includes prices nobody would set, including zero.
     price: Math.round(between(r, 0, 6) * 100) / 100,
@@ -120,7 +120,7 @@ function numbersIn(o: DayOutcome): [string, number][] {
    */
   const { nextState: _drop, params: _params, ...rest } = o;
   walk(rest, 'outcome');
-  walk({ cash: o.nextState.cash, sugar: o.nextState.sugarServings, cups: o.nextState.cupsInStock }, 'next');
+  walk({ cash: o.nextState.cash, honey: o.nextState.honeyServings, cups: o.nextState.cupsInStock }, 'next');
   return out;
 }
 

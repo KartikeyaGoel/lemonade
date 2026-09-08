@@ -38,6 +38,26 @@ const MIN_TICK_MS = 110;
 /** Never draw more than this many sprites at once, however busy the day. */
 const MAX_ON_SCREEN = 6;
 
+/**
+ * Taps a child spends letting the crowd in, when the crowd is theirs to let in.
+ *
+ * The first stage hands the pace over: the street stays empty until it is
+ * tapped, and each tap sends the next group up to the sign. That is worth
+ * doing because watching is the one part of the day a child has no hand in —
+ * they price it, they stock it, and then they sit still for twelve seconds —
+ * and a tap turns the payoff into something they are causing.
+ *
+ * Eight rather than one-per-customer, because the crowd runs to sixty on a hot
+ * day at a cheap price and sixty taps is a chore, not a game. The group size
+ * is derived from the crowd so the number of taps is the same whether four
+ * people show up or forty: the day is always about eight presses long.
+ *
+ * Later stages run themselves. By then a day is a number a child is checking
+ * rather than a scene they are meeting, and the arc is spending their
+ * attention on the market instead.
+ */
+const TAPS_PER_DAY = 8;
+
 /** Closest together two customer sounds are allowed to be. */
 const MIN_SOUND_GAP_MS = 90;
 
@@ -48,10 +68,33 @@ const MIN_SOUND_GAP_MS = 90;
  * customer from the simulation, and the counters are that day's real result
  * arriving in real time.
  */
-export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone: () => void }) {
+export function RunDayScreen({
+  outcome,
+  onDone,
+  interactive = false,
+}: {
+  outcome: DayOutcome;
+  onDone: () => void;
+  /** Hand the pace to the child: the crowd waits to be let in. Stage 1 only. */
+  interactive?: boolean;
+}) {
   // Pace the day so it always resolves in roughly twelve seconds regardless of
   // how big the crowd is, then let an impatient kid speed it up.
   const [hurry, setHurry] = useState(false);
+
+  /**
+   * How many customers are allowed on so far.
+   *
+   * The whole of tap-to-let-them-in is this one number. An automatic day
+   * permits the lot up front and the interval below walks them on at its own
+   * pace; an interactive day starts at nobody and each tap raises the ceiling
+   * by a group. Everything downstream — sprites, counters, coins, the end of
+   * the day — is derived exactly as it was, so the two modes differ in when a
+   * customer is allowed to arrive and in nothing else.
+   */
+  const [allowed, setAllowed] = useState(() =>
+    interactive ? 0 : Number.POSITIVE_INFINITY,
+  );
 
   /**
    * Customers per tick, and how long a tick lasts.
@@ -76,6 +119,9 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
   const tick = hurry ? 24 : baseTick;
   const walkMs = hurry ? 420 : WALK_MS;
 
+  /** People per tap, so a day is about `TAPS_PER_DAY` presses whatever the crowd. */
+  const group = Math.max(1, Math.ceil(outcome.customers.length / TAPS_PER_DAY));
+
   /**
    * How many customers have walked on so far. Everything else is derived from
    * this one number.
@@ -93,20 +139,22 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
    */
   const [drained, setDrained] = useState(false);
 
+  const permitted = Math.min(allowed, outcome.customers.length);
+
   useEffect(() => {
-    if (revealedRef.current >= outcome.customers.length) return;
+    if (revealedRef.current >= permitted) return;
 
     const interval = window.setInterval(() => {
-      if (revealedRef.current >= outcome.customers.length) {
+      if (revealedRef.current >= permitted) {
         window.clearInterval(interval);
         return;
       }
-      revealedRef.current = Math.min(outcome.customers.length, revealedRef.current + step);
+      revealedRef.current = Math.min(permitted, revealedRef.current + step);
       setRevealed(revealedRef.current);
     }, tick);
 
     return () => window.clearInterval(interval);
-  }, [outcome.customers.length, tick, step]);
+  }, [permitted, tick, step]);
 
   // Let the last few verdicts land, then declare the day over.
   useEffect(() => {
@@ -114,6 +162,24 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
     const timer = window.setTimeout(() => setDrained(true), walkMs * 0.5);
     return () => window.clearTimeout(timer);
   }, [revealed, outcome.customers.length, walkMs]);
+
+  /**
+   * The same courtesy for a group that has arrived but is not the last group.
+   *
+   * The counters trail the crowd by `lagTicks` on purpose, so a verdict lands
+   * as the sprite reaches the sign rather than as it walks on. That trailing
+   * offset closes by itself while a tick is running — and an interactive day
+   * *stops* between taps, so without this the scoreboard would rest a few
+   * customers short of what the child had just watched happen, and only catch
+   * up when they tapped again. Wrong on screen, and wrong in the way that
+   * teaches a child not to trust the number.
+   */
+  const [restedAt, setRestedAt] = useState(0);
+  useEffect(() => {
+    if (revealed === 0 || revealed < permitted) return;
+    const timer = window.setTimeout(() => setRestedAt(revealed), walkMs * 0.5);
+    return () => window.clearTimeout(timer);
+  }, [revealed, permitted, walkMs]);
 
   // An empty day still has to end.
   useEffect(() => {
@@ -126,7 +192,10 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
   const lagTicks = Math.max(1, Math.round((walkMs * 0.42) / tick));
   const settled = drained
     ? outcome.customers.length
-    : Math.max(0, Math.min(outcome.customers.length, revealed - lagTicks));
+    : Math.min(
+        outcome.customers.length,
+        Math.max(restedAt, Math.max(0, revealed - lagTicks)),
+      );
 
   const decided = outcome.customers.slice(0, settled);
   const sold = decided.filter((c) => c.outcome === 'bought').length;
@@ -164,6 +233,15 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
 
   const finished = drained;
 
+  /*
+   * Show the tap control only when there is somebody left to let in *and* the
+   * group already permitted has finished arriving. Otherwise the button would
+   * sit there during the walk-on, inviting a child to stack four groups on top
+   * of each other and turn their own pacing back into the automatic one.
+   */
+  const waiting =
+    !finished && allowed < outcome.customers.length && revealed >= permitted;
+
   // Keep only the sprites still on screen; a crowd of 90 must not pile up in
   // the DOM on a phone.
   const onScreen = useMemo(() => {
@@ -177,6 +255,25 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
 
   const cupsLeft = Math.max(0, outcome.cupsMakeable - sold);
   const jarFill = outcome.cupsMakeable > 0 ? sold / outcome.cupsMakeable : 0;
+
+  /*
+   * Down to the last quarter of the batch, on a day that really does run out.
+   *
+   * Three cups minimum so a tiny batch — four cups, a first-day child buying
+   * one lemon — still gets the warning rather than going from full to empty
+   * with nothing said in between.
+   *
+   * And at least one group's worth, which is the part measured rather than
+   * guessed. A quarter of a 32-cup batch is eight cups, and a hot day at 40c
+   * clears eleven cups a tap: the warning appeared for a single beat and then
+   * the chip said SOLD OUT. A warning that arrives one frame before the thing
+   * it warns about is decoration. Sized against the pace, it always has a
+   * whole group to be read in.
+   */
+  const runningOut =
+    outcome.turnedAwaySoldOut > 0 &&
+    cupsLeft > 0 &&
+    cupsLeft <= Math.max(3, group, Math.ceil(outcome.cupsMakeable * 0.25));
 
   return (
     <Sky mood={outcome.weather}>
@@ -196,6 +293,46 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
 
       <div className="relative z-20 mx-auto w-full max-w-md px-5 pt-3 text-center">
         <SignHeading className="text-3xl">{WEATHER_COPY[outcome.weather]}</SignHeading>
+        {/*
+          The warning arrives before the wall, not after it.
+          
+          "SOLD OUT" already appears — the instant there is nothing left, which
+          is the instant it stops being useful. What a child needs is the
+          sentence that finishes the heading: it turned out hot, *and so* the
+          batch is not going to last. Said while cups remain, it is a lesson
+          about how much to make; said after, it is a receipt.
+          
+          Gated on the day actually running short, so it is never a false
+          alarm: a batch that gets down to its last few cups and serves
+          everybody who wants one says nothing.
+        */}
+        {runningOut && (
+          /*
+            On a chip, not straight onto the sky.
+            
+            Measured in a browser: berry on the mild sky gradient is 2.4:1 at
+            this point on it, and 4.37:1 at the very lightest stop — under AA
+            for body text everywhere on the screen. The contrast gate did not
+            catch it, because it checks a curated list of pairs and berry-on-sky
+            is not a pair anybody would deliberately add. `check-contrast.mjs`
+            already records the reason in its own comment: the sky is a
+            gradient, and its bottom stop is far too light to carry a tinted
+            figure at all. So the sentence sits on the same white chip the three
+            counters above it sit on, where berry measures 5.18:1.
+            
+            Fully opaque rather than the chip's usual white/85, and that is
+            measured too: at 85% the sky shows through enough to bring the
+            worst of the three moods down to 4.52:1, which passes AA by two
+            hundredths. A warning is the wrong place to spend a margin that
+            thin, and this is the only chip on the screen whose whole job is
+            to be read in a hurry.
+          */
+          <p className="mt-1.5 flex justify-center">
+            <span className="stat-chip !border-berry/40 !bg-white !text-berry animate-popIn">
+              You&rsquo;re going to sell out soon.
+            </span>
+          </p>
+        )}
       </div>
 
       {/* The street. Sprites cross this, pausing in front of the sign. */}
@@ -233,6 +370,39 @@ export function RunDayScreen({ outcome, onDone }: { outcome: DayOutcome; onDone:
           <ChunkyButton variant="lemon" full onClick={onDone} className="animate-popIn">
             Count up the money →
           </ChunkyButton>
+        ) : waiting ? (
+          /*
+            The child's own hand on the pace.
+            
+            Two controls, and the second one matters as much as the first: a
+            child who has had enough of tapping must be able to stop tapping
+            without waiting the day out one group at a time. Once the rest are
+            let in the footer falls back to the ordinary speed-up button, so
+            there is never a moment where the only thing on offer is a press
+            they did not want to make.
+          */
+          <div className="flex flex-col items-center gap-2">
+            <ChunkyButton
+              variant="lemon"
+              full
+              onClick={() => setAllowed((seen) => seen + group)}
+              className="animate-popIn"
+            >
+              {/*
+                Not "Open up!" — the price screen a tap earlier says "Open the
+                stand!", and two consecutive buttons that both say open leave a
+                child wondering what the first one did.
+              */}
+              {revealed === 0 ? 'Wave them over →' : 'Let them in →'}
+            </ChunkyButton>
+            <button
+              type="button"
+              onClick={() => setAllowed(Number.POSITIVE_INFINITY)}
+              className="flex min-h-11 items-center rounded-full bg-white/70 px-5 py-2 font-body text-sm font-extrabold text-ink/70"
+            >
+              Let the rest come
+            </button>
+          </div>
         ) : (
           <button
             type="button"

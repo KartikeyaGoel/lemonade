@@ -198,7 +198,7 @@ describe('the workbench, where two plans are held against each other', () => {
     const state = { ...createInitialState(9), cash: 400 };
     const outcome = runDay(state, {
       buyLemons: Math.ceil(cups / 4),
-      buySugarPacks: 3,
+      buyHoneyJars: 3,
       buyCupPacks: 3,
       price,
     });
