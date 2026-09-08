@@ -151,8 +151,24 @@ const RULES = [
   { what: 'tests (floor)', re: /over (\d[\d,]{2,}) tests/gi, expect: () => truth.tests, floor: true },
   { what: 'tests', re: /\*\*(\d[\d,]{2,}) tests\*\*/g, expect: () => truth.tests },
   { what: 'tests', re: /^- (\d[\d,]{2,}) tests\b/gm, expect: () => truth.tests },
-  { what: 'reading grade', re: /reading level \*?\*?([\d.]+)/gi, expect: () => truth.grade },
-  { what: 'reading grade', re: /currently \*\*([\d.]+)\*\*/g, expect: () => truth.grade },
+  /*
+   * A ceiling, not an equality, and for the same reason the test count is a
+   * floor.
+   *
+   * The exact grade moves every time anybody writes a sentence of UI copy —
+   * it went 4.7 -> 4.6 -> 4.7 across three commits in one session, and each
+   * move failed this gate and got the document edited to match. That is the
+   * "generator of busywork rather than of truth" its own comment warns about,
+   * and worse: it trains whoever hits it to change the number without reading
+   * the claim.
+   *
+   * What the product actually promises is a ceiling — the reading gate's own
+   * target is grade 6 or below — so a document saying "under 5" is making a
+   * claim that is both true and worth defending, and it fails the moment the
+   * copy genuinely drifts towards being too hard for a nine-year-old.
+   */
+  { what: 'reading grade (ceiling)', re: /reading level under (\d+)/gi, expect: () => truth.grade, ceiling: true },
+  { what: 'reading grade (ceiling)', re: /currently under \*\*(\d+)\*\*/g, expect: () => truth.grade, ceiling: true },
   /*
    * The two sentences in PRIVACY.md that count the storage slots. Spelled in
    * words, so `word: true` converts before comparing — see §63 for the seventh
@@ -229,11 +245,15 @@ for (const doc of DOCS) {
       const actual = rule.expect();
       if (actual === undefined || actual === null || Number.isNaN(actual)) continue;
       checked++;
-      const wrong = rule.floor ? actual < claimed : claimed !== actual;
+      const wrong = rule.floor
+        ? actual < claimed
+        : rule.ceiling
+          ? actual >= claimed
+          : claimed !== actual;
       if (wrong) {
         problems.push(
           `${doc}:${lineOf(match.index)} claims ${rule.what} ` +
-            `${rule.floor ? '>=' : '='} ${claimed}, build says ${actual}`,
+            `${rule.floor ? '>=' : rule.ceiling ? '<' : '='} ${claimed}, build says ${actual}`,
         );
       }
     }

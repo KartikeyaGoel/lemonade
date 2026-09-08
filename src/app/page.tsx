@@ -186,8 +186,10 @@ import { PriceScreen } from '@/components/PriceScreen';
 import { PlanScreen } from '@/components/PlanScreen';
 import { RunDayScreen } from '@/components/RunDayScreen';
 import { createLedger, hasAnything, localDay, type Deed, type Ledger } from '@/lib/ledger';
-import { streak as streakOf } from '@/lib/ledger';
+import { balance as balanceOf, streak as streakOf } from '@/lib/ledger';
 import { CheckInScreen } from '@/components/meta/CheckInScreen';
+import { CreditsScreen } from '@/components/meta/CreditsScreen';
+import { topUp } from '@/lib/credits';
 import { checkIn as buildCheckIn, type Answers } from '@/lib/checkin';
 import { awardFor } from '@/lib/credits';
 import { CloseScreen } from '@/components/CloseScreen';
@@ -259,6 +261,7 @@ type Phase =
   | 'thesis'
   | 'reckoning'
   | 'checkin'
+  | 'credits'
   | 'erased';
 
 /**
@@ -1583,6 +1586,36 @@ export default function Page() {
     [live, game?.portfolio, career, ledger, noteDeed, returnPhase],
   );
 
+  /**
+   * Turn credits into money to invest with.
+   *
+   * The dollars land in whichever account the child actually has — the live
+   * practice portfolio if it exists, the in-game one otherwise — and the
+   * credits only leave the ledger if the top-up succeeded. `topUp` refuses
+   * rather than clamping, so a partial purchase is impossible; see §54 for the
+   * time a clamp banked the cash and did not deliver the goods.
+   */
+  const handleTopUp = useCallback(
+    (dollars: number) => {
+      const result = topUp(ledger, dollars);
+      if (result.dollars <= 0) return;
+      setLedger(result.ledger);
+      if (live) {
+        setLive((current) => (current ? { ...current, cash: round2(current.cash + result.dollars) } : current));
+      } else {
+        setGame((current) =>
+          current?.portfolio
+            ? {
+                ...current,
+                portfolio: { ...current.portfolio, cash: round2(current.portfolio.cash + result.dollars) },
+              }
+            : current,
+        );
+      }
+    },
+    [ledger, live],
+  );
+
   const eraseAll = useCallback(() => {
     setErasedKeys(eraseEverything());
     setGame(null);
@@ -1909,6 +1942,22 @@ export default function Page() {
       emoji: checkInState.doneToday ? '✅' : '🗓️',
       label: checkInState.doneToday ? 'Checked in' : 'Check in',
       onClick: openFrom('title', 'checkin'),
+    });
+  }
+  /*
+   * Credits, once there are any.
+   *
+   * Gated on having earned something rather than on a stage, because that is
+   * the moment the word means anything: a child who has just been paid for a
+   * decision has a reason to look at what else pays. An empty credits screen
+   * shown before the first award is a menu item, which `unlocks.ts` exists to
+   * prevent.
+   */
+  if (ledger.earned > 0) {
+    titleExtras.push({
+      emoji: '🎟️',
+      label: `${balanceOf(ledger)} credits`,
+      onClick: openFrom('title', 'credits'),
     });
   }
   /*
@@ -2421,6 +2470,18 @@ export default function Page() {
           onDone={handleCheckIn}
         />
       ) : null;
+
+    case 'credits':
+      return (
+        <CreditsScreen
+          ledger={ledger}
+          streak={streakOf(ledger, localDay())}
+          today={localDay()}
+          canSpend={Boolean(live ?? game.portfolio)}
+          onTopUp={handleTopUp}
+          onBack={() => setPhase(returnPhase)}
+        />
+      );
 
     case 'reckoning':
       return game.portfolio ? (
