@@ -186,6 +186,9 @@ import { PriceScreen } from '@/components/PriceScreen';
 import { PlanScreen } from '@/components/PlanScreen';
 import { RunDayScreen } from '@/components/RunDayScreen';
 import { createLedger, hasAnything, localDay, type Deed, type Ledger } from '@/lib/ledger';
+import { streak as streakOf } from '@/lib/ledger';
+import { CheckInScreen } from '@/components/meta/CheckInScreen';
+import { checkIn as buildCheckIn, type Answers } from '@/lib/checkin';
 import { awardFor } from '@/lib/credits';
 import { CloseScreen } from '@/components/CloseScreen';
 import { WeekEndScreen } from '@/components/WeekEndScreen';
@@ -255,6 +258,7 @@ type Phase =
   | 'live'
   | 'thesis'
   | 'reckoning'
+  | 'checkin'
   | 'erased';
 
 /**
@@ -1533,6 +1537,52 @@ export default function Page() {
    * back is a process that booted from empty storage instead of one we have
    * talked into looking empty.
    */
+  /**
+   * Pay for the check-in, then send them where the answer points.
+   *
+   * Three deeds can come out of one ritual and each is its own row in the
+   * table, because they are three different things a child got right: naming
+   * why the market moved, telling company news from noise, and judging that
+   * nothing needed doing. `awardFor` caps each per day, so a child who reopens
+   * the ritual is not paid twice — the screen says so rather than silently
+   * paying nothing.
+   */
+  const handleCheckIn = useCallback(
+    (answers: Answers, allRight: boolean) => {
+      /*
+       * Rebuilt here rather than closed over.
+       *
+       * The render-time `checkInState` is defined further down the body, past
+       * the point where hooks have to be declared — closing over it made this
+       * a use-before-declaration. Rebuilding is cheap and has the better
+       * property anyway: the marking is done against the state as it is at the
+       * moment of collection, not as it was when the screen first opened.
+       */
+      const portfolio = live ?? game?.portfolio;
+      if (!portfolio || !career) return;
+      const state = buildCheckIn(
+        portfolio,
+        career,
+        ledger,
+        localDay(),
+        portfolio.standEarnings + totalValue(portfolio),
+      );
+
+      if (!state.doneToday) {
+        noteDeed('answered-the-check-in');
+        if (answers.because === state.because) noteDeed('named-the-mover');
+        if (answers.because !== undefined && state.because === 'market' && allRight) {
+          noteDeed('told-news-from-noise');
+        }
+        if (answers.needed === 'nothing' && state.needed === 'nothing') {
+          noteDeed('held-when-nothing-changed');
+        }
+      }
+      setPhase(returnPhase);
+    },
+    [live, game?.portfolio, career, ledger, noteDeed, returnPhase],
+  );
+
   const eraseAll = useCallback(() => {
     setErasedKeys(eraseEverything());
     setGame(null);
@@ -1758,6 +1808,25 @@ export default function Page() {
     : scoreAll([], () => 0);
 
   /**
+   * Today's check-in, built from whichever portfolio the child is living in.
+   *
+   * The live practice account first, because once it exists it is the one with
+   * their real money in it. Falls back to the in-game portfolio, which replays
+   * the same price history — so a child who has not passed the readiness gate
+   * still gets a ritual with a true story in it rather than a locked door.
+   */
+  const checkInPortfolio = live ?? game.portfolio;
+  const checkInState = checkInPortfolio
+    ? buildCheckIn(
+        checkInPortfolio,
+        career,
+        ledger,
+        localDay(),
+        checkInPortfolio.standEarnings + totalValue(checkInPortfolio),
+      )
+    : null;
+
+  /**
    * The kid's own card at the table.
    *
    * Built once here rather than inside the table screen, because the friends
@@ -1822,6 +1891,25 @@ export default function Page() {
   }
   if (isUnlocked('playbook', game, career)) {
     titleExtras.push({ emoji: '📓', label: 'Playbook', onClick: openFrom('title', 'playbook') });
+  }
+  /*
+   * The check-in, gated on there being a market to check.
+   *
+   * Not on having played N days: §26's rule is "what has just happened makes
+   * this obvious", never "they have played long enough". What makes a daily
+   * market ritual obvious is owning a portfolio that a market can move, which
+   * is exactly what `game.portfolio` existing means.
+   *
+   * Above the market rather than below it, because the point of the ritual is
+   * that it comes *before* you touch anything — read what happened, work out
+   * whether it matters, and most days do nothing.
+   */
+  if (checkInState) {
+    titleExtras.push({
+      emoji: checkInState.doneToday ? '✅' : '🗓️',
+      label: checkInState.doneToday ? 'Checked in' : 'Check in',
+      onClick: openFrom('title', 'checkin'),
+    });
   }
   /*
    * The live market is the only extra that is not a place to look at things
@@ -2310,6 +2398,27 @@ export default function Page() {
                 }
               : undefined
           }
+        />
+      ) : null;
+
+    case 'checkin':
+      /*
+       * Reads the live practice portfolio when there is one, and the in-game
+       * one otherwise.
+       *
+       * A child reaches the ritual before they reach the real market, and a
+       * check-in with nothing to check would be a screen that opens on an
+       * apology. The in-game portfolio has the same replayed price history, so
+       * the story is the same shape either way.
+       */
+      return checkInState ? (
+        <CheckInScreen
+          state={checkInState}
+          streak={streakOf(ledger, localDay())}
+          // Back where they came from, like every other extra. Opened from the
+          // title, "back" has to mean the title.
+          onBack={() => setPhase(returnPhase)}
+          onDone={handleCheckIn}
         />
       ) : null;
 

@@ -31,6 +31,7 @@ import {
   mark,
   neededToday,
   stepOf,
+  stepsFor,
   storyFor,
   type Answers,
 } from '../src/lib/checkin';
@@ -69,6 +70,44 @@ describe('the six steps arrive one at a time', () => {
       'discover',
       'credits',
     ]);
+  });
+
+  /*
+   * The bug a browser found on the very first check-in a child can reach.
+   *
+   * With no story, the ritual still asked "why did it happen?" and "does it
+   * touch anything you own?" — about nothing. And it marked them: a child
+   * holding Apple answered "yes, I own some of that" and was told they did
+   * not, because with no story the owned-flag falls back to false. A right
+   * answer scored wrong, on a question that should not have been asked.
+   */
+  it('drops the questions about the story when there is no story', () => {
+    const fresh = createPortfolio(START);
+    const state = checkIn(fresh, noCareer, createLedger(), TODAY, START);
+    expect(state.story).toBeNull();
+
+    const steps = stepsFor(state);
+    expect(steps).not.toContain('why');
+    expect(steps).not.toContain('does-it-touch-me');
+    expect(steps).toContain('do-i-act');
+    expect(steps).toHaveLength(4);
+  });
+
+  it('asks all six once there is a week to talk about', () => {
+    const flat = Object.fromEntries(SNAPSHOT.map((c) => [c.ticker, [100, 100]]));
+    const state = checkIn(withHistory(flat), noCareer, createLedger(), TODAY, START);
+    expect(state.story).not.toBeNull();
+    expect(stepsFor(state)).toHaveLength(6);
+  });
+
+  it('never marks an answer to a question it did not ask', () => {
+    const fresh = createPortfolio(START);
+    const state = checkIn(fresh, noCareer, createLedger(), TODAY, START);
+
+    // Even handed an answer, there is nothing to judge it against.
+    const marked = mark(state, { because: 'company', touchesMe: true, needed: 'nothing' });
+    expect(marked.outOf).toBe(1);
+    expect(marked.lines).toHaveLength(1);
   });
 
   it('hands over one step per index and clamps at both ends', () => {
@@ -148,6 +187,32 @@ describe('the story is derived, never invented', () => {
     const flat = Object.fromEntries(SNAPSHOT.map((c) => [c.ticker, [100, 100]]));
     const state = checkIn(withHistory(flat), noCareer, createLedger(), TODAY, START);
     expect(copyFor('what-happened', state).said).toMatch(/barely moved|Quiet week/);
+  });
+
+  /*
+   * Found in a browser, on the very first check-in a child can reach.
+   *
+   * A fresh portfolio holds one price per company — the snapshot close — so
+   * every week-over-week change is zero for want of anything to subtract. The
+   * screen read "Apple went up 0% this week" above a duck saying it had barely
+   * moved: two sentences disagreeing about a week that had not happened yet.
+   */
+  it('does not report a week that has not happened', () => {
+    // The real shape of a new portfolio: one price, no history.
+    const fresh = createPortfolio(START);
+    expect(storyFor(fresh)).toBeNull();
+
+    const state = checkIn(fresh, noCareer, createLedger(), TODAY, START);
+    expect(state.weeksOpen).toBeLessThan(2);
+    expect(copyFor('what-happened', state).said).toMatch(/only just opened/i);
+    expect(copyFor('what-happened', state).said).not.toMatch(/0%/);
+  });
+
+  it('never says a price went up by nothing', () => {
+    const flat = Object.fromEntries(SNAPSHOT.map((c) => [c.ticker, [100, 100]]));
+    const story = storyFor(withHistory(flat));
+    expect(story!.headline).not.toMatch(/up 0%|down 0%/);
+    expect(story!.headline).toMatch(/barely moved/);
   });
 });
 

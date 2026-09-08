@@ -91,8 +91,28 @@ export interface StepCopy {
   said: string;
 }
 
-export function stepOf(index: number): Step {
-  return STEPS[Math.max(0, Math.min(STEPS.length - 1, index))];
+export function stepOf(index: number, steps: readonly Step[] = STEPS): Step {
+  return steps[Math.max(0, Math.min(steps.length - 1, index))];
+}
+
+/**
+ * The steps that make sense today.
+ *
+ * Found in a browser on the first check-in a child can reach. With no story —
+ * a fresh portfolio has one price per company and so no week to compare — the
+ * ritual still asked "why did it happen?" and "does it touch anything you
+ * own?", about nothing. Worse, it *marked* them: a child holding Apple picked
+ * "yes, I own some of that" and was told they did not, because with no story
+ * the owned-flag defaults to false.
+ *
+ * Two questions with no subject, one of them scoring a right answer as wrong.
+ * So the two that are *about the story* are dropped when there is no story,
+ * and the counter shrinks with them — a ritual that says "1 of 6" and means
+ * four is its own small lie.
+ */
+export function stepsFor(state: Pick<CheckIn, 'story'>): readonly Step[] {
+  if (state.story) return STEPS;
+  return STEPS.filter((step) => step !== 'why' && step !== 'does-it-touch-me');
 }
 
 /* ------------------------------------------------------------------ *
@@ -158,6 +178,20 @@ export function storyFor(portfolio: PortfolioState): Story | null {
 
   if (candidates.length === 0) return null;
 
+  /*
+   * No second week, no story.
+   *
+   * A fresh portfolio has exactly one price per company — the snapshot close —
+   * so every "change" is zero for want of anything to subtract, not because
+   * the market was quiet. Reporting that as a story produced "Apple went up 0%
+   * this week" under a duck saying it barely moved, which is two sentences
+   * disagreeing about a week that had not happened yet.
+   */
+  const hasAWeek = SNAPSHOT.some(
+    (company) => (portfolio.priceHistory[company.ticker]?.length ?? 0) >= 2,
+  );
+  if (!hasAWeek) return null;
+
   const pool = candidates.some((row) => row.owned)
     ? candidates.filter((row) => row.owned)
     : candidates;
@@ -194,7 +228,16 @@ export function storyFor(portfolio: PortfolioState): Story | null {
     asOf,
     change: biggest.change,
     owned: biggest.owned,
-    headline: `${biggest.company.name} went ${up ? 'up' : 'down'} ${pct}% this week.`,
+    /*
+     * "Went up 0%" is not a thing that happened. When the move rounds to
+     * nothing the headline has to say so in the same words the duck does,
+     * because PRODUCT.md §4's rule about two figures agreeing applies just as
+     * hard to two sentences about the same figure.
+     */
+    headline:
+      pct === 0
+        ? `${biggest.company.name} barely moved this week.`
+        : `${biggest.company.name} went ${up ? 'up' : 'down'} ${pct}% this week.`,
     told:
       pct === 0
         ? `${biggest.company.name} barely moved this week. A share is still $${price.toFixed(2)}.`
@@ -272,6 +315,8 @@ export interface CheckIn {
   discover: Company | null;
   /** Already done today, so the ritual should say so rather than pay twice. */
   doneToday: boolean;
+  /** Weeks of market history behind this child. 0 or 1 means nothing to compare. */
+  weeksOpen: number;
 }
 
 export function checkIn(
@@ -298,6 +343,10 @@ export function checkIn(
      */
     discover: unread.length > 0 ? unread[0] : null,
     doneToday: checkedInToday(ledger, on),
+    weeksOpen: Math.max(
+      0,
+      ...SNAPSHOT.map((company) => portfolio.priceHistory[company.ticker]?.length ?? 0),
+    ),
   };
 }
 
@@ -310,7 +359,9 @@ export function copyFor(step: Step, state: CheckIn): StepCopy {
         question: 'What happened?',
         said: state.story
           ? state.story.told
-          : 'Quiet week. Nothing in the market did anything worth waking you up for.',
+          : state.weeksOpen < 2
+            ? 'Your market has only just opened. Give it a week and there will be something to read.'
+            : 'Quiet week. Nothing in the market did anything worth waking you up for.',
       };
     case 'why':
       return {
@@ -369,7 +420,15 @@ export interface Marked {
 export function mark(state: CheckIn, answers: Answers): Marked {
   const checks: Array<{ ok: boolean; line: string }> = [];
 
-  if (answers.because !== undefined) {
+  /*
+   * Only what was actually asked. With no story there is no "why" and no "does
+   * it touch you", so an answer to either cannot arrive — and if one somehow
+   * did, judging it against a default would be the bug `stepsFor` exists to
+   * fix, one layer down.
+   */
+  const asked = new Set(stepsFor(state));
+
+  if (asked.has('why') && answers.because !== undefined) {
     const ok = answers.because === state.because;
     checks.push({
       ok,
@@ -379,7 +438,7 @@ export function mark(state: CheckIn, answers: Answers): Marked {
     });
   }
 
-  if (answers.touchesMe !== undefined) {
+  if (asked.has('does-it-touch-me') && answers.touchesMe !== undefined) {
     const ok = answers.touchesMe === state.touchesMe;
     checks.push({
       ok,
