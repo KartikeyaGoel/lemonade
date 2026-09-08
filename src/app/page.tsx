@@ -98,6 +98,7 @@ import {
   beginAct4,
   beginAct5,
   act1Progress,
+  heldThroughWorstDay,
   createChallengeGame,
   createGame,
   newSeason,
@@ -117,9 +118,11 @@ import {
   loadCareer,
   loadGame,
   loadGuideSeen,
+  loadLedger,
   loadLive,
   saveBoard,
   saveGuideSeen,
+  saveLedger,
   saveLive,
   saveCareer,
   saveGame,
@@ -182,6 +185,8 @@ import { ShopScreen } from '@/components/ShopScreen';
 import { PriceScreen } from '@/components/PriceScreen';
 import { PlanScreen } from '@/components/PlanScreen';
 import { RunDayScreen } from '@/components/RunDayScreen';
+import { createLedger, hasAnything, localDay, type Deed, type Ledger } from '@/lib/ledger';
+import { awardFor } from '@/lib/credits';
 import { CloseScreen } from '@/components/CloseScreen';
 import { WeekEndScreen } from '@/components/WeekEndScreen';
 import { ActIntroScreen } from '@/components/acts/ActIntroScreen';
@@ -295,6 +300,27 @@ function marketWall(game: Game): string {
 export default function Page() {
   const [game, setGame] = useState<Game | null>(null);
   const [career, setCareer] = useState<Career | null>(null);
+  /**
+   * The deed ledger. Loaded with everything else, saved on every change.
+   *
+   * Not folded into `career`, because a new season clears the run and must not
+   * clear the record of which days a child turned up and thought — see the note
+   * on `LEDGER_KEY` in storage.ts.
+   */
+  const [ledger, setLedger] = useState<Ledger>(createLedger);
+
+  /**
+   * Write a deed down, at the moment it happens.
+   *
+   * One function rather than a `setLedger` at each site, because the day a deed
+   * is filed under has to come from one place. `localDay` is the child's own
+   * calendar day — deliberately not the `today` state below it, which is the
+   * *UTC* date the Same-Sky Challenge needs so that everybody in the world gets
+   * one sky. Two facts that both look like "the date"; see `localDay`.
+   */
+  const noteDeed = useCallback((deed: Deed, what?: string) => {
+    setLedger((current) => awardFor(current, deed, localDay(), what).ledger);
+  }, []);
   const [phase, setPhase] = useState<Phase>('title');
   const [hasSave, setHasSave] = useState(false);
   /**
@@ -383,6 +409,7 @@ export default function Page() {
     const savedBoard = loadBoard();
     if (savedBoard) setBoard(savedBoard);
     setLive(loadLive());
+    setLedger(loadLedger());
     setGuideSeen(loadGuideSeen());
     setToday(new Date().toISOString().slice(0, 10));
   }, []);
@@ -398,6 +425,12 @@ export default function Page() {
   useEffect(() => {
     if (live) saveLive(live);
   }, [live]);
+
+  useEffect(() => {
+    // Only once there is something in it. See `hasAnything`: an unconditional
+    // save re-created the key one tick after the reset had deleted it.
+    if (hasAnything(ledger)) saveLedger(ledger);
+  }, [ledger]);
 
   useEffect(() => {
     if (career) saveCareer(career);
@@ -887,6 +920,8 @@ export default function Page() {
     if (advanced.weekend) {
       setGame(endWeekend(advanced));
       setCareer((current) => (current ? recordDay(current, outcome.profit) : current));
+      noteDeed('ran-a-day');
+      if (outcome.profit >= ECON.ACT1_PROFIT_TARGET) noteDeed('hit-the-goal');
       setOutcome(null);
       setPlanned(null);
       setNewInsights([]);
@@ -898,6 +933,17 @@ export default function Page() {
     // Banked now rather than at the end of a season, because most runs are
     // abandoned rather than finished and the parent view reads this number.
     setCareer((current) => (current ? recordDay(current, outcome.profit) : current));
+    noteDeed('ran-a-day');
+    if (outcome.profit >= ECON.ACT1_PROFIT_TARGET) noteDeed('hit-the-goal');
+    /*
+     * Keeping their nerve, judged by the function that already judges it.
+     *
+     * `heldThroughWorstDay` is one of the four readiness criteria, so the
+     * definition of "did not panic" lives in exactly one place and this reads
+     * it rather than inventing a second one. Checked against the history *with*
+     * today in it, because holding is only visible in the day after the loss.
+     */
+    if (heldThroughWorstDay([...nextStand.history]).met) noteDeed('held-through-a-loss');
     setOutcome(null);
     setPlanned(null);
     setNewInsights([]);
@@ -971,7 +1017,7 @@ export default function Page() {
       }
     }
     setPhase('plan');
-  }, [game, outcome, stageDay, markTheWeek]);
+  }, [game, outcome, stageDay, markTheWeek, noteDeed]);
 
   /* ---------------- Act 2 actions ---------------- */
 
@@ -1237,6 +1283,14 @@ export default function Page() {
     (choiceId: string) => {
       if (!game) return;
       const chosen: Game = { ...game, ownership: recordDealChoice(game.ownership, choiceId) };
+      /*
+       * The best-paying deed in the whole table, filed where it happens.
+       *
+       * `recordDealChoice` is the only place `passedOnOverpriced` is ever set,
+       * so this is the only moment it can be recorded — and it is the moment
+       * the readiness gate already calls "the hard one".
+       */
+      if (chosen.ownership.passedOnOverpriced) noteDeed('passed-on-price', choiceId);
       const multiples = STANDS_FOR_SALE.map((stand) => stand.askingMultiple);
       setGame(
         queueWords(chosen, [
@@ -1250,7 +1304,7 @@ export default function Page() {
       );
       setPhase('listing');
     },
-    [game, queueWords],
+    [game, queueWords, noteDeed],
   );
 
   const handleBuyout = useCallback(
@@ -1326,10 +1380,20 @@ export default function Page() {
           words,
         ),
       );
+      /*
+       * Both deeds, in the order they happened: the reason was written before
+       * the money moved, and the money moving is what made the portfolio
+       * spread. `sized-a-position` too, because choosing the amount is a
+       * separate decision from choosing the company and the note asks for it
+       * by name.
+       */
+      noteDeed('wrote-a-thesis', thesis.ticker);
+      noteDeed('sized-a-position', thesis.ticker);
+      if (holdings.length >= DIVERSIFIED_MIN_HOLDINGS) noteDeed('diversified');
       setThesisTarget(null);
       setPhase('market');
     },
-    [game, queueWords],
+    [game, queueWords, noteDeed],
   );
 
   const handleSellStock = useCallback(
@@ -1475,6 +1539,18 @@ export default function Page() {
     setCareer(null);
     setLive(null);
     setGuideSeen(null);
+    /*
+     * The ledger goes back to empty in memory too, not just on disk.
+     *
+     * Every other slot here is nulled for a reason worth restating: the erase
+     * clears `localStorage`, and a piece of state left sitting in React would
+     * be written straight back out by its own save effect a tick later. The
+     * ledger has such an effect, so without this line the next tester would
+     * inherit the previous one's streak and credits — the exact bug §61's
+     * reset button exists to prevent, in a slot that did not exist when it was
+     * written.
+     */
+    setLedger(createLedger());
     setHasSave(false);
     setPhase('erased');
   }, []);
@@ -2151,6 +2227,7 @@ export default function Page() {
             // Kept on the career rather than the run: reading a set of accounts
             // is something the kid did, and it should still count next season.
             setCareer((current) => (current ? recordStudied(current, [ticker]) : current));
+            noteDeed('read-accounts', ticker);
           }}
           onStartBuy={(company) => {
             setThesisTarget(company);
@@ -2215,6 +2292,7 @@ export default function Page() {
           onResearch={(ticker) => {
             setLive((current) => (current ? markResearched(current, ticker) : current));
             setCareer((current) => (current ? recordStudied(current, [ticker]) : current));
+            noteDeed('read-accounts', ticker);
           }}
           onStartBuy={(company) => {
             setThesisTarget(company);

@@ -36,6 +36,14 @@ import {
 } from './market';
 import type { DayRecord, Forecast, GameState } from './simulation';
 import { MUTE_KEY } from './sound';
+import {
+  DAY_CAP,
+  LEDGER_VERSION,
+  LOG_CAP,
+  createLedger,
+  type Entry as LedgerEntry,
+  type Ledger,
+} from './ledger';
 import type { Entry } from './classroom';
 
 const KEY = 'lemonade.save.v2';
@@ -67,6 +75,16 @@ const LIVE_KEY = 'lemonade.live.v1';
  * is exactly how a guide becomes wallpaper.
  */
 const GUIDE_KEY = 'lemonade.guide.v1';
+
+/**
+ * The deed ledger.
+ *
+ * Its own slot rather than a field on the career, and the reason is the streak:
+ * a new season clears the run but must not clear the record of which days a
+ * child turned up and thought. Those are different lifetimes, so they get
+ * different keys.
+ */
+const LEDGER_KEY = 'lemonade.ledger.v1';
 
 export function loadGame(): Game | null {
   if (typeof window === 'undefined') return null;
@@ -496,6 +514,62 @@ export function loadGuideSeen(): string[] {
   }
 }
 
+/**
+ * Read the ledger back, field by field like every other loader here.
+ *
+ * The totals are guarded separately from the log, because they are the two
+ * things that can be wrong independently: a corrupt log costs a child the
+ * "what you did" list, and a corrupt total costs them their credits. Losing
+ * the second silently is the worse of the two, so a total that comes back
+ * unusable falls to 0 rather than to `NaN` — which would spread through every
+ * sum on the screen and show nothing at all.
+ */
+export function loadLedger(): Ledger {
+  if (typeof window === 'undefined') return createLedger();
+  try {
+    const raw = window.localStorage.getItem(LEDGER_KEY);
+    if (!raw) return createLedger();
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const fresh = createLedger();
+
+    const entries = Array.isArray(parsed.entries)
+      ? (parsed.entries as unknown[]).filter(
+          (entry): entry is LedgerEntry =>
+            !!entry &&
+            typeof entry === 'object' &&
+            typeof (entry as LedgerEntry).deed === 'string' &&
+            typeof (entry as LedgerEntry).on === 'string' &&
+            Number.isFinite(Number((entry as LedgerEntry).credits)),
+        )
+      : fresh.entries;
+
+    const days = Array.isArray(parsed.days)
+      ? (parsed.days as unknown[]).filter(
+          (day): day is string => typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day),
+        )
+      : fresh.days;
+
+    return {
+      version: LEDGER_VERSION,
+      earned: Math.max(0, num(parsed.earned, 0)),
+      spent: Math.max(0, num(parsed.spent, 0)),
+      entries: entries.slice(-LOG_CAP),
+      days: [...new Set(days)].sort().slice(-DAY_CAP),
+    };
+  } catch {
+    return createLedger();
+  }
+}
+
+export function saveLedger(ledger: Ledger): void {
+  try {
+    window.localStorage.setItem(LEDGER_KEY, JSON.stringify(ledger));
+  } catch {
+    // Out of quota. The session's credits are still correct in memory; the
+    // alternative is taking the app down over a streak.
+  }
+}
+
 export function saveGuideSeen(seen: readonly string[]): void {
   try {
     window.localStorage.setItem(GUIDE_KEY, JSON.stringify([...seen]));
@@ -541,6 +615,7 @@ const ALL_KEYS = [
    * word, and the erase screen listed what it removed as proof.
    */
   MUTE_KEY,
+  LEDGER_KEY,
 ] as const;
 
 /**

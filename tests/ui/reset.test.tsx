@@ -21,6 +21,9 @@ import { createCareer } from '@/lib/career';
 import { GLOSSARY } from '@/lib/glossary';
 import { BADGES } from '@/lib/achievements';
 import { DEFAULT_DAY_PARAMS, batchPlan, runDay } from '@/lib/simulation';
+import { createLedger, streak } from '@/lib/ledger';
+import { awardFor } from '@/lib/credits';
+import { loadLedger } from '@/lib/storage';
 
 /** Somebody else's run, played by the simulation. */
 function somebodyElsesRun(): Game {
@@ -36,6 +39,23 @@ function somebodyElsesRun(): Game {
 
 function seedSomebodyElse() {
   window.localStorage.setItem('lemonade.save.v2', JSON.stringify(somebodyElsesRun()));
+  /*
+   * Their streak and their credits, too.
+   *
+   * Added when the ledger did, because it is the slot most likely to survive a
+   * reset by accident: unlike the save, it has a `useEffect` that writes it
+   * back out on every change, so state left in React after the erase would be
+   * on disk again a tick later.
+   */
+  window.localStorage.setItem(
+    'lemonade.ledger.v1',
+    JSON.stringify(
+      ['2026-09-03', '2026-09-04', '2026-09-05'].reduce(
+        (led, day) => awardFor(led, 'ran-a-day', day).ledger,
+        createLedger(),
+      ),
+    ),
+  );
   window.localStorage.setItem(
     'lemonade.career.v1',
     JSON.stringify({
@@ -164,5 +184,43 @@ describe('the reset that is on every screen', () => {
     const button = screen.getByRole('button', { name: 'Start over on this device' });
     expect(button.className).toMatch(/\bh-11\b/);
     expect(button.className).toMatch(/\bw-11\b/);
+  });
+
+  /*
+   * The ledger has a save effect, and that is what makes it dangerous.
+   *
+   * Every other slot the reset clears is written on a deliberate action. The
+   * ledger is written by a `useEffect` on every change, so clearing the disk
+   * without clearing the React state would have it written straight back — and
+   * the next tester would inherit a stranger's streak and credits with a fresh
+   * lemonade stand. Which is precisely the bug this whole button exists to
+   * prevent, in a slot that did not exist when it was written.
+   */
+  it('takes the streak and the credits with it, and they stay gone', async () => {
+    const user = userEvent.setup();
+    seedSomebodyElse();
+
+    // Somebody else really does have a streak on this device.
+    expect(streak(loadLedger(), '2026-09-05').running).toBe(3);
+    expect(loadLedger().earned).toBeGreaterThan(0);
+
+    render(<Page />);
+    await waitFor(() => expect(reset()).toBeInTheDocument());
+    await user.click(reset());
+    await user.click(screen.getByRole('button', { name: /Wipe it and start fresh/i }));
+
+    await waitFor(() => expect(window.localStorage.getItem('lemonade.ledger.v1')).toBeNull());
+
+    /*
+     * And still gone after the save effects have had a chance to run. A single
+     * assertion straight after the click would pass even with the bug, because
+     * the rewrite happens on the *next* commit.
+     */
+    await waitFor(() => {
+      const back = window.localStorage.getItem('lemonade.ledger.v1');
+      expect(back === null || JSON.parse(back).days.length === 0).toBe(true);
+    });
+    expect(streak(loadLedger(), '2026-09-05').running).toBe(0);
+    expect(loadLedger().earned).toBe(0);
   });
 });

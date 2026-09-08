@@ -27,10 +27,12 @@ import {
   saveCareer,
   saveGame,
   saveGuideSeen,
+  saveLedger,
   saveLive,
 } from '../src/lib/storage';
 import { createGame } from '../src/lib/progress';
 import { setMuted } from '../src/lib/sound';
+import { createLedger, record } from '../src/lib/ledger';
 
 const SRC = join(import.meta.dirname, '..', 'src');
 
@@ -57,6 +59,7 @@ const EVERY_KEY = [
   'lemonade.live.v1',
   'lemonade.guide.v1',
   'lemonade.muted.v1',
+  'lemonade.ledger.v1',
 ];
 
 /** A device with something in every slot, including the legacy one. */
@@ -70,6 +73,7 @@ function fillEverySlot() {
   // Through the real setter, not a hand-written string: the point of this
   // fixture is that every slot is filled the way the game fills it.
   setMuted(true);
+  saveLedger(record(createLedger(), 'ran-a-day', '2026-09-07', 2));
 }
 
 beforeEach(() => {
