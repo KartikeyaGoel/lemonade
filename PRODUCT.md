@@ -4774,3 +4774,88 @@ Not retention. **Whether a child answers the lunchtime question or ignores it.**
 If they answer it, the loop has a decision in it and the rest follows. If they
 tap "Keep" every time without reading, this was `interactive` mode again with
 more steps — and that is a cheap thing to find out with five more children.
+
+### The path to confidence, which turned out to be arithmetic
+
+§71 above called the lunchtime decision "probably better, and cannot yet be
+proved", and the staggered levers "weakest, named as such". Both of those were
+too quick. The right question is not *can we prove children will engage* — that
+needs children — but **what is missing that we could actually measure, and have
+not.**
+
+Separating the two:
+
+- Whether a nine-year-old reads the card is behaviour. Only a child answers it.
+- Whether reading the card could possibly be *worth* anything is arithmetic, and
+  it was sitting there unmeasured.
+
+Three properties have to hold before engagement could pay off at all:
+
+1. **Consequential.** If the three answers produce the same day, no presentation
+   rescues it.
+2. **Situation-dependent.** If one answer is always best, this is a tax on
+   attention and a child is *right* to make it a reflex.
+3. **Learnable and un-farmable.** The card has to carry enough to choose well,
+   and no fixed rule may beat reading it — otherwise the mechanic pays for
+   thoughtlessness, which is worse than paying for nothing because it looks
+   like learning.
+
+Measured over 2,650 days that carried a question, across 120 seeds, seven
+prices and four batch sizes:
+
+| | |
+|---|---|
+| best answer vs worst | mean **$6.57**, median $5.50, p90 $13.00, against a ~$22 day |
+| best answer vs "Keep" | mean **$2.78**, median $2.29 |
+| `running-out` → best answer is raise | **97%** of days |
+| `not-selling` → best answer | drop 57%, keep 25%, raise 18% |
+
+And the backtest, which is the part that settles it:
+
+| strategy | average profit a day |
+|---|---|
+| always raise | $21.87 |
+| always drop | $21.12 |
+| **always keep — ignore the feature entirely** | **$22.07** |
+| **read the lean the card reports** | **$24.37** |
+| perfect hindsight | $24.85 |
+
+Three conclusions, none of which needed a child:
+
+- **It is not decoration.** Reading the situation is worth about 10% of a day
+  and captures **98%** of what perfect hindsight would take. The card carries
+  enough; acting on it is nearly optimal.
+- **It cannot be farmed.** Always raising and always dropping *both lose to
+  ignoring the feature*. A child who reduces it to a reflex tap ends up behind
+  one who never looked, so the mechanic cannot decay into noise that still pays.
+- **The card is honest.** The `lean` it reports predicts the best answer, so a
+  child who believes the screen is rewarded for believing it.
+
+The `running-out` case being 97% deterministic is deliberate rather than a flaw:
+it is scarcity pricing, it is the clearest lesson in the stage, and it should be
+learnable in two or three tries. The `not-selling` case stays genuinely hard,
+which is where the rest of the learning lives.
+
+**And the levers worry was quantitatively wrong.** §71 guessed that staggering
+might have thinned the opening. Counted:
+
+| day | decisions before | decisions now |
+|---|---|---|
+| 1 | 3.00 | **2.87** |
+| 4 | 3.00 | **3.80** |
+| 7 | 3.00 | 3.87 |
+
+Day one lost 0.13 of a decision and days four onwards gained 0.8. The count now
+*rises* across the stage instead of sitting flat at three, which is the shape a
+progression is supposed to have and which the old arrangement never had.
+
+All of it is `tests/middayvalue.test.ts` rather than a note, because the thing
+that would destroy these properties is not an argument — it is somebody
+retuning the demand curve in six months. Mutation-checked: shrinking the
+lunchtime step to a penny fails three of the six, and making both leans want the
+same answer fails three.
+
+**What is still unknown, stated exactly.** Whether a child reads the card. That
+is now the *only* open question about this feature, it is bounded — the feature
+is neither decoration nor a trap — and §71's "one number to watch" is the way
+to close it.
