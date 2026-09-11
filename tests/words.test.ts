@@ -24,6 +24,7 @@ import {
   equityInsight,
   luckInsight,
   multipleInsight,
+  multipleInsightFor,
   peRatioInsight,
   recurringRevenueInsight,
   thesisInsight,
@@ -32,7 +33,7 @@ import {
   wordProgress,
   wordsEarned,
 } from '../src/lib/glossary';
-import { buyoutOffer, createOwnershipState } from '../src/lib/ownership';
+import { buyoutOffer, createOwnershipState, DEAL_BOARDS } from '../src/lib/ownership';
 import {
   alreadyTried,
   asTry,
@@ -42,6 +43,7 @@ import {
   crowdLabel,
   remember,
 } from '../src/lib/bench';
+import { plural } from '../src/lib/copy';
 import { QUANT_CLAIMS, QUAL_CLAIMS, buildThesis, scoreThesis } from '../src/lib/thesis';
 import { SNAPSHOT } from '../src/lib/companies';
 import { isMuted, onMuteChange, setMuted } from '../src/lib/sound';
@@ -379,6 +381,39 @@ describe('sound on a device that will not have it', () => {
       window.localStorage.setItem = realSet;
       window.localStorage.getItem = realGet;
       setMuted(false);
+    }
+  });
+});
+
+describe('the multiple, from the board it came off', () => {
+  it('quotes the child’s own board and no other', () => {
+    /*
+     * Found in the browser on a save the admin shortcut produces: the card
+     * read "was asking 6 weeks of profit. The famous one wanted 25" under an
+     * answer given on a board whose multiples are 5, 14 and 22. The handler
+     * read `STANDS_FOR_SALE` by name, which was the whole truth while there
+     * was one board.
+     */
+    for (const board of DEAL_BOARDS) {
+      const dearest = Math.max(...board.map((s) => s.askingMultiple));
+      const others = DEAL_BOARDS.filter((b) => b !== board);
+      for (const stand of board) {
+        const said = multipleInsightFor(stand.id).evidence;
+        expect(said, stand.id).toContain(stand.name);
+        expect(said, stand.id).toContain(`${plural(stand.askingMultiple, 'week')} of profit`);
+        expect(said, stand.id).toContain(`wanted ${dearest}`);
+
+        // And nothing from a board they did not answer, unless the figure
+        // genuinely appears on theirs too.
+        for (const other of others) {
+          const otherDearest = Math.max(...other.map((s) => s.askingMultiple));
+          if (otherDearest !== dearest) {
+            expect(said, `${stand.id} leaked ${otherDearest}`).not.toContain(
+              `wanted ${otherDearest}`,
+            );
+          }
+        }
+      }
     }
   });
 });

@@ -28,7 +28,7 @@
 
 import { round2, type DayRecord } from './simulation';
 import { growthRate, regularShareOfSales, trailingWeeklyProfit } from './business';
-import { plural } from './copy';
+import { money, plural } from './copy';
 
 /* ------------------------------------------------------------------ *
  * State
@@ -43,7 +43,16 @@ export interface OwnershipState {
   investorPaidToDate: number;
 
   comparisonAnswered: boolean;
+  /** The most recent choice. Kept because every save ever written has it. */
   comparisonChoiceId: string | null;
+  /**
+   * Every board they have answered, oldest first.
+   *
+   * There used to be one board and therefore one answer, which is why
+   * `comparisonChoiceId` is a single id. Read it through `dealRounds`, which
+   * falls back to that field for saves written before this existed.
+   */
+  comparisonRounds: string[];
   /** Evidence for the readiness gate: they declined a deal on price alone. */
   passedOnOverpriced: boolean;
 
@@ -63,6 +72,7 @@ export function createOwnershipState(): OwnershipState {
     investorPaidToDate: 0,
     comparisonAnswered: false,
     comparisonChoiceId: null,
+    comparisonRounds: [],
     passedOnOverpriced: false,
     buyoutAccepted: false,
     buyoutMultiple: 0,
@@ -330,6 +340,9 @@ export const HOLD_WEEKS = 26;
  *
  * A kid who reaches for "cheap is good" or "expensive means quality" gets it
  * wrong, which is exactly the habit we are trying to break before the market.
+ *
+ * This is the *first* board. There are more, and the reason is the worst defect
+ * the pilot found — see `DEAL_BOARDS` below.
  */
 export const STANDS_FOR_SALE: StandForSale[] = [
   {
@@ -360,6 +373,135 @@ export const STANDS_FOR_SALE: StandForSale[] = [
     blurb: 'Famous spot. Same profit every week for a year.',
   },
 ];
+
+/**
+ * The second board, and the third.
+ *
+ * ## Why there is more than one
+ *
+ * In the pilot, a grown-up reached the readiness gate, read "Picked the better
+ * deal of two businesses — Chose Bella's cart. Worth another look at the
+ * numbers", and wrote: *"I get this but don't know how to unlock the better
+ * deal workflow."*
+ *
+ * They could not, and neither could anybody. The board was one-shot. Picking
+ * ran `recordDealChoice`, which set `comparisonAnswered` for ever, and
+ * `readiness` counts the criterion met only when the pick was *right*. So a
+ * child who picked the cheapest cart — the single most likely wrong answer,
+ * and the exact mistake the board exists to provoke — was barred from ever
+ * committing money in the market **for the rest of the run**, forty days
+ * later, by one tap in stage four, with a card telling them to look again at
+ * numbers they could no longer reach.
+ *
+ * That is not a gate, it is a trapdoor. Stage 1's failure model in FRAMEWORK.md
+ * §1 is "no harsh failure: experiment, understand what happened, change
+ * variables, and retry", and the readiness gate had quietly exempted itself
+ * from it.
+ *
+ * ## Why another board rather than another go at this one
+ *
+ * A retry of the same three stands is not evidence of anything. The reveal
+ * shows all three columns of arithmetic and rings the best one in green, so
+ * coming back to the same board tests memory rather than division.
+ *
+ * A fresh board does test the division. Same shape, different numbers, and the
+ * heuristics still all fail: on every board the three earn the same amount
+ * today, the cheapest is shrinking, the dearest is flat, and the best is in the
+ * middle. A child who gets board two right worked it out.
+ *
+ * `tests/ownership.test.ts` holds that shape for every board rather than for
+ * the one that happened to be written first — three stands, one weekly profit,
+ * distinct multiples, exactly one best, and that best neither cheapest nor
+ * dearest. A fourth board added carelessly fails the suite.
+ *
+ * ## And if they get all of them wrong
+ *
+ * The boards cycle, and the gate opens on the first correct answer whichever
+ * board it came on. A child who takes three goes has been shown the full
+ * arithmetic three times and then done it, which is a weaker claim than
+ * getting it first time — so the claim is not made: `dealRoundsTaken` is what
+ * the grown-up report reads, and it says which go it was. PRODUCT.md §16 cares
+ * that a claim to a parent is true, not that the child was punished.
+ */
+export const DEAL_BOARDS: readonly StandForSale[][] = [
+  STANDS_FOR_SALE,
+  [
+    {
+      id: 'pier',
+      name: "Ravi's pier stall",
+      emoji: '🏖️',
+      weeklyProfit: 80,
+      askingMultiple: 5,
+      blurb: 'Cheapest on the board. The pier gets quieter every week.',
+      weeklyGrowth: -0.025,
+    },
+    {
+      id: 'school',
+      name: 'The school-gate cart',
+      emoji: '🎒',
+      weeklyProfit: 80,
+      askingMultiple: 14,
+      blurb: 'Dearer than Ravi. A few more children every week.',
+      weeklyGrowth: 0.03,
+    },
+    {
+      id: 'station',
+      name: 'The station kiosk',
+      emoji: '🚉',
+      weeklyProfit: 80,
+      askingMultiple: 22,
+      blurb: 'Everyone knows it. Exactly the same takings every week.',
+      weeklyGrowth: 0,
+    },
+  ],
+  [
+    {
+      id: 'garden',
+      name: 'The garden table',
+      emoji: '🌻',
+      weeklyProfit: 120,
+      askingMultiple: 7,
+      blurb: 'Cheapest here. Fewer people walk that way each week.',
+      weeklyGrowth: -0.015,
+    },
+    {
+      id: 'market',
+      name: 'The market-day stall',
+      emoji: '🧺',
+      weeklyProfit: 120,
+      askingMultiple: 13,
+      blurb: 'Twice the price of the garden table. Busier every week.',
+      weeklyGrowth: 0.025,
+    },
+    {
+      id: 'arena',
+      name: 'The arena window',
+      emoji: '🏟️',
+      weeklyProfit: 120,
+      askingMultiple: 28,
+      blurb: 'The famous one. Never grows, never shrinks.',
+      weeklyGrowth: 0,
+    },
+  ],
+];
+
+/**
+ * Which board a stand belongs to.
+ *
+ * Keyed off the stand id so `judgeDealChoice` keeps its old one-argument
+ * signature: every caller in the game and in the tests passes an id and
+ * nothing else, and the ids are unique across the boards. A save written
+ * before the second board existed holds `'bella'`, `'sam'` or `'kiosk'` and
+ * resolves to board one exactly as it always did.
+ */
+export function boardOf(choiceId: string): StandForSale[] {
+  return DEAL_BOARDS.find((board) => board.some((s) => s.id === choiceId)) ?? STANDS_FOR_SALE;
+}
+
+/** The board for a given go, cycling once the written ones run out. */
+export function boardForRound(round: number): StandForSale[] {
+  return DEAL_BOARDS[round % DEAL_BOARDS.length];
+}
 
 export function askingPrice(stand: StandForSale): number {
   return round2(stand.weeklyProfit * stand.askingMultiple);
@@ -419,11 +561,14 @@ export interface DealVerdict {
 }
 
 export function judgeDealChoice(choiceId: string, weeks = HOLD_WEEKS): DealVerdict {
-  const chosen = STANDS_FOR_SALE.find((s) => s.id === choiceId) ?? STANDS_FOR_SALE[0];
-  const best = bestDeal(STANDS_FOR_SALE, weeks);
-  const worst = worstDeal(STANDS_FOR_SALE, weeks);
+  const board = boardOf(choiceId);
+  const chosen = board.find((s) => s.id === choiceId) ?? board[0];
+  const best = bestDeal(board, weeks);
+  const worst = worstDeal(board, weeks);
+  /* The cheapest multiple on this board, named by the lesson below. */
+  const cheapest = board.reduce((a, s) => (s.askingMultiple < a.askingMultiple ? s : a), board[0]);
 
-  const rows = STANDS_FOR_SALE.map((stand) => ({
+  const rows = board.map((stand) => ({
     stand,
     price: askingPrice(stand),
     payback: paybackWeeks(stand),
@@ -434,9 +579,12 @@ export function judgeDealChoice(choiceId: string, weeks = HOLD_WEEKS): DealVerdi
 
   const correct = chosen.id === best.id;
   const lesson = correct
-    ? `${best.name} was not the cheapest. It cost ${plural(best.askingMultiple, 'time')} its weekly profit while Bella's cost ${STANDS_FOR_SALE[0].askingMultiple}. You paid more per dollar of profit because that profit was growing.`
+    ? `${best.name} was not the cheapest. It cost ${plural(best.askingMultiple, 'time')} its weekly profit while ${cheapest.name} cost ${cheapest.askingMultiple}. You paid more per dollar of profit because that profit was growing.`
     : chosen.id === worst.id
-      ? `${chosen.name} earns the same ${chosen.weeklyProfit} a week as the others but costs ${plural(chosen.askingMultiple, 'time')} it. You would wait ${plural(chosen.askingMultiple, 'week')} just to get your money back.`
+      ? /* The dollar sign was missing here and the sentence read "earns the
+           same 100 a week". Every other figure in the game is written by
+           `money`; this one was written by hand. */
+        `${chosen.name} earns the same ${money(chosen.weeklyProfit)} a week as the others but costs ${plural(chosen.askingMultiple, 'time')} it. You would wait ${plural(chosen.askingMultiple, 'week')} just to get your money back.`
       : `${chosen.name} was the cheapest on the board, but its profit shrinks every week. Cheap is not the same as good value.`;
 
   return {
@@ -449,13 +597,52 @@ export function judgeDealChoice(choiceId: string, weeks = HOLD_WEEKS): DealVerdi
   };
 }
 
+/** Every go they have had at a board, oldest first. */
+export function dealRounds(ownership: OwnershipState): string[] {
+  /*
+   * Derived, so a save written before the boards existed reads back correctly.
+   * `comparisonRounds` is the record; `comparisonChoiceId` was the whole record
+   * when there could only ever be one go, and an old save has only that.
+   */
+  if (ownership.comparisonRounds.length > 0) return ownership.comparisonRounds;
+  return ownership.comparisonChoiceId ? [ownership.comparisonChoiceId] : [];
+}
+
+/** How many boards they have answered. Read by the grown-up report. */
+export function dealRoundsTaken(ownership: OwnershipState): number {
+  return dealRounds(ownership).length;
+}
+
+/** Did any go land on the best deal on its own board? */
+export function rankedADealCorrectly(ownership: OwnershipState): boolean {
+  return dealRounds(ownership).some((id) => judgeDealChoice(id).correct);
+}
+
+/** The board they have not answered yet, or null once one has been got right. */
+export function nextDealBoard(ownership: OwnershipState): StandForSale[] | null {
+  if (rankedADealCorrectly(ownership)) return null;
+  return boardForRound(dealRoundsTaken(ownership));
+}
+
 export function recordDealChoice(ownership: OwnershipState, choiceId: string): OwnershipState {
   const verdict = judgeDealChoice(choiceId);
   return {
     ...ownership,
     comparisonAnswered: true,
     comparisonChoiceId: choiceId,
-    passedOnOverpriced: verdict.avoidedOverpriced,
+    comparisonRounds: [...dealRounds(ownership), choiceId],
+    /*
+     * Monotonic, and it has to be.
+     *
+     * This used to be a plain assignment, which was correct while there was
+     * exactly one go: `passedOnOverpriced` could only ever be written once.
+     * With a second board it becomes a live bug — a child who declined the
+     * overpriced kiosk on board one and then picked the overpriced arena
+     * window on board two would have had the evidence for "turned down a good
+     * business at a bad price" *taken back off them*, silently, and lost a
+     * criterion they had already met.
+     */
+    passedOnOverpriced: ownership.passedOnOverpriced || verdict.avoidedOverpriced,
   };
 }
 

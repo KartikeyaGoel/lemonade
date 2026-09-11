@@ -456,7 +456,7 @@ describe('the choices that end a week or a stage', () => {
     await resume();
     await playUntil(/stands for sale/i);
     await must(/asking price/i, 'picking a stand');
-    await must(/That one|Pick one/, 'confirming the pick');
+    await must(/That one/, 'confirming the pick');
     await dismissRewards();
     clean('the verdict');
     expect(body(), 'no verdict was shown').toMatch(/best deal|Look at the numbers/i);
@@ -470,10 +470,47 @@ describe('the choices that end a week or a stage', () => {
     expect(saved().ownership.comparisonAnswered, 'committed before the verdict was read').toBe(
       false,
     );
-    await must(/Back to your own stand/, 'leaving the verdict');
+    await must(/Back to your own stand|Try another three/, 'leaving the verdict');
     await dismissRewards();
     await waitFor(() => expect(saved().ownership.comparisonAnswered).toBe(true));
     expect(saved().ownership.comparisonChoiceId).toBeTruthy();
+    expect(saved().ownership.comparisonRounds.length).toBe(1);
+  }, 30_000);
+
+  it('hands over a second board when the first one is got wrong', async () => {
+    /*
+     * The pilot's blocker, driven through the real app.
+     *
+     * `must(/asking price/i)` taps the first card on the board, which on every
+     * board is the cheapest and shrinking one — the wrong answer, and the one
+     * the exercise is built to provoke. Before this, leaving that verdict went
+     * straight to the listing screen and the readiness gate stayed shut for
+     * the rest of the run with no way to reopen it.
+     */
+    seed({ act: 4 });
+    await resume();
+    await playUntil(/stands for sale/i);
+    await must(/asking price/i, 'picking the cheapest stand');
+    await must(/That one/, 'confirming the pick');
+    await dismissRewards();
+    expect(body(), 'the wrong pick was not corrected').toMatch(/Look at the numbers/i);
+
+    // The way on says what it does, and it is not the listing.
+    await must(/Try another three/, 'taking the second board');
+    await dismissRewards();
+    await waitFor(() => expect(saved().ownership.comparisonRounds.length).toBe(1));
+    expect(body(), 'no second board arrived').toMatch(/Three more for sale/i);
+
+    // And board two is genuinely a different board.
+    expect(body()).not.toMatch(/Bella|Sam's corner|Downtown kiosk/);
+
+    // Answer it, and the run carries on to the listing as it always did.
+    await must(/asking price/i, 'picking on the second board');
+    await must(/That one/, 'confirming the second pick');
+    await dismissRewards();
+    await must(/Back to your own stand|Next →/, 'leaving the second verdict');
+    await waitFor(() => expect(saved().ownership.comparisonRounds.length).toBe(2));
+    await dismissRewards();
   }, 30_000);
 
   it('accepts the buyout, and the proceeds are recorded', async () => {

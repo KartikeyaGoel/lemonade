@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import {
   HOLD_WEEKS,
-  STANDS_FOR_SALE,
   askingPrice,
   judgeDealChoice,
   paybackWeeks,
@@ -21,10 +20,38 @@ import { ActionFooter, ChunkyButton, clearsBar, money, PinnedBar, SignHeading, S
  * Before they choose, they get price, payback and trend and nothing else. No
  * projected totals — that is the reveal, because working out that a growing
  * business is worth more is the entire point of the exercise.
+ *
+ * The board comes in rather than being read off a constant, because there is
+ * more than one of them now. A child who gets this wrong used to be locked out
+ * of the market for the rest of the run; `src/lib/ownership.ts` has the note.
  */
 export function DealBoardScreen({
+  stands,
+  round = 0,
+  againLabel = 'Next →',
+  doneLabel = 'Back to your own stand →',
   onChoose,
 }: {
+  /** The three on offer this time. See `boardForRound`. */
+  stands: StandForSale[];
+  /** Which go this is, zero-based. Only used to say so on screen. */
+  round?: number;
+  /**
+   * What the button says after a wrong answer.
+   *
+   * The screen cannot know: in stage four a wrong first answer hands over
+   * another board, and from the readiness gate it goes back to the gate. A
+   * button that promises three more stands and returns to a checklist is the
+   * kind of small lie that teaches a child to stop reading buttons.
+   *
+   * Deliberately never starting with "Got it": that is the game's vocabulary
+   * for dismissing a badge or a new word, and `dismissRewards` in the UI tests
+   * taps anything matching it. A primary button wearing the same words is one
+   * a reward-clearing loop will press for the child.
+   */
+  againLabel?: string;
+  /** And what it says after a right one. Same reason. */
+  doneLabel?: string;
   onChoose: (choiceId: string, correct: boolean) => void;
 }) {
   const [picked, setPicked] = useState<string | null>(null);
@@ -88,7 +115,7 @@ export function DealBoardScreen({
 
           <ActionFooter className="mt-auto pt-6">
             <ChunkyButton variant="lemon" full onClick={() => onChoose(picked!, verdict.correct)}>
-              Back to your own stand →
+              {verdict.correct ? doneLabel : againLabel}
             </ChunkyButton>
           </ActionFooter>
         </div>
@@ -99,13 +126,19 @@ export function DealBoardScreen({
   return (
     <Sky mood="probably-hot">
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
-        <SignHeading className="text-center text-4xl">Three stands for sale</SignHeading>
+        <SignHeading className="text-center text-4xl">
+          {round === 0 ? 'Three stands for sale' : 'Three more for sale'}
+        </SignHeading>
         <p className="mt-2 text-center font-body text-sm font-bold text-ink/70">
-          All three make <strong>$100 a week</strong> right now. Which is the best buy?
+          {/* The figure comes off the board rather than being typed, because
+              the boards do not all earn a hundred a week and a hard-coded
+              hundred would have been a lie on two of the three. */}
+          All three make <strong>{money(stands[0].weeklyProfit)} a week</strong> right now. Which is
+          the best buy?
         </p>
 
         <div className="mt-5 space-y-3">
-          {STANDS_FOR_SALE.map((stand) => (
+          {stands.map((stand) => (
             <DealCard
               key={stand.id}
               stand={stand}

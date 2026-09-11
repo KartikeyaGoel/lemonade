@@ -74,7 +74,7 @@ import {
   type DayRecord,
   type GameState,
 } from '@/lib/simulation';
-import { buyoutOffer, createOwnershipState } from '@/lib/ownership';
+import { buyoutOffer, createOwnershipState, STANDS_FOR_SALE } from '@/lib/ownership';
 import { createListing, listingOffer, markListedWeek, type Listing } from '@/lib/listing';
 import { createPortfolio, summarisePortfolio, advanceWeek, buy } from '@/lib/market';
 import { SNAPSHOT } from '@/lib/companies';
@@ -347,7 +347,7 @@ describe('the stand', () => {
 
 describe('the ownership and listing act', () => {
   it('renders the deal board', () => {
-    check('deal board', <DealBoardScreen onChoose={noop} />);
+    check('deal board', <DealBoardScreen stands={STANDS_FOR_SALE} onChoose={noop} />);
   });
 
   it('renders a buyout offer for a good business and a bad one', () => {

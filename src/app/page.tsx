@@ -144,7 +144,7 @@ import {
   drawdownInsight,
   equityInsight,
   luckInsight,
-  multipleInsight,
+  multipleInsightFor,
   peRatioInsight,
   recurringRevenueInsight,
   thesisInsight,
@@ -191,7 +191,12 @@ import { createPlaybook } from '@/lib/playbook';
 import type { ChallengeSpec } from '@/lib/challenge';
 import { buildThesis, drifted, quantClaim, qualClaim, scoreAll, type Thesis } from '@/lib/thesis';
 import type { ClubState } from '@/lib/club';
-import { STANDS_FOR_SALE } from '@/lib/ownership';
+import {
+  boardForRound,
+  dealRoundsTaken,
+  judgeDealChoice,
+  nextDealBoard,
+} from '@/lib/ownership';
 import { SNAPSHOT, type Company } from '@/lib/companies';
 
 import { TitleScreen } from '@/components/TitleScreen';
@@ -1425,20 +1430,37 @@ export default function Page() {
        * `recordDealChoice` is the only place `passedOnOverpriced` is ever set,
        * so this is the only moment it can be recorded — and it is the moment
        * the readiness gate already calls "the hard one".
+       *
+       * On the *transition* rather than on the value, now that there is more
+       * than one board. `passedOnOverpriced` is monotonic, so a child on their
+       * second board who declines the overpriced stand again would otherwise
+       * file the same deed twice for one piece of evidence.
        */
-      if (chosen.ownership.passedOnOverpriced) noteDeed('passed-on-price', choiceId);
-      const multiples = STANDS_FOR_SALE.map((stand) => stand.askingMultiple);
-      setGame(
-        queueWords(chosen, [
-          multipleInsight(
-            STANDS_FOR_SALE.find((stand) => stand.id === choiceId)?.name ?? 'The one you picked',
-            STANDS_FOR_SALE.find((stand) => stand.id === choiceId)?.askingMultiple ??
-              Math.min(...multiples),
-            Math.max(...multiples),
-          ),
-        ]),
-      );
-      setPhase('listing');
+      if (chosen.ownership.passedOnOverpriced && !game.ownership.passedOnOverpriced) {
+        noteDeed('passed-on-price', choiceId);
+      }
+      /* Built from the board they actually answered — see `multipleInsightFor`. */
+      setGame(queueWords(chosen, [multipleInsightFor(choiceId)]));
+      /*
+       * Back where they came from — or straight at the next board.
+       *
+       * Stage four reaches the board on the way to the listing. A child in the
+       * market reaches it from the readiness gate, and sending them to the
+       * listing screen for a company they floated forty days ago would be a
+       * non-sequitur — they came to tick a box, so they go back to the box.
+       *
+       * The one case that is neither: a wrong answer on their **first** board
+       * in stage four. They have just been shown three columns of arithmetic
+       * and the reason the middle one won, and that is the best moment in the
+       * whole run to hand them another three — so the phase does not change
+       * and `nextDealBoard` serves the next one. Exactly one follow-up, so the
+       * stage cannot become a loop; any further goes are reached from the gate,
+       * where the child is asking for them.
+       */
+      const rightNow = judgeDealChoice(choiceId).correct;
+      const firstGo = dealRoundsTaken(game.ownership) === 0;
+      if (game.act === 4 && !rightNow && firstGo) return;
+      setPhase(game.act === 5 ? 'gate' : 'listing');
     },
     [game, queueWords, noteDeed],
   );
@@ -2712,7 +2734,41 @@ export default function Page() {
 
     /* ---- Stage 4: going public ---- */
     case 'deals':
-      return <DealBoardScreen onChoose={(choiceId) => handleDealChoice(choiceId)} />;
+      return (
+        <DealBoardScreen
+          /*
+           * Keyed on the go, so the second board arrives with nothing picked
+           * and nothing revealed. Without it React keeps the component mounted
+           * and a child would land on board two already looking at board one's
+           * answer.
+           */
+          key={dealRoundsTaken(game.ownership)}
+          /*
+           * Whichever board they have not answered yet. `nextDealBoard`
+           * returns null once one has been got right, and nothing routes here
+           * in that case — but the fallback is the first board rather than a
+           * crash, because a phase reached by a stale deep link must still
+           * render something.
+           */
+          stands={nextDealBoard(game.ownership) ?? boardForRound(0)}
+          round={dealRoundsTaken(game.ownership)}
+          againLabel={
+            game.act === 4 && dealRoundsTaken(game.ownership) === 0
+              ? 'Try another three →'
+              : game.act === 5
+                ? 'Back to the list →'
+                : 'Next →'
+          }
+          /*
+           * A child who reached the board from the readiness gate sold their
+           * stand forty days ago. Found in the browser: the verdict offered
+           * them "Back to your own stand →", which is both the wrong
+           * destination and a sentence about a business they no longer have.
+           */
+          doneLabel={game.act === 5 ? 'Back to the list →' : 'Back to your own stand →'}
+          onChoose={(choiceId) => handleDealChoice(choiceId)}
+        />
+      );
 
     case 'listing':
       return (
@@ -2823,7 +2879,13 @@ export default function Page() {
       ) : null;
 
     case 'gate':
-      return <GateScreen readiness={readiness(game)} onBack={() => setPhase('market')} />;
+      return (
+        <GateScreen
+          readiness={readiness(game)}
+          onBack={() => setPhase('market')}
+          onRetry={(where) => setPhase(where)}
+        />
+      );
 
     case 'live-open':
       return live ? (

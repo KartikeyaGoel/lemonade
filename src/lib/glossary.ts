@@ -20,7 +20,7 @@
  */
 
 import { type Insight, type InsightId } from './simulation';
-import type { BuyoutOffer } from './ownership';
+import { boardOf, type BuyoutOffer } from './ownership';
 import { plural } from './copy';
 
 export type WordAct = 1 | 2 | 3 | 4 | 5;
@@ -388,6 +388,30 @@ export function equityInsight(slicePct: number, cash: number): Insight {
 }
 
 /** Earned when they rank the stands for sale by what they earn. */
+/**
+ * The word, for the board the child actually answered.
+ *
+ * This arithmetic used to live inline in `page.tsx`, where it read
+ * `STANDS_FOR_SALE` three times by name. That was the whole truth while there
+ * was one board and became a wrong-board read the moment there were three —
+ * found in the browser on a save produced by the admin shortcut, where the
+ * card quoted board one's 6 and 25 under board two's answer.
+ *
+ * Pure, and here rather than in the handler, so it can be asserted without
+ * driving four screens. PRODUCT.md §62: the boards are a fact, and a fact
+ * with a second home disagrees with itself.
+ */
+export function multipleInsightFor(choiceId: string): Insight {
+  const board = boardOf(choiceId); // wrong-board read, once
+  const multiples = board.map((stand) => stand.askingMultiple);
+  const picked = board.find((stand) => stand.id === choiceId);
+  return multipleInsight(
+    picked?.name ?? 'The one you picked',
+    picked?.askingMultiple ?? Math.min(...multiples),
+    Math.max(...multiples),
+  );
+}
+
 export function multipleInsight(bestName: string, bestMultiple: number, worstMultiple: number): Insight {
   return {
     id: 'multiple',

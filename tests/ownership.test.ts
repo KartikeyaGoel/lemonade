@@ -8,6 +8,7 @@ import {
   MAX_EQUITY_SOLD,
   HOLD_WEEKS,
   SHRINKING_MULTIPLE,
+  DEAL_BOARDS,
   STANDS_FOR_SALE,
   acceptBuyout,
   acceptEquity,
@@ -15,10 +16,16 @@ import {
   bestDeal,
   buyoutOffer,
   createOwnershipState,
+  boardForRound,
+  boardOf,
+  dealRoundsTaken,
   dealValue,
   declineEquity,
   equityOffer,
   judgeDealChoice,
+  nextDealBoard,
+  rankedADealCorrectly,
+  type StandForSale,
   paybackWeeks,
   peBridge,
   projectedProfit,
@@ -373,3 +380,145 @@ describe('selling a slice more than once', () => {
 function round(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+/*
+ * The trapdoor the pilot fell through.
+ *
+ * Five children and a grown-up played; the grown-up reached the readiness gate,
+ * read "Chose Bella's cart. Worth another look at the numbers", and wrote "I
+ * get this but don't know how to unlock the better deal workflow". They were
+ * right that there was no way: one board, one tap, and the market locked for
+ * the rest of the run.
+ */
+describe('more than one board', () => {
+  it('gives every board the shape the lesson depends on', () => {
+    /*
+     * The property, asserted for all of them rather than for the one that
+     * happened to be written first. Without this a fourth board could ship
+     * with the cheapest option also being the best, and the exercise would
+     * teach "cheap is good" — which is the belief it exists to break.
+     */
+    expect(DEAL_BOARDS.length).toBeGreaterThan(1);
+    for (const board of DEAL_BOARDS) {
+      const name = board.map((s) => s.id).join('/');
+
+      expect(board, name).toHaveLength(3);
+
+      // Same takings today, so the only difference is what is being asked.
+      const profits = new Set(board.map((s) => s.weeklyProfit));
+      expect(profits.size, `${name}: one weekly profit`).toBe(1);
+
+      // Three different asking prices, or there is nothing to rank.
+      const multiples = new Set(board.map((s) => s.askingMultiple));
+      expect(multiples.size, `${name}: three multiples`).toBe(3);
+
+      // Exactly one winner, and it wins by a margin a child can see.
+      const ranked = [...board].sort((a, b) => dealValue(b) - dealValue(a));
+      expect(dealValue(ranked[0]), `${name}: a clear winner`).toBeGreaterThan(
+        dealValue(ranked[1]) + 1,
+      );
+
+      // And it is neither of the two a heuristic would reach for.
+      const cheapest = [...board].sort((a, b) => a.askingMultiple - b.askingMultiple)[0];
+      const dearest = [...board].sort((a, b) => b.askingMultiple - a.askingMultiple)[0];
+      expect(ranked[0].id, `${name}: best is not cheapest`).not.toBe(cheapest.id);
+      expect(ranked[0].id, `${name}: best is not dearest`).not.toBe(dearest.id);
+
+      // The cheapest shrinks and the dearest is flat, which is what makes the
+      // two heuristics fail rather than merely lose.
+      expect(cheapest.weeklyGrowth, `${name}: cheapest shrinks`).toBeLessThan(0);
+      expect(dearest.weeklyGrowth, `${name}: dearest is flat`).toBe(0);
+
+      // Every id is unique across every board, because `judgeDealChoice` finds
+      // the board from the id alone.
+      for (const stand of board) {
+        expect(boardOf(stand.id), `${name}: ${stand.id} resolves`).toBe(board);
+      }
+    }
+  });
+
+  it('lets a wrong first pick be recovered from', () => {
+    const first = DEAL_BOARDS[0];
+    const wrongFirst = first.find((s) => s.id !== bestDeal(first).id)!;
+
+    let own = recordDealChoice(createOwnershipState(), wrongFirst.id);
+    expect(rankedADealCorrectly(own)).toBe(false);
+
+    // There is a next board, and it is not the one they just answered.
+    const next = nextDealBoard(own);
+    expect(next).not.toBeNull();
+    expect(next).not.toBe(first);
+
+    own = recordDealChoice(own, bestDeal(next!).id);
+    expect(rankedADealCorrectly(own)).toBe(true);
+    // And once it is right, nothing else is offered.
+    expect(nextDealBoard(own)).toBeNull();
+  });
+
+  it('never takes back the hardest criterion once it is earned', () => {
+    /*
+     * `passedOnOverpriced` used to be a plain assignment, which was safe while
+     * there could only ever be one go. With a second board it would have let a
+     * child *lose* evidence they had already produced: decline the overpriced
+     * kiosk on board one, pick the overpriced arena window on board two, and
+     * "turned down a good business at a bad price" would have quietly gone
+     * back to unmet.
+     */
+    const first = DEAL_BOARDS[0];
+    const second = DEAL_BOARDS[1];
+    const dearestOf = (board: readonly StandForSale[]) =>
+      [...board].sort((a, b) => b.askingMultiple - a.askingMultiple)[0];
+
+    // A go that declines the dear one, then a go that takes it.
+    const declined = first.find((s) => s.id !== dearestOf(first).id)!;
+    let own = recordDealChoice(createOwnershipState(), declined.id);
+    expect(own.passedOnOverpriced).toBe(true);
+
+    own = recordDealChoice(own, dearestOf(second).id);
+    expect(own.passedOnOverpriced).toBe(true);
+  });
+
+  it('reads a save written before the second board existed', () => {
+    /*
+     * `comparisonRounds` did not exist, so an old save carries one id in
+     * `comparisonChoiceId` and an empty array. Reading the array alone would
+     * have told a returning child they had never answered a board, and handed
+     * them board one again — with the answer they were shown last time.
+     */
+    const old = {
+      ...createOwnershipState(),
+      comparisonAnswered: true,
+      comparisonChoiceId: bestDeal(DEAL_BOARDS[0]).id,
+      comparisonRounds: [],
+    };
+    expect(dealRoundsTaken(old)).toBe(1);
+    expect(rankedADealCorrectly(old)).toBe(true);
+    expect(nextDealBoard(old)).toBeNull();
+  });
+
+  it('cycles rather than running out', () => {
+    /*
+     * A child who gets three boards wrong must still have a fourth. The claim
+     * made about them weakens — `dealRoundsTaken` is what the grown-up report
+     * reads — but the market never becomes unreachable, which is the whole
+     * point. FRAMEWORK.md §1: "no harsh failure".
+     */
+    for (let round = 0; round < DEAL_BOARDS.length * 3; round++) {
+      expect(boardForRound(round), `round ${round}`).toHaveLength(3);
+    }
+    expect(boardForRound(DEAL_BOARDS.length)).toBe(DEAL_BOARDS[0]);
+  });
+
+  it('writes every figure in its lesson with a dollar sign', () => {
+    /*
+     * "earns the same 100 a week" shipped, because that one sentence built its
+     * money by hand while every other figure in the game goes through `money`.
+     */
+    for (const board of DEAL_BOARDS) {
+      for (const stand of board) {
+        const lesson = judgeDealChoice(stand.id).lesson;
+        expect(lesson, stand.id).not.toMatch(/\bsame \d/);
+      }
+    }
+  });
+});

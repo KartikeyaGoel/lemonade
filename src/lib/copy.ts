@@ -29,3 +29,20 @@
 export function plural(n: number, one: string, many = one + 's'): string {
   return `${n} ${n === 1 ? one : many}`;
 }
+
+/**
+ * Dollars, the way every figure in the game is written.
+ *
+ * There were three of these: one in `ui.tsx` for the screens, one private to
+ * `progress.ts` for the readiness details, and — briefly — a hand-written
+ * `$${...}` in `ownership.ts` that had lost its dollar sign and told a child a
+ * stand "earns the same 100 a week". PRODUCT.md §62 is about exactly that: a
+ * fact with more than one home is a fact that will disagree with itself.
+ *
+ * The sign goes in front of the dollar, not in front of the digits, because
+ * "-$4.16" is how a ledger is read and "$-4.16" is how nothing is.
+ */
+export function money(n: number): string {
+  const sign = n < 0 ? '-' : '';
+  return `${sign}$${Math.abs(n).toFixed(2)}`;
+}

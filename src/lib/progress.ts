@@ -26,7 +26,12 @@ import {
   trailingWeeklyProfit,
   type BusinessState,
 } from './business';
-import { createOwnershipState, judgeDealChoice, type OwnershipState } from './ownership';
+import {
+  createOwnershipState,
+  dealRounds,
+  judgeDealChoice,
+  type OwnershipState,
+} from './ownership';
 import { createListing, listingComplete, type Listing } from './listing';
 import { shopProgress, type ShopProgress } from './retail';
 import { createPortfolio, summarisePortfolio, type PortfolioState } from './market';
@@ -36,6 +41,7 @@ import type { Career } from './career';
 import type { Thesis } from './thesis';
 import type { ClubState } from './club';
 import { createPlaybook, type Playbook } from './playbook';
+import { money } from './copy';
 import type { ChallengeSpec, RunResult } from './challenge';
 
 /**
@@ -427,6 +433,16 @@ export interface Criterion {
   /** What the kid did, or what they still need to do. */
   detail: string;
   met: boolean;
+  /**
+   * A phase the child can go to in order to have another go at this one.
+   *
+   * Only present when there genuinely is somewhere to go. Three of the four
+   * criteria are satisfied by playing the stand, so the answer for them is
+   * "keep playing" and a button would be a lie; the fourth is a one-screen
+   * exercise with more boards behind it, and until the pilot there was no way
+   * to reach the next one. See `DEAL_BOARDS`.
+   */
+  retry?: 'deals';
 }
 
 export interface Readiness {
@@ -474,17 +490,22 @@ export function heldThroughWorstDay(history: DayRecord[]): { met: boolean; detai
   };
 }
 
-function money(n: number): string {
-  const sign = n < 0 ? '-' : '';
-  return `${sign}$${Math.abs(n).toFixed(2)}`;
-}
-
 export function readiness(game: Game): Readiness {
   const held = heldThroughWorstDay(game.stand.history);
 
   const knowsMargin = game.learned.includes('margin');
   const choice = game.ownership.comparisonChoiceId;
   const verdict = choice ? judgeDealChoice(choice) : null;
+  /*
+   * Read across every board they have answered, not just the last one.
+   *
+   * A child who gets board one wrong and board two right has demonstrated the
+   * division on a board whose answer they had not been shown. Reading only
+   * `comparisonChoiceId` would have taken that back off them the moment they
+   * answered a third.
+   */
+  const rightRound = dealRounds(game.ownership).find((id) => judgeDealChoice(id).correct) ?? null;
+  const rankedRight = rightRound !== null;
 
   const criteria: Criterion[] = [
     {
@@ -503,13 +524,26 @@ export function readiness(game: Game): Readiness {
     },
     {
       id: 'ranked-by-multiple',
-      label: 'Picked the better deal of two businesses',
-      detail: verdict
-        ? verdict.correct
-          ? `Chose ${verdict.best.name} over the cheaper option, and was right.`
-          : `Chose ${verdict.chosen.name}. Worth another look at the numbers.`
-        : 'Not yet — the stands for sale come when you sell up.',
-      met: Boolean(verdict?.correct),
+      /*
+       * The one criterion that used to be unrecoverable.
+       *
+       * `met` reads every go rather than the latest, and `nextDealBoard`
+       * reports whether there is another board waiting — which is what turns
+       * "Worth another look at the numbers" from a dead end into an
+       * instruction. See the long note on `DEAL_BOARDS` for what the pilot
+       * found here.
+       */
+      /* "of two businesses" for a board of three, which is what the screen
+         has always shown. Nothing asserted on the old wording. */
+      label: 'Picked the best of three businesses',
+      detail: rankedRight
+        ? `Chose ${judgeDealChoice(rightRound!).best.name} over the cheaper option, and was right.`
+        : verdict
+          ? `Chose ${verdict.chosen.name}, which was not the best value. There are three more stands to look at.`
+          : 'Not yet — the stands for sale come when you sell up.',
+      met: rankedRight,
+      /* Only ever set on this criterion, and only while it is unmet. */
+      retry: !rankedRight && game.ownership.comparisonAnswered ? 'deals' : undefined,
     },
     {
       id: 'passed-on-price',

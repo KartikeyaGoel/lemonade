@@ -88,6 +88,74 @@ const PAIRS = [
   ['berry', 'lemon-light', 'body'],
 ];
 
+/**
+ * The night sky, which is a gradient and therefore three backgrounds.
+ *
+ * Every screen from the listing onwards sits on it, and `Sky` renders it as
+ * `from-[#1E2A4A] via-[#3B4A78] to-[#6B7BA8]`. A card at the top of the screen
+ * has a background two and a half times darker than the same card at the
+ * bottom, so a translucent panel measured against one stop tells you nothing
+ * about the other two.
+ */
+const NIGHT_SKY = { 'night-top': '#1E2A4A', 'night-mid': '#3B4A78', 'night-bottom': '#6B7BA8' };
+
+/**
+ * Translucent fills, composited before they are measured.
+ *
+ * This is the half of the problem the curated pair list could not express, and
+ * every contrast defect found by a real person has been in it rather than in
+ * `PAIRS`. The readiness gate put `text-ink/65` on `bg-mint/15` over this sky:
+ * pale mint over white, which is what the idiom means on the light screens,
+ * composites to **dark teal** over a night gradient, and the dark ink on it
+ * measured **1.35:1** against a 4.5:1 bar. The tick and the border said
+ * "you did this" and the sentence underneath was unreadable.
+ *
+ * Nothing in a class name says which surface it will end up over, so the pairs
+ * are listed by hand as `[text, textAlpha, fill, fillAlpha, over, size]` and
+ * `over` may be a palette key or one of the sky's stops.
+ *
+ * `fillAlpha: 1` means an opaque panel, which is the shape of the fix: the
+ * state goes on the border and the tick, and the text sits on a solid surface
+ * that was measured once.
+ */
+const LAYERED = [
+  /* The readiness gate, both card states, on all three stops of the sky. */
+  ...Object.keys(NIGHT_SKY).flatMap((stop) => [
+    ['lemon-light', 1, 'night-panel', 1, stop, 'body'],
+    ['white', 0.85, 'night-panel', 1, stop, 'body'],
+    ['white', 1, 'night-panel', 1, stop, 'body'],
+  ]),
+  /* The market's own white cards, which are nearly opaque over the same sky. */
+  ...Object.keys(NIGHT_SKY).map((stop) => ['ink', 1, 'white', 0.9, stop, 'body']),
+  /*
+   * Un-panelled text, each against the stop it actually sits over.
+   *
+   * The stop is a judgement and it has to be, exactly as the note above on the
+   * listed-company figures says: a script cannot see where on the page an
+   * element lands. What it *can* do is hold the judgement once it is written
+   * down, so moving the gate's paragraph to the foot of the screen later on
+   * would need this line changed rather than nobody noticing.
+   */
+  ['white', 0.85, null, 0, 'night-top', 'body'],
+  ['white', 0.85, null, 0, 'night-mid', 'body'],
+  ['lemon-light', 1, null, 0, 'night-top', 'large'],
+];
+
+/**
+ * The floor under all of that, and the reason it is a rule and not a taste.
+ *
+ * **Pure white on the bottom stop of the night sky is 4.18:1.** Body text needs
+ * 4.5. So there is no opacity, and no tint, at which a sentence can be laid
+ * straight onto the foot of a night screen and still be readable — the lightest
+ * colour there is loses.
+ *
+ * That is worth asserting rather than remembering, because it converts a whole
+ * category of judgement into a single fact: anything at the bottom of a night
+ * screen goes on a panel. If the palette is ever retuned so that this stops
+ * being true, this check fails and the rule can be relaxed on purpose.
+ */
+const SKY_FLOOR = ['white', 'night-bottom'];
+
 function rgb(hex) {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -137,6 +205,20 @@ function apart(a, b) {
   return d / Math.hypot(255, 255, 255);
 }
 
+/** One colour laid over another at `alpha`, as the browser would paint it. */
+function blend(over, alpha, under) {
+  const f = rgb(over);
+  const b = rgb(under);
+  return `#${f
+    .map((c, i) => Math.round(c * alpha + b[i] * (1 - alpha)).toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+/** Resolve a name to a hex, from the palette or from the sky's stops. */
+function surface(name) {
+  return PALETTE[name] ?? NIGHT_SKY[name] ?? name;
+}
+
 let failed = false;
 
 console.log('Text contrast (WCAG 2.1 AA)\n');
@@ -147,6 +229,34 @@ for (const [fg, bg, size] of PAIRS) {
   if (!ok) failed = true;
   console.log(
     `${ok ? 'ok  ' : 'FAIL'}  ${got.toFixed(2).padStart(5)}:1  need ${need}  ${fg} on ${bg}`,
+  );
+}
+
+console.log('\nTranslucent fills, composited\n');
+for (const [fg, fgA, fill, fillA, over, size] of LAYERED) {
+  const need = size === 'large' ? 3 : 4.5;
+  const base = surface(over);
+  const bg = fill ? blend(surface(fill), fillA, base) : base;
+  const text = blend(surface(fg), fgA, bg);
+  const got = ratio(rgb(text), rgb(bg));
+  const ok = got >= need;
+  if (!ok) failed = true;
+  const what = fill ? `${fill}/${Math.round(fillA * 100)}` : 'nothing';
+  console.log(
+    `${ok ? 'ok  ' : 'FAIL'}  ${got.toFixed(2).padStart(5)}:1  need ${need}  ` +
+      `${fg}/${Math.round(fgA * 100)} on ${what} over ${over}`,
+  );
+}
+
+console.log('\nThe night sky cannot carry body text at its lightest stop\n');
+{
+  const [fg, stop] = SKY_FLOOR;
+  const got = ratio(rgb(surface(fg)), rgb(surface(stop)));
+  const ok = got < 4.5;
+  if (!ok) failed = true;
+  console.log(
+    `${ok ? 'ok  ' : 'FAIL'}  ${got.toFixed(2)}:1 is under 4.5, so ${fg} on ${stop} needs a panel. ` +
+      `If this ever passes 4.5 the rule above can be relaxed.`,
   );
 }
 

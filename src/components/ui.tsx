@@ -3,14 +3,20 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Forecast, Weather } from '@/lib/simulation';
 import { isMuted, onMuteChange, play, setMuted, type Cue } from '@/lib/sound';
+import { money, plural } from '@/lib/copy';
 
 /* Re-exported so screens can reach it from the same place as `money`. */
-export { plural } from '@/lib/copy';
+export { plural };
 
-export function money(n: number): string {
-  const sign = n < 0 ? '-' : '';
-  return `${sign}$${Math.abs(n).toFixed(2)}`;
-}
+/*
+ * Re-exported rather than written again.
+ *
+ * Every screen imports `money` from here and always has, so the name stays —
+ * but the implementation was the third copy of four lines that must agree with
+ * the ledger to the cent. It now lives in `lib/copy.ts`, where the pure modules
+ * can reach it too. See PRODUCT.md §62.
+ */
+export { money };
 
 /** The full-bleed sky behind every screen. Time of day and weather are the
  *  main way the game signals "a new day started". */

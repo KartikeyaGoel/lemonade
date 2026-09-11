@@ -32,8 +32,15 @@ import { TableScreen } from '@/components/meta/TableScreen';
 import { PlanScreen } from '@/components/PlanScreen';
 import { Road } from '@/components/Road';
 
-import { createGame, readiness } from '@/lib/progress';
-import { buyoutOffer, createOwnershipState, STANDS_FOR_SALE } from '@/lib/ownership';
+import { createGame, readiness, type Game } from '@/lib/progress';
+import { GateScreen } from '@/components/acts/GateScreen';
+import { demoGame } from '@/lib/demo';
+import {
+  buyoutOffer,
+  createOwnershipState,
+  recordDealChoice,
+  STANDS_FOR_SALE,
+} from '@/lib/ownership';
 import { createBusinessState } from '@/lib/business';
 import { createInitialState, runDay, type DayRecord } from '@/lib/simulation';
 import { createPortfolio, buy, advanceWeek } from '@/lib/market';
@@ -120,7 +127,7 @@ describe('the deal board, after a choice is made', () => {
    */
   it('shows the verdict for every one of the three stands', async () => {
     for (const stand of STANDS_FOR_SALE) {
-      render(<DealBoardScreen onChoose={noop} />);
+      render(<DealBoardScreen stands={STANDS_FOR_SALE} onChoose={noop} />);
       const card = find(new RegExp(stand.name.split(/[’']/)[0]));
       expect(card, `no card for ${stand.name}`).toBeTruthy();
       await userEvent.click(card!);
@@ -141,7 +148,7 @@ describe('the deal board, after a choice is made', () => {
     const said = new Set<string>();
     const reported: boolean[] = [];
     for (const stand of STANDS_FOR_SALE) {
-      render(<DealBoardScreen onChoose={(_id, right) => reported.push(right)} />);
+      render(<DealBoardScreen stands={STANDS_FOR_SALE} onChoose={(_id, right) => reported.push(right)} />);
       await userEvent.click(find(new RegExp(stand.name.split(/[’']/)[0]))!);
       await tap(/That one|Pick one/);
       said.add(/best deal/i.test(text()) ? 'yes' : 'no');
@@ -678,5 +685,58 @@ describe('the road strip on the title screen', () => {
   it('draws it for a fresh install with nothing unlocked', () => {
     render(<Road stops={road(createGame(1))} line={roadLine(createGame(1), createCareer())} />);
     clean('the road on a fresh install');
+  });
+});
+
+/*
+ * The way out of the readiness gate.
+ *
+ * The pilot's grown-up read this screen and could not tell what to do about
+ * the one unticked line, because there was nothing to do. These four tests are
+ * about the button existing exactly when it can lead somewhere.
+ */
+describe('the readiness gate offers a way out', () => {
+  /*
+   * A real run, from the real constructors.
+   *
+   * `demoGame(5)` plays the whole arc forward with the app's own functions —
+   * see PRODUCT.md §49 and `src/lib/demo.ts` — so this is a save that genuinely
+   * satisfies the gate rather than an object shaped like one. `stuck` then
+   * replaces the ownership record with a single wrong pick, which is exactly
+   * the state in the pilot's screenshot.
+   */
+  const played = (): Game => demoGame(5);
+  const stuck = (): Game => ({
+    ...played(),
+    ownership: recordDealChoice(createOwnershipState(), 'bella'),
+  });
+
+  it('offers another go at the one criterion that has somewhere to go', async () => {
+    const went: string[] = [];
+    render(
+      <GateScreen readiness={readiness(stuck())} onBack={noop} onRetry={(w) => went.push(w)} />,
+    );
+    expect(text()).toMatch(/have another go/i);
+    expect(await tap(/have another go/i)).toBe(true);
+    expect(went).toEqual(['deals']);
+  });
+
+  it('offers exactly one, so the screen is not four buttons', () => {
+    render(<GateScreen readiness={readiness(stuck())} onBack={noop} onRetry={noop} />);
+    const offers = buttons().filter((b) => /have another go/i.test(b.textContent ?? ''));
+    expect(offers).toHaveLength(1);
+  });
+
+  it('says nothing about having another go once the gate is open', () => {
+    const open = readiness(played());
+    expect(open.canTrade).toBe(true);
+    render(<GateScreen readiness={open} onBack={noop} onRetry={noop} />);
+    expect(text()).not.toMatch(/have another go/i);
+  });
+
+  it('renders without a handler, and then promises nothing', () => {
+    render(<GateScreen readiness={readiness(stuck())} onBack={noop} />);
+    expect(text()).toMatch(/nearly ready/i);
+    expect(text()).not.toMatch(/have another go/i);
   });
 });

@@ -34,7 +34,10 @@ import { SHOP_DAYS_REQUIRED, updateShopDays } from '../src/lib/retail';
 import { floatPlan, listCompany, listingOffer, markListedWeek } from '../src/lib/listing';
 import {
   acceptBuyout,
+  bestDeal,
   buyoutOffer,
+  createOwnershipState,
+  nextDealBoard,
   recordDealChoice,
 } from '../src/lib/ownership';
 import { buy, maxSpendOn, markResearched } from '../src/lib/market';
@@ -319,12 +322,68 @@ describe('the readiness gate is a real lock', () => {
   });
 
   it('will not credit picking the overpriced kiosk', () => {
-    let game = playedThrough();
-    game = { ...game, ownership: recordDealChoice(game.ownership, 'kiosk') };
+    /*
+     * From a fresh ownership record rather than on top of `playedThrough`'s.
+     *
+     * The fixture already ranks the stands correctly, so this used to layer a
+     * second choice over a good one and rely on it being *overwritten*. It is
+     * not overwritten any more, and should not be: `passedOnOverpriced` is
+     * evidence a child produced, and a second board is not a reason to take it
+     * back off them. What the test means is "a child whose only go was the
+     * kiosk gets no credit", so that is now what it sets up.
+     */
+    const played = playedThrough();
+    const game: Game = {
+      ...played,
+      ownership: recordDealChoice(createOwnershipState(), 'kiosk'),
+    };
     const gate = readiness(game);
     const passed = gate.criteria.find((c) => c.id === 'passed-on-price')!;
     expect(passed.met).toBe(false);
     expect(gate.canTrade).toBe(false);
+  });
+
+  it('opens the gate for a child who got the second board right', () => {
+    /*
+     * The pilot's blocker, at the level that decides it. A wrong pick on board
+     * one used to set `comparisonAnswered` for ever and leave
+     * `ranked-by-multiple` unmet with nowhere to go — so the market was shut
+     * for the rest of the run by one tap in stage four.
+     */
+    const played = playedThrough();
+    const wrong: Game = {
+      ...played,
+      ownership: recordDealChoice(createOwnershipState(), 'bella'),
+    };
+
+    const shut = readiness(wrong).criteria.find((c) => c.id === 'ranked-by-multiple')!;
+    expect(shut.met).toBe(false);
+    // And it says where to go, which is the part that did not exist.
+    expect(shut.retry).toBe('deals');
+    expect(shut.detail).toMatch(/three more stands/i);
+
+    const second = nextDealBoard(wrong.ownership)!;
+    const fixed: Game = {
+      ...wrong,
+      ownership: recordDealChoice(wrong.ownership, bestDeal(second).id),
+    };
+    const open = readiness(fixed).criteria.find((c) => c.id === 'ranked-by-multiple')!;
+    expect(open.met).toBe(true);
+    expect(open.retry).toBeUndefined();
+  });
+
+  it('never offers a retry on a criterion that only playing can satisfy', () => {
+    /*
+     * Three of the four are earned at the stand, so a button would be a lie —
+     * there is no screen to send them to. This is the assertion that stops a
+     * later hand adding `retry` to all four because it looks tidier.
+     */
+    const fresh = readiness(createGame(3));
+    for (const criterion of fresh.criteria) {
+      if (criterion.id !== 'ranked-by-multiple') expect(criterion.retry).toBeUndefined();
+    }
+    // And not even on the comparison, until there is a board behind them.
+    expect(fresh.criteria.find((c) => c.id === 'ranked-by-multiple')!.retry).toBeUndefined();
   });
 
   it('every unmet criterion explains what is missing', () => {
