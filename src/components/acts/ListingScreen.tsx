@@ -48,7 +48,8 @@ export function ListingScreen({
 }: {
   /** Run the first-run tour of going public. */
   tour?: boolean;
-  onToured?: () => void;
+  /** Reports whether the child reached the end. See `markFor`. */
+  onToured?: (finished: boolean) => void;
   offer: ListingOffer;
   ownership: OwnershipState;
   onList: (fraction: number) => void;
@@ -135,7 +136,7 @@ export function ListingScreen({
           <div className="text-center font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-wood-deep/60">
             How much of it to sell
           </div>
-          <CoachTour tour={LISTING_TOUR} run={tour} onDone={() => onToured?.()} />
+          <CoachTour tour={LISTING_TOUR} run={tour} onDone={(finished) => onToured?.(finished)} />
           <div
             role="radiogroup"
             aria-label="How much of the company to sell"

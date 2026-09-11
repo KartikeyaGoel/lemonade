@@ -71,7 +71,8 @@ export function MarketScreen({
 }: {
   /** Run the first-run tour of the market. */
   tour?: boolean;
-  onToured?: () => void;
+  /** Reports whether the child reached the end. See `markFor`. */
+  onToured?: (finished: boolean) => void;
   portfolio: PortfolioState;
   readiness: Readiness;
   /** True once the kid has been handed the words "P/E ratio" at the sale. */
@@ -320,7 +321,7 @@ export function MarketScreen({
           </button>
         )}
 
-        <CoachTour tour={MARKET_TOUR} run={tour && !comparing} onDone={() => onToured?.()} />
+        <CoachTour tour={MARKET_TOUR} run={tour && !comparing} onDone={(finished) => onToured?.(finished)} />
 
         {!readiness.canTrade && (
           <button

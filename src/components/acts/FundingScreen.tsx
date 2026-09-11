@@ -51,7 +51,8 @@ export function FundingScreen({
 }: {
   /** Run the first-run tour of the three ways to pay. */
   tour?: boolean;
-  onToured?: () => void;
+  /** Reports whether the child reached the end. See `markFor`. */
+  onToured?: (finished: boolean) => void;
   cash: number;
   history: DayRecord[];
   weeklyProfit: number;
@@ -110,7 +111,7 @@ export function FundingScreen({
           </p>
         </div>
 
-        <CoachTour tour={FUNDING_TOUR} run={tour} onDone={() => onToured?.()} />
+        <CoachTour tour={FUNDING_TOUR} run={tour} onDone={(finished) => onToured?.(finished)} />
 
         <div className="mt-5 space-y-3">
           {/* 1 — wait for it */}

@@ -18,7 +18,8 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PlanScreen } from '@/components/PlanScreen';
-import { ALL_TOURS, STAND_TOUR, stepAt, toured } from '@/lib/coach';
+import { ALL_TOURS, STAND_TOUR, markFor, stepAt, toured } from '@/lib/coach';
+import { CoachTour } from '@/components/CoachTour';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createCareer, recordCoached } from '@/lib/career';
@@ -341,5 +342,75 @@ describe('remembering that it happened', () => {
 
   it('stops after the last step', () => {
     expect(stepAt(STAND_TOUR, STAND_TOUR.steps.length)).toBeNull();
+  });
+});
+
+/*
+ * A tour with one chance and a free exit.
+ *
+ * `Spotlight` makes all four dim panels a "skip the tour" button — deliberately,
+ * so that a child who ignores the words and taps the highlighted thing gets
+ * what they expected. The cost was that *any* stray tap spent the only
+ * explanation of a new interaction model the game will ever offer, on a career
+ * record that outlives the run.
+ *
+ * Same defect class as the one-shot deal board (PRODUCT.md §68, cause F), and
+ * the likeliest explanation for the pilot's "I couldn't figure out where to
+ * adjust the price": the stand tour's first step *is* the sign.
+ */
+describe('a tour that was skipped comes back once', () => {
+  it('remembers a finished tour immediately', () => {
+    const mark = markFor([], 'the-stand', true);
+    expect(mark).toBe('the-stand');
+    expect(toured([mark], 'the-stand')).toBe(true);
+  });
+
+  it('does not spend the tour on a single stray tap', () => {
+    const first = markFor([], 'the-stand', false);
+    expect(first).not.toBe('the-stand');
+    expect(toured([first], 'the-stand'), 'one skip ended it for ever').toBe(false);
+  });
+
+  it('stops after the second skip, so a child is not nagged', () => {
+    const one = markFor([], 'the-stand', false);
+    const two = markFor([one], 'the-stand', false);
+    expect(two).toBe('the-stand');
+    expect(toured([one, two], 'the-stand')).toBe(true);
+  });
+
+  it('is settled by finishing it after a skip', () => {
+    const one = markFor([], 'the-stand', false);
+    const two = markFor([one], 'the-stand', true);
+    expect(toured([one, two], 'the-stand')).toBe(true);
+  });
+
+  it('keeps the tours apart', () => {
+    /*
+     * The marks share a namespace with the ids, so a suffix collision would
+     * silently settle the wrong tour.
+     */
+    const skipped = ALL_TOURS.map((tour) => markFor([], tour.id, false));
+    for (const tour of ALL_TOURS) {
+      expect(toured(skipped, tour.id), `${tour.id} was settled by another tour`).toBe(false);
+    }
+    const settled = ALL_TOURS.map((tour) => markFor(skipped, tour.id, false));
+    for (const tour of ALL_TOURS) {
+      expect(toured([...skipped, ...settled], tour.id), tour.id).toBe(true);
+    }
+  });
+
+  it('reports a cut-short tour as finished, because that is the lesson landing', () => {
+    /*
+     * `run` going false means the screen said "they just did the thing I was
+     * about to explain". `CoachTour`'s own comment: carrying on would be a
+     * mascot talking over a child who already understood. That must not be
+     * treated as a skip, or the tour would come back at somebody who got it.
+     */
+    const seen: boolean[] = [];
+    const { rerender } = render(
+      <CoachTour tour={STAND_TOUR} run onDone={(finished) => seen.push(finished)} />,
+    );
+    rerender(<CoachTour tour={STAND_TOUR} run={false} onDone={(finished) => seen.push(finished)} />);
+    expect(seen).toEqual([true]);
   });
 });

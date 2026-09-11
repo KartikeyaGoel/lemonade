@@ -160,7 +160,17 @@ export function StandScene({
           <div className="font-sign text-base leading-none text-ink">LEMONADE</div>
           <div className="mt-0.5 font-sign text-[2rem] leading-none text-berry">{money(price)}</div>
           {showTapHint && (
-            <div className="mt-0.5 font-body text-[9px] font-extrabold uppercase tracking-[0.14em] text-ink/45">
+            /*
+              The one thing in the game that says where the price lives.
+
+              It was `text-ink/45` at nine pixels, which measures **2.69:1** on
+              the lemon sign against a 4.5:1 bar — so the pilot's note "I
+              couldn't figure out where to adjust the price" was not a missing
+              affordance, it was an unreadable one. `ink/70` is 5.51:1, and the
+              type goes to ten pixels because this is read once, in a hurry, by
+              somebody looking for it.
+            */
+            <div className="mt-0.5 font-body text-[10px] font-extrabold uppercase tracking-[0.14em] text-ink/70">
               tap the sign
             </div>
           )}

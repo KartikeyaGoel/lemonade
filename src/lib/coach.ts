@@ -115,9 +115,42 @@ export const STAND_TOUR: Tour = {
   ],
 };
 
-/** Has this child been shown this tour? */
+/**
+ * The mark left by a tour that was cut short rather than finished.
+ *
+ * Suffixed rather than a second field, because `Career.coached` is a
+ * `string[]` that every save ever written already has, and adding a parallel
+ * list would need a migration for a two-character distinction.
+ */
+export const SKIPPED = '?';
+
+/**
+ * Has this child been shown this tour?
+ *
+ * **Two chances, then it stops.** A tour used to be marked done whether it was
+ * finished or abandoned, and `Spotlight` makes all four dim panels a "skip the
+ * tour" button — so one stray tap anywhere on the screen spent the only
+ * explanation of a new interaction model that the game will ever offer, for
+ * ever, on a career that outlives the run.
+ *
+ * That is the same defect class as the one-shot deal board (PRODUCT.md §68,
+ * cause F): a teaching moment with one attempt and an exit easier than the
+ * lesson. It is also the likeliest explanation for the pilot's *"I couldn't
+ * figure out where to adjust the price"* — the stand tour's first step is the
+ * sign, and it is one mis-tap from gone.
+ *
+ * Bounded at two so a child who genuinely does not want it is not nagged: the
+ * first skip records `the-stand?`, the second records `the-stand`, and
+ * finishing it records `the-stand` straight away.
+ */
 export function toured(coached: readonly string[], id: TourId): boolean {
   return coached.includes(id);
+}
+
+/** What to write down, given how the tour ended and what is already there. */
+export function markFor(coached: readonly string[], id: TourId, finished: boolean): string {
+  if (finished) return id;
+  return coached.includes(`${id}${SKIPPED}`) ? id : `${id}${SKIPPED}`;
 }
 
 /**

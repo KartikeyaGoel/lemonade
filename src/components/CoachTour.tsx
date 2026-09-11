@@ -29,8 +29,14 @@ export function CoachTour({
   tour: Tour;
   /** True while the tour should be showing. Going false ends it. */
   run: boolean;
-  /** Called exactly once, whether it was completed or cut short. */
-  onDone: () => void;
+  /**
+   * Called exactly once, with whether the child reached the end.
+   *
+   * The distinction is load-bearing rather than informational: `Spotlight`
+   * makes every dim panel a skip button, so a stray tap used to spend the only
+   * explanation of a new interaction model for ever. See `markFor`.
+   */
+  onDone: (finished: boolean) => void;
 }) {
   const [step, setStep] = useState(-1);
   const [over, setOver] = useState(false);
@@ -44,17 +50,22 @@ export function CoachTour({
     if (step >= 0 && !run) {
       setOver(true);
       setStep(-1);
-      onDone();
+      /*
+       * Counted as finished. `run` going false means the screen reported that
+       * the child *did the thing the tour was about to explain*, which is the
+       * lesson landing — not a child walking away from it.
+       */
+      onDone(true);
     }
   }, [run, step, onDone]);
 
   const current = stepAt(tour, step);
   if (step < 0 || !current) return null;
 
-  const finish = () => {
+  const finish = (finished: boolean) => {
     setOver(true);
     setStep(-1);
-    onDone();
+    onDone(finished);
   };
 
   return (
@@ -65,9 +76,9 @@ export function CoachTour({
       onNext={() => {
         const next = step + 1;
         if (stepAt(tour, next)) setStep(next);
-        else finish();
+        else finish(true);
       }}
-      onSkip={finish}
+      onSkip={() => finish(false)}
     />
   );
 }

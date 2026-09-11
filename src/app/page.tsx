@@ -176,6 +176,7 @@ import {
   MARKET_TOUR,
   STAND_TOUR,
   YARD_TOUR,
+  markFor,
   toured,
   type TourId,
 } from '@/lib/coach';
@@ -777,7 +778,10 @@ export default function Page() {
   );
 
   const markToured = useCallback(
-    (id: TourId) => setCareer((current) => (current ? recordCoached(current, id) : current)),
+    (id: TourId, finished: boolean) =>
+      setCareer((current) =>
+        current ? recordCoached(current, markFor(current.coached, id, finished)) : current,
+      ),
     [],
   );
 
@@ -2600,7 +2604,7 @@ export default function Page() {
            * the tour is about the day about to be played.
            */
           tour={game.act === 1 && !game.weekend && showTour(STAND_TOUR.id)}
-          onToured={() => markToured(STAND_TOUR.id)}
+          onToured={(finished) => markToured(STAND_TOUR.id, finished)}
           state={game.stand}
           params={
             game.weekend
@@ -2657,7 +2661,7 @@ export default function Page() {
           onOpenStand={handleOpenStand}
           onCloseStand={handleCloseStand}
           tour={showTour(YARD_TOUR.id)}
-          onToured={() => markToured(YARD_TOUR.id)}
+          onToured={(finished) => markToured(YARD_TOUR.id, finished)}
           onOpenShop={() => setPhase('funding')}
           onShopStaff={handleShopStaff}
           onDone={() => setPhase('plan')}
@@ -2833,7 +2837,7 @@ export default function Page() {
       return (
         <FundingScreen
           tour={showTour(FUNDING_TOUR.id)}
-          onToured={() => markToured(FUNDING_TOUR.id)}
+          onToured={(finished) => markToured(FUNDING_TOUR.id, finished)}
           cash={game.stand.cash}
           history={game.stand.history}
           weeklyProfit={trailingWeeklyProfit(game.stand.history)}
@@ -2887,7 +2891,7 @@ export default function Page() {
       return (
         <ListingScreen
           tour={showTour(LISTING_TOUR.id)}
-          onToured={() => markToured(LISTING_TOUR.id)}
+          onToured={(finished) => markToured(LISTING_TOUR.id, finished)}
           offer={listingOffer(game.stand.history, game.ownership)}
           ownership={game.ownership}
           onList={handleList}
@@ -2930,7 +2934,7 @@ export default function Page() {
           drifts={drifts}
           onChecked={(ticker) => noteDeed('checked-a-thesis', ticker)}
           tour={showTour(MARKET_TOUR.id)}
-          onToured={() => markToured(MARKET_TOUR.id)}
+          onToured={(finished) => markToured(MARKET_TOUR.id, finished)}
           portfolio={game.portfolio}
           guide={guideOn('market')}
           readiness={readiness(game)}

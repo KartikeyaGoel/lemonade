@@ -84,7 +84,8 @@ export function PlanScreen({
    * each, and this screen is the same two decisions as hotspots on a picture.
    */
   tour?: boolean;
-  onToured?: () => void;
+  /** Reports whether the child reached the end. See `markFor`. */
+  onToured?: (finished: boolean) => void;
   state: GameState;
   /** Act 2 onwards: capacity, rent, wages and competition all live here. */
   params?: DayParams;
@@ -464,7 +465,7 @@ export function PlanScreen({
         Only while nothing is open. A sheet is a child doing the thing the tour
         was asking for, and the spotlight would be arguing with them.
       */}
-      <CoachTour tour={STAND_TOUR} run={tourRunning && spot === null} onDone={() => onToured?.()} />
+      <CoachTour tour={STAND_TOUR} run={tourRunning && spot === null} onDone={(finished) => onToured?.(finished)} />
 
       {/* ---- Inside the objects ---- */}
 

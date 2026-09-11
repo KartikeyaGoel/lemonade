@@ -89,6 +89,20 @@ const PAIRS = [
 ];
 
 /**
+ * Tinted ink on the lemon sign, which is its own case.
+ *
+ * `text-ink/45` is an idiom that works on white — 5.6:1 — and fails on the
+ * sign, because lemon-light is already most of the way to the ink. The label
+ * reading "tap the sign" sat there at 2.69:1 and nine pixels, and it is the
+ * only thing in the game that says where the price lives. The pilot's note was
+ * *"I couldn't figure out where to adjust the price"*, which read as a missing
+ * affordance and was an unreadable one.
+ */
+const TINTED_ON_SIGN = [
+  ['ink', 0.7, 'lemon-light', 1, 'white', 'body'],
+];
+
+/**
  * The night sky, which is a gradient and therefore three backgrounds.
  *
  * Every screen from the listing onwards sits on it, and `Sky` renders it as
@@ -119,6 +133,7 @@ const NIGHT_SKY = { 'night-top': '#1E2A4A', 'night-mid': '#3B4A78', 'night-botto
  * that was measured once.
  */
 const LAYERED = [
+  ...TINTED_ON_SIGN,
   /* The readiness gate, both card states, on all three stops of the sky. */
   ...Object.keys(NIGHT_SKY).flatMap((stop) => [
     ['lemon-light', 1, 'night-panel', 1, stop, 'body'],

@@ -60,7 +60,8 @@ export function InvestScreen({
 }: {
   /** Run the first-run tour of this screen. See `src/lib/coach.ts`. */
   tour?: boolean;
-  onToured?: () => void;
+  /** Reports whether the child reached the end. See `markFor`. */
+  onToured?: (finished: boolean) => void;
   /**
    * The stage's goal, handed in rather than worked out here.
    *
@@ -163,7 +164,7 @@ export function InvestScreen({
         )}
       </div>
 
-      <CoachTour tour={YARD_TOUR} run={tour && open === null} onDone={() => onToured?.()} />
+      <CoachTour tour={YARD_TOUR} run={tour && open === null} onDone={(finished) => onToured?.(finished)} />
       {plot && (
         <PlotSheet
           plot={plot}
