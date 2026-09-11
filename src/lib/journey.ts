@@ -36,6 +36,8 @@
 
 import type { Game } from './progress';
 import type { Career } from './career';
+import { ECON } from './simulation';
+import { plural } from './copy';
 
 export type StopState = 'done' | 'here' | 'locked';
 
@@ -64,7 +66,21 @@ const STOPS: Array<Omit<Stop, 'state'>> = [
     name: 'More stands',
     emoji: '\u{1F4C8}',
     what: 'A cooler, a helper, a bigger pitch. Then somebody to mind it, so you can go and open another one.',
-    opensWhen: 'Finish your first week.',
+    /*
+     * Derived, because it was wrong.
+     *
+     * This read "Finish your first week", which was true when the first stage
+     * ended on the clock. It ends on two good days now — `act1Complete` is
+     * `act1Progress(stand).complete || history.length >= lastDay` — and the
+     * road had been telling children to do something else. §62: the unlock
+     * condition had two homes and they disagreed, which is how a padlock stops
+     * being a promise and becomes a wrong instruction.
+     *
+     * Built from the constants so it cannot drift again. The clock is still
+     * there as a fallback and is deliberately not mentioned: "or run out of
+     * days" is not a goal anybody should aim at.
+     */
+    opensWhen: `Make $${ECON.ACT1_PROFIT_TARGET} in a day, ${plural(ECON.ACT1_TARGET_HITS, 'time')}.`,
   },
   {
     id: 3,
@@ -117,4 +133,29 @@ export function roadLine(game: Game, career: Career): string {
   const reached = road(game).filter((stop) => stop.state !== 'locked').length;
   if (game.act === 5) return 'You made it to the market. This is what it was all for.';
   return `${reached} of ${STOPS.length} \u00b7 next up: ${STOPS[game.act]?.name.toLowerCase() ?? 'the market'}`;
+}
+
+/**
+ * The next padlock, which is the one worth showing.
+ *
+ * `journey.ts` argues at length that the road is a picture rather than a menu,
+ * and that the mechanism Clash of Clans actually uses is **the visible locked
+ * thing** — "You do not need a way to *go* there; you need to *see* it." That
+ * argument is right and the implementation put the road on the title screen,
+ * which is the one screen a child is not looking at while they play.
+ *
+ * PRODUCT.md §68's cause B is that money in the first stage is a score with no
+ * sink: it accumulates and buys nothing, so it stops being interesting on about
+ * the third repetition — which is exactly when the pilot stopped. The tempting
+ * fix is a shop in stage one, and §70 refuses it because it moves the boundary
+ * FRAMEWORK.md §1's stage ladder draws.
+ *
+ * This is the fix that does not. The reward for two good days already exists,
+ * is already described, and is already padlocked. It just needs to be visible
+ * from the screen where a child decides whether to play a third day.
+ *
+ * Returns null in the market, where there is nothing left to unlock.
+ */
+export function nextStop(game: Game): Stop | null {
+  return road(game).find((stop) => stop.state === 'locked') ?? null;
 }

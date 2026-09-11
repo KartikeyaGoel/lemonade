@@ -1625,7 +1625,26 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     found.push({
       id: 'revenue',
       term: 'Revenue',
-      evidence: `${plural(outcome.cupsSold, 'cup')} x ${money(outcome.price)} = ${money(outcome.revenue)}. That is revenue: all the money that came in.`,
+      /*
+       * The sum, written as however many terms it took.
+       *
+       * This was `cupsSold x price = revenue`, which is the arithmetic on a day
+       * with one price and nonsense on a day with two. Found in a browser on
+       * the very first day of a fresh run, after a child moved the sign at
+       * lunchtime: **"28 cups x $1.00 = $29.50"**. Twenty-eight cups at a
+       * dollar is twenty-eight dollars, and the card teaching a child what
+       * revenue *is* was the one place in the game where the sum did not add
+       * up. §4 exists for precisely this, and the defect was introduced by the
+       * change that added the second price rather than found by it.
+       *
+       * Regulars are deliberately not broken out here. Day one has none — the
+       * punch card is a later stage — so a third term would be a branch no
+       * child can reach on the only day this word is given.
+       */
+      evidence:
+        outcome.afternoonCups > 0
+          ? `${plural(outcome.morningCups, 'cup')} x ${money(outcome.price)} and ${plural(outcome.afternoonCups, 'cup')} x ${money(outcome.afternoonPrice)} = ${money(outcome.revenue)}. That is revenue: all the money that came in.`
+          : `${plural(outcome.cupsSold, 'cup')} x ${money(outcome.price)} = ${money(outcome.revenue)}. That is revenue: all the money that came in.`,
       carriesForward: 'Every company reports this number. It is the top line.',
     });
     found.push({
@@ -1685,7 +1704,18 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     found.push({
       id: 'elasticity',
       term: 'Price elasticity',
-      evidence: `${plural(outcome.walkedAwayOnPrice, 'person', 'people')} looked at ${money(outcome.price)} and kept walking. ${outcome.cupsSold} paid it.`,
+      /*
+       * "Looked at $2.50 and kept walking" is only true if $2.50 was the only
+       * sign up that day. Seen in a browser on a day priced at $2.50 in the
+       * morning and $2.25 after: 28 walkers were attributed to one price they
+       * had not all read, and 8 buyers to a price some of them had not paid.
+       * Same defect class as the revenue card — a sentence written when a day
+       * could only have one price.
+       */
+      evidence:
+        outcome.afternoonCups > 0 || centsApart(outcome.afternoonPrice, outcome.price) > 0
+          ? `${plural(outcome.walkedAwayOnPrice, 'person', 'people')} kept walking today. You asked ${money(outcome.price)}, then ${money(outcome.afternoonPrice)}, and ${outcome.cupsSold} paid one or the other.`
+          : `${plural(outcome.walkedAwayOnPrice, 'person', 'people')} looked at ${money(outcome.price)} and kept walking. ${outcome.cupsSold} paid it.`,
       carriesForward: 'Raising a price always loses some customers. The question is whether the ones who stay more than make up for it.',
     });
   }

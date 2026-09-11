@@ -36,7 +36,7 @@ import { PipBubble, PipSays } from './Pip';
 import { StandScene, type SpotId } from './StandScene';
 import { CoachTour } from './CoachTour';
 import { GradeHint, GradePicker } from './GradePicker';
-import { gradeEverChosen, leverReady } from '@/lib/levers';
+import { gradeEverChosen, leverArrivingOn, leverReady, LEVER_INTRO } from '@/lib/levers';
 import { STAND_TOUR } from '@/lib/coach';
 
 /**
@@ -262,6 +262,9 @@ export function PlanScreen({
    * buy yet. It appears when it becomes real: something owned, or a shop to go
    * to.
    */
+  /** The one lever arriving this morning, if one is. Null on every other day. */
+  const arriving = leverArrivingOn(state.history.length);
+
   const kit = business ? describeKit(business) : null;
   const kitLabel = business && (onInvest || kit !== 'plain') ? kit : null;
 
@@ -294,6 +297,32 @@ export function PlanScreen({
 
         {guide && (
           <PipSays className="mt-2" lines={guide.lines} onDismiss={guide.onDismiss} />
+        )}
+
+        {/*
+          A lever arriving, said once on the morning it arrives.
+
+          The point of staggering the first stage's decisions is not that there
+          are fewer of them — it is that the third one gets a moment instead of
+          being a third row on a shopping list nobody read. `src/lib/levers.ts`
+          has the argument, and the pilot note behind it is "I could not tell
+          easily that choosing good lemons will make less people come back".
+
+          Derived from the history rather than stored, the same way
+          `ledgerNoveltyOf` decides whether a day is structurally new: it is
+          true on exactly one morning, and a child who reloads that morning has
+          not yet had the moment. Nothing to persist, nothing to migrate.
+        */}
+        {arriving && (
+          <PipBubble point="up" className="mt-2">
+            <span className="block space-y-0.5">
+              {LEVER_INTRO[arriving].map((line) => (
+                <span key={line} className="block">
+                  {line}
+                </span>
+              ))}
+            </span>
+          </PipBubble>
         )}
 
         {stage ? (

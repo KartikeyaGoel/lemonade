@@ -11,7 +11,7 @@ import {
   totalLemons,
 } from '@/lib/simulation';
 import { GradeHint, GradePicker } from './GradePicker';
-import { gradeEverChosen, leverReady } from '@/lib/levers';
+import { gradeEverChosen, leverArrivingOn, leverReady, LEVER_INTRO } from '@/lib/levers';
 import { PipBubble } from './Pip';
 import { ActionFooter, ChunkyButton, HeaderBar, SignHeading, Sky, money, plural } from './ui';
 
@@ -234,6 +234,28 @@ export function ShopScreen({
         */}
         {leverReady('grade', state.history.length, gradeEverChosen(state.history)) && (
           <div className="mt-4">
+            {/*
+              Said on the morning it arrives, here as well as on the planning
+              screen — because both screens can be the one a child meets it on.
+
+              Found by resuming a day-four save in a browser: act one's resume
+              path is `morning → shop → price`, so a returning child gets the
+              shop rather than the stand, and the introduction on the planning
+              screen is never shown. The whole point of staggering the levers is
+              that the third one gets a moment; a moment on one of two possible
+              screens is half a moment.
+            */}
+            {leverArrivingOn(state.history.length) === 'grade' && (
+              <PipBubble point="down" className="mb-2">
+                <span className="block space-y-0.5">
+                  {LEVER_INTRO.grade.map((line) => (
+                    <span key={line} className="block">
+                      {line}
+                    </span>
+                  ))}
+                </span>
+              </PipBubble>
+            )}
             <div className="text-center font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/55">
               Which lemons?
             </div>

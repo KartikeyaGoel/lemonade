@@ -187,7 +187,7 @@ import {
   unlockedFeatures,
   type Unlock,
 } from '@/lib/unlocks';
-import { road, roadLine } from '@/lib/journey';
+import { nextStop, road, roadLine } from '@/lib/journey';
 import { desks } from '@/lib/friends';
 import { cardFor } from '@/lib/table';
 import { createPlaybook } from '@/lib/playbook';
@@ -2712,6 +2712,13 @@ export default function Page() {
           outcome={outcome}
           insights={newInsights}
           planned={planned}
+          /*
+           * The goal and the next padlock, on the screen where a child decides
+           * whether to play another day. `stage.goal` is the same single source
+           * the planning screen and the yard read, so there is no second
+           * opinion about what is being aimed at.
+           */
+          whatsNext={{ goal: stage?.goal, stop: nextStop(game) }}
           /* Only when there is more than one counter to split the day across.
              The Saturday stand is a folding table again, so it does not get
              the business it was sold out of. */

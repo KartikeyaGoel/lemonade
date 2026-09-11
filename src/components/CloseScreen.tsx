@@ -5,6 +5,7 @@ import { ECON, type DayOutcome, type DayProjection, type Insight, weekSummary } 
 import { sellingPoints, splitCups, type BusinessState } from '@/lib/business';
 import { closingLine, ledgerNoveltyOf, ledgerStartsOpen } from '@/lib/guide';
 import { middayResult } from '@/lib/midday';
+import type { Stop } from '@/lib/journey';
 import { play } from '@/lib/sound';
 import { PipSays } from './Pip';
 import { ChunkyButton, SignHeading, Sky, money, plural, useCountUp } from './ui';
@@ -51,6 +52,7 @@ export function CloseScreen({
   managerAvailable,
   onManagerRuns,
   nextUp,
+  whatsNext,
   onNext,
 }: {
   outcome: DayOutcome;
@@ -75,6 +77,22 @@ export function CloseScreen({
    * record and this screen only knows about today.
    */
   nextUp?: ReactNode;
+  /**
+   * Where they are, and the padlock in front of them.
+   *
+   * This is the screen on which a child decides whether to play another day,
+   * and until now it was the only screen in the run that said nothing about
+   * the run. The pilot's wording was *"I couldn't even tell how long I have to
+   * keep going to exit this level"*, and the goal strip — which does say —
+   * lives on the *planning* screen, one tap the other side of this decision.
+   *
+   * `stop` is the visible locked thing `journey.ts` argues for, moved from the
+   * title screen to a screen a child is actually looking at. It is also the
+   * answer to money being a score with no sink: the cash is for something, and
+   * this is where that something is named. See PRODUCT.md §70 for why it is
+   * this rather than a shop in stage one.
+   */
+  whatsNext?: { goal?: string; stop: Stop | null };
   onNext: () => void;
 }) {
   const sites = business ? sellingPoints(business) : [];
@@ -516,6 +534,48 @@ export function CloseScreen({
         )}
 
         {nextUp}
+
+        {/*
+          Where this is going, immediately above the button that goes there.
+
+          Deliberately the last thing before "start day 4", because that is the
+          moment the decision is made. Two lines and a padlock: what they are
+          aiming at, and what it opens. Any longer and it joins the list of
+          things this audience scrolls past.
+        */}
+        {whatsNext && (whatsNext.goal || whatsNext.stop) && !isLastDay && (
+          <div className="mt-4 rounded-2xl border-[3px] border-ink/20 bg-white/85 p-3">
+            {whatsNext.goal && (
+              <div className="flex items-start gap-2">
+                <span aria-hidden className="text-sm leading-tight">
+                  🎯
+                </span>
+                <span className="font-body text-[13px] font-extrabold leading-snug text-ink/85">
+                  {whatsNext.goal}
+                </span>
+              </div>
+            )}
+            {whatsNext.stop && (
+              <div
+                className={`flex items-start gap-2 ${
+                  whatsNext.goal ? 'mt-2 border-t-2 border-dashed border-ink/15 pt-2' : ''
+                }`}
+              >
+                <span aria-hidden className="text-sm leading-tight">
+                  🔒
+                </span>
+                <div className="min-w-0">
+                  <div className="font-body text-[10px] font-extrabold uppercase tracking-[0.14em] text-ink/45">
+                    Then: {whatsNext.stop.name}
+                  </div>
+                  <div className="font-body text-[12px] font-bold leading-snug text-ink/70">
+                    {whatsNext.stop.what}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="mt-6">
           <ChunkyButton variant="lemon" full onClick={onNext}>

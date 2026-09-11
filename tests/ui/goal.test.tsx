@@ -18,6 +18,8 @@ import { PlanScreen } from '@/components/PlanScreen';
 import { PriceScreen } from '@/components/PriceScreen';
 import { ShopScreen } from '@/components/ShopScreen';
 import { MorningScreen } from '@/components/MorningScreen';
+import { CloseScreen } from '@/components/CloseScreen';
+import { nextStop } from '@/lib/journey';
 import { act1Progress, createGame } from '@/lib/progress';
 import { money } from '@/components/ui';
 import {
@@ -350,5 +352,81 @@ describe('the recipe is a standing decision', () => {
         { ...DEFAULT_DAY_PARAMS, lastDay: null },
       ).nextState;
     }
+  });
+});
+
+/*
+ * The close screen is where a child decides whether to play another day, and
+ * until now it was the only screen in the run that said nothing about the run.
+ * The pilot's wording: "I couldn't even tell how long I have to keep going to
+ * exit this level."
+ */
+describe('the close screen says where this is going', () => {
+  afterEach(cleanup);
+
+  function dayOne() {
+    const fresh = createGame(7).stand;
+    const plan = batchPlan(fresh, 28);
+    return runDay(fresh, { ...plan.order, price: 1.5 }, { ...DEFAULT_DAY_PARAMS, lastDay: null });
+  }
+
+  it('names the goal and the padlock behind it', () => {
+    const game = createGame(7);
+    const stop = nextStop(game)!;
+    render(
+      <CloseScreen
+        outcome={dayOne()}
+        insights={[]}
+        whatsNext={{ goal: act1Progress(game.stand).goal, stop }}
+        onNext={() => {}}
+      />,
+    );
+    // What they are aiming at, from the one source the plan screen reads.
+    expect(screen.getByText(act1Progress(game.stand).goal)).toBeDefined();
+    // And what it opens, which is the money's reason for existing.
+    expect(document.body.textContent).toContain(stop.name);
+    expect(document.body.textContent).toContain('cooler');
+  });
+
+  it('agrees with the road about what opens the next stage', () => {
+    /*
+     * §62, on a fact that had drifted. The road said "Finish your first week"
+     * long after the stage stopped ending on the clock, so the padlock on the
+     * title screen was giving a different instruction from the goal strip
+     * inside the game. Both are now built from the same two constants.
+     */
+    const stop = nextStop(createGame(7))!;
+    expect(stop.opensWhen).toContain(`$${ECON.ACT1_PROFIT_TARGET}`);
+    expect(stop.opensWhen).toMatch(/2 times/);
+    expect(stop.opensWhen).not.toMatch(/week/i);
+  });
+
+  it('says nothing on the last day, when there is nothing to come back for', () => {
+    /*
+     * The strip is an argument for playing tomorrow. On the day the stage ends
+     * there is no tomorrow to argue for, and the week's own summary is next.
+     */
+    let state = createGame(7).stand;
+    let outcome = dayOne();
+    for (let day = 1; day < ECON.TOTAL_DAYS; day++) {
+      state = outcome.nextState;
+      const plan = batchPlan(state, 28);
+      outcome = runDay(state, { ...plan.order, price: 1.5 });
+    }
+    expect(outcome.nextState.status).toBe('finished');
+    render(
+      <CloseScreen
+        outcome={outcome}
+        insights={[]}
+        whatsNext={{ goal: 'Make $25 in one day. Twice.', stop: nextStop(createGame(7)) }}
+        onNext={() => {}}
+      />,
+    );
+    expect(document.body.textContent).not.toContain('Make $25 in one day');
+  });
+
+  it('renders without it, because most screens in the tests pass nothing', () => {
+    render(<CloseScreen outcome={dayOne()} insights={[]} onNext={() => {}} />);
+    expect(document.body.textContent).toContain('Profit and loss');
   });
 });

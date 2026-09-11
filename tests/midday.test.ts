@@ -21,6 +21,7 @@ import {
   createInitialState,
   orderForTargetCups,
   round2,
+  deriveInsights,
   runDay,
   type DayOutcome,
   type GameState,
@@ -314,6 +315,97 @@ describe('when the child is asked', () => {
       if (!call) continue;
       const crowd = outcome.customers.filter((c) => c.kind === 'passerby').length;
       expect(crowd, `seed ${seed}`).toBeGreaterThanOrEqual(4);
+    }
+  });
+});
+
+/*
+ * The defect class the second price created, guarded generally.
+ *
+ * The revenue word card read **"28 cups x $1.00 = $29.50"** on the first day of
+ * a fresh run, because it was written when a day could only have one price and
+ * it multiplied the whole day's cups by the morning sign. It was not found by a
+ * test — it was read off a phone.
+ *
+ * So rather than fix two sentences and hope, this sweeps every sentence the
+ * insight deriver can produce on a two-price day and checks the arithmetic in
+ * it. Any copy of the shape `N cups x $P = $R` has to be true.
+ */
+describe('no sentence claims arithmetic that does not close', () => {
+  /** Every `N thing x $P ... = $R` claim in a string, with the sum checked. */
+  function badSums(text: string): string[] {
+    const bad: string[] = [];
+    /*
+     * One or more `count x price` terms, then a total. Written to match the
+     * two shapes the copy actually uses — one term, or two joined by "and" —
+     * rather than trying to parse English.
+     */
+    /*
+     * `\d+(?:\.\d+)?` rather than `[\d.]+`, and that is not pedantry — the
+     * first version of this guard captured "$29.50." *with the full stop*,
+     * `Number` gave it `NaN`, `Math.abs(NaN - x) > 0.011` is false, and the
+     * test passed on the exact string it was written to catch. A guard that
+     * cannot fail guards nothing, which is why the assertion below it exists.
+     */
+    const money = String.raw`\$(\d+(?:\.\d+)?)`;
+    const claim = new RegExp(
+      String.raw`(\d+)\s*cups?\s*x\s*${money}(?:\s*and\s*(\d+)\s*cups?\s*x\s*${money})?\s*=\s*${money}`,
+      'gi',
+    );
+    for (const m of text.matchAll(claim)) {
+      const [, n1, p1, n2, p2, total] = m;
+      let sum = Number(n1) * Number(p1);
+      if (n2 && p2) sum += Number(n2) * Number(p2);
+      if (Math.abs(sum - Number(total)) > 0.011) {
+        bad.push(`${m[0]} — the terms come to $${sum.toFixed(2)}`);
+      }
+    }
+    return bad;
+  }
+
+  it('catches the sum that shipped', () => {
+    /* The guard has to fail on the real defect, or it guards nothing. */
+    expect(badSums('28 cups x $1.00 = $29.50. That is revenue')).toHaveLength(1);
+    expect(badSums('22 cups x $1.00 and 6 cups x $1.25 = $29.50')).toHaveLength(0);
+    expect(badSums('28 cups x $1.00 = $28.00')).toHaveLength(0);
+  });
+
+  it('holds for every word a two-price day can earn', () => {
+    let seen = 0;
+    for (const seed of [1, 4, 9, 17, 31, 42, 77, 2026]) {
+      for (const price of [0.75, 1, 1.5, 2.2]) {
+        for (const afternoon of [0.5, 1.25, 1.75, 2.75]) {
+          const outcome = day(seed, price, 28, afternoon);
+          for (const insight of deriveInsights(outcome, outcome.nextState.history)) {
+            const where = `seed ${seed} ${price}→${afternoon} · ${insight.id}`;
+            expect(badSums(insight.evidence), where).toEqual([]);
+            expect(badSums(insight.carriesForward), where).toEqual([]);
+            seen++;
+          }
+        }
+      }
+    }
+    expect(seen, 'no words were produced, so nothing was checked').toBeGreaterThan(20);
+  });
+
+  it('never attributes the whole day to one of two prices', () => {
+    /*
+     * The elasticity card said "28 people looked at $2.50 and kept walking" on
+     * a day whose sign changed to $2.25 halfway through. Some of them never
+     * saw $2.50. A sentence that names exactly one price on a two-price day
+     * must not also claim to cover everybody.
+     */
+    for (const seed of [3, 11, 23, 57]) {
+      const outcome = day(seed, 2.5, 40, 2.25);
+      for (const insight of deriveInsights(outcome, outcome.nextState.history)) {
+        const names = (p: number) => insight.evidence.includes(`$${p.toFixed(2)}`);
+        if (names(outcome.price) && !names(outcome.afternoonPrice)) {
+          expect(
+            insight.evidence,
+            `${insight.id} pinned the day on one of two prices`,
+          ).not.toMatch(/kept walking|paid it|all the money/i);
+        }
+      }
     }
   });
 });
