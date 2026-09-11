@@ -66,7 +66,7 @@
  */
 
 import type { Act } from './progress';
-import { totalFixedCost, type DayOutcome, type DayRecord } from './simulation';
+import { ECON, totalFixedCost, type DayOutcome, type DayRecord } from './simulation';
 import { plural } from './copy';
 
 export const GUIDE_NAME = 'Pip';
@@ -112,12 +112,37 @@ export interface GuideLine {
  * pitch — and until this file it was never said to the person playing.
  */
 const LINES: Record<Beat, GuideLine> = {
+  /*
+   * Three lines that have to cover where a child is standing *and* where this
+   * goes, in that order.
+   *
+   * The middle line used to be "First you need a business of your own", and the
+   * pilot found what was missing: *"Could not tell the game started with $20
+   * and they have run a lemonade stand with that money."*
+   *
+   * Measured before changing anything — on a 375×812 phone the whole title
+   * screen fits with no scrolling, and the sign reading "$20 and a folding
+   * table" sits at 130px, directly under the title. So the fact was **on
+   * screen and missed**, which makes this a problem of attention rather than
+   * of absence, and the fix is not more words. It is that the only character
+   * in the game named the destination and never the starting position: a
+   * rotated sign under a big title reads as a tagline, and the same fact said
+   * by Pip is a fact about *you*.
+   *
+   * §70 refuses a longer welcome speech on the grounds that it adds prose to a
+   * reading problem. This is the same three lines with one of them carrying a
+   * figure it should always have carried.
+   *
+   * The figure comes from `ECON.STARTING_CASH` rather than being typed,
+   * because §62's rule is that a fact with two homes disagrees with itself —
+   * and this one already has a second home on the title screen's sign.
+   */
   welcome: {
     id: 'welcome',
     says: [
       `Hi! I am ${GUIDE_NAME}.`,
+      `This is your lemonade stand. You have $${ECON.STARTING_CASH}.`,
       'One day you will own bits of real companies.',
-      'First you need a business of your own.',
     ],
   },
   'act2-open': {

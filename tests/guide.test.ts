@@ -356,3 +356,52 @@ describe('what Pip says about a day', () => {
     }
   });
 });
+
+/*
+ * The opening, which the pilot said did not land.
+ *
+ * "Could not tell the game started with $20 and they have run a lemonade stand
+ * with that money." Measured first: on a 375×812 phone the whole title screen
+ * fits with no scrolling and the "$20 and a folding table" sign sits at 130px,
+ * so the fact was on screen and missed. The gap was that the only character in
+ * the game named where this *goes* and never where the child is standing.
+ */
+describe('the first thing Pip ever says', () => {
+  const welcome = lineFor('welcome').says.join(' ');
+
+  it('names the money the child actually has', () => {
+    expect(welcome).toContain(`$${ECON.STARTING_CASH}`);
+  });
+
+  it('takes that figure from the economy rather than typing it', () => {
+    /*
+     * §62. The starting cash already has a second home on the title screen's
+     * sign; a third, hard-coded, would be the one that goes stale. Checked by
+     * construction: no other number in the welcome, so if `STARTING_CASH`
+     * moved and this were literal, the assertion above would fail.
+     */
+    const figures = welcome.match(/\d+/g) ?? [];
+    expect(figures).toEqual([String(ECON.STARTING_CASH)]);
+  });
+
+  it('names the lemonade stand and the real companies, in that order', () => {
+    /* Where they are, then where this goes. A destination with no starting
+       position is the thing that did not land. */
+    const stand = welcome.toLowerCase().indexOf('lemonade stand');
+    const companies = welcome.toLowerCase().indexOf('real companies');
+    expect(stand, 'the stand is never named').toBeGreaterThan(-1);
+    expect(companies, 'the destination is never named').toBeGreaterThan(-1);
+    expect(stand).toBeLessThan(companies);
+  });
+
+  it('stays three short lines, because §70 refused a longer speech', () => {
+    const lines = lineFor('welcome').says;
+    expect(lines).toHaveLength(3);
+    for (const line of lines) expect(line.length, line).toBeLessThan(50);
+  });
+
+  it('still says nothing about what to do', () => {
+    /* `guide.ts`'s rule holds on the first sentence too. */
+    expect(welcome).not.toMatch(/\b(you should|try|pick|charge|buy)\b/i);
+  });
+});
