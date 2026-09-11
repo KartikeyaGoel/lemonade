@@ -4096,3 +4096,218 @@ float. What found it was running the demo shortcut across sixty seeds and
 refusing to accept that fifty-six was good enough. A test that picks its
 fixtures by hand will almost never sit on a boundary; a test that sweeps sixty
 seeds sits on every boundary the simulation can reach.
+
+## 68. Five children, five minutes, and the six root causes underneath
+
+A pilot: five students, a grown-up typing notes in the room with them. Twenty-three
+distinct pieces of feedback across five pages, three screenshots, and one line
+that matters more than the other twenty-two:
+
+> **No one except Laksh (and me) reached the end of level 1. They all gave up in
+> 5 mins.**
+
+Four children out of five closed the app before the first stage ended. Every
+other note in the document is either a cause of that, or a Level 2 observation
+from the one adult who got far enough to see Level 2.
+
+The temptation with a list of twenty-three is to fix twenty-three things. Most
+of them are symptoms of six causes, and fixing the symptom leaves the cause in
+place to produce the next one. So this section is the causes, what each one's
+symptoms were, and — the part worth arguing about — which of the customer's own
+suggested fixes are wrong.
+
+### The whole document, mapped
+
+| # | What they said | Root cause |
+|---|---|---|
+| 1 | Duck must come first and explain the game, the levels, how to proceed | D |
+| 2 | Could not tell they start with $20 and are running a stand with it | D |
+| 3 | Every kid used speed-up; the day is "a not useful visualization"; wants something interactive that affects the outcome | **A** |
+| 4 | No kid read the day's results — looked at the money, pressed next | B, D |
+| 5a | Repetitive by day three | A, B |
+| 5b | Could not tell how long until the level ends | **C** |
+| 6 | Could not tell that cheap lemons cost you repeat customers | D |
+| 7 | Could not find where to adjust the price | D |
+| 8 | Kids asked each other what they made on day 1 versus day 2 | B |
+| 9 | **Four of five gave up in five minutes** | A, B, C |
+| 10 | "Don't know how to unlock the better deal workflow" | **F** (fixed) |
+| 11 | Kids are not reading; wants everything blurred but the duck | D |
+| 12 | Compare needs strengths and risks | **E** |
+| 13 | "Costco seems a bad buy" | **E** |
+| 14 | Require a long-term read so they don't trade on short horizons | E |
+| 15 | *Comparing two stocks is the favourite part so far* | E |
+| 16 | Club proposals need a link to the research card | correctness |
+| 17 | Shortcut to Level 2 | done, §67 |
+| 18 | The markets UI is confusing, especially where compare lives | E |
+| 19 | "Why would I buy something?" — the qualitative case is missing | E |
+| 20 | Comparisons are way too repetitive; people scroll past | E |
+| 21 | Add a historical timeline for stocks | E |
+| 22 | Forty days of lemonade; shrink it or spice it up rather than next-next-next | A, B |
+| 23 | Laksh told the others to press speed-up to get through it | **A** |
+
+### A. The core loop has no agency in its longest phase
+
+A day is two decisions, then twelve seconds of watching, then a profit and loss,
+then a button. The two decisions are made before anything happens and cannot be
+revisited. The twelve seconds are the part the file calls "the signature moment
+of the product".
+
+**Every child in the pilot skipped it, and one of them taught the others how.**
+
+That is not a polish problem and it is not solved by a shorter animation. We
+shipped a skip button for our own core loop and a hundred per cent of players
+used it. When every player skips a sequence, that sequence is not gameplay — it
+is a cutscene, and skipping cutscenes is correct behaviour.
+
+`RunDayScreen` already went one round on this: `interactive` mode hands the pace
+to the child, eight taps a day, "the payoff into something they are causing".
+The pilot is the answer to that experiment and the answer is no. Controlling the
+*pace* of an outcome that is already decided is not agency; it is a progress bar
+you have to hold down. The tell is in the note itself — the control the children
+reached for was **"Let the rest come"**, which is the button that ends the
+pretence.
+
+So the fix is a decision *inside* the day, whose outcome is not yet determined
+when the day starts. The cofounder's instinct is exactly right and worth quoting
+because it is the design: *"perhaps something more interactive that can affect
+the outcome will be better suited... perhaps the external variables can help
+them revisit their choices of # of cups, price, location"*.
+
+This is also the only change that makes the speed-up button honest: hurrying
+should cost you the chance to react, rather than costing you nothing.
+
+### B. Money is a score, not a currency
+
+The most useful sentence in the document is the one that sounds like a
+complaint:
+
+> No kid read the results, they all looked at how much money and immediately
+> went to day 2.
+
+They looked at the money. The reward signal **works** — the coin sound, the
+count-up, the headline. What is missing is anywhere for the money to go. In
+stage one there is nothing to buy. The grade lever is a cost decision, not a
+purchase. The stated objective is "make $25 in a day, twice", which is a number,
+and a number is not a thing a nine-year-old wants.
+
+A currency with no sink is a score, and a score stops being interesting on about
+the third repetition — which is precisely where the note says the game started
+feeling repetitive. It also explains why the profit and loss is skipped: it is a
+careful explanation of a number that does not yet do anything.
+
+The game already owns the fix. Stage two's yard has a cooler, a better sign and
+a bigger pitch, all of them locked behind finishing stage one. Bringing one
+buyable thing *forward* converts "make $25 twice" into "save up for the cooler",
+which is the same arithmetic with a reason to care, and it puts the shop inside
+the first five minutes where every successful game of this shape puts it.
+
+### C. The arc is invisible from inside it
+
+> After Day 3 — I got the feeling the game is getting too repetitive. I couldn't
+> even tell how long I have to keep going to exit this level.
+
+The road with five stops, the padlocks, the promise — all of it is on the title
+screen, and `journey.ts` argues at length for why it is a picture rather than a
+menu. That argument is right and it is answering a different question. A child
+who has pressed "Start selling" does not see the road again until they close the
+app.
+
+Inside the loop there is a `Day 3 / 7` chip and a goal strip, and the goal strip
+is on the planning screen only. The screen where a child decides whether to
+carry on — the close screen, the one with the big next button — says nothing
+about where they are or what ends the stage.
+
+### D. The teaching layer is prose, and this audience does not read
+
+Four separate notes say it: *the kids are not reading a lot*; *no kid read the
+results*; *people just end up scrolling over it*; *I could not tell easily that
+choosing good lemons will make fewer people come back*.
+
+Nearly all of our teaching surface is sentences. Closing lines, insight cards,
+"why this matters" details, the compare table's `meaning` rows, the readiness
+criteria, the trade-off paragraph. Every one of them is well written and every
+one of them is the wrong channel for a nine-year-old.
+
+**The customer's own fix here is the one to refuse.** The suggestion is to
+separate the duck out, blur everything except it, and force the child to read
+before the screen unblurs. It would work in the narrow sense that the text
+would be on screen longer. It fails for two reasons:
+
+- `Pip.tsx` has one load-bearing rule — *a mascot must never stand between a kid
+  and the button they were reaching for* — and `Spotlight` was built as four
+  panels around the target specifically so that a child who ignores the words
+  and taps the thing gets what they expected. A forced read inverts that on
+  purpose.
+- More importantly it treats not-reading as the problem. Not-reading is the
+  finding. A nine-year-old who is made to sit through text learns that this
+  software wastes their time, and the next thing they skip will be the thing we
+  cannot afford for them to skip.
+
+The foundational version of the same instinct: **where the game currently
+explains, make it ask.** A sentence a child must answer is read; a sentence they
+may skip is skipped. This is also what FRAMEWORK.md §1 asked for and we did not
+build — the Stage 1 table's *Diagnostic feedback* row says "short explanation
+such as *Customers liked the quality, but your price was too high*", and what
+got built instead was an itemised profit and loss. That is accounting, not
+diagnosis, and it is the difference between a statement and an answer.
+
+### E. Comparison is presented as reading rather than as deciding
+
+Three notes about the faceoff appear to contradict each other:
+
+> the comparison of the two stocks is the fav part so far for me in the game
+
+> The comparisons part is way too repetitive like reading comparisons over and
+> over again people just end up scrolling over it
+
+> Comparing stocks — why would i buy something?
+
+They do not contradict. That combination — *best thing here*, *tedious*, *leads
+nowhere* — is the signature of a good mechanic with no decision attached. You
+pick two companies, you read six rows, you go back. Nothing is recorded, nothing
+follows, and the six `meaning` lines are constants, identical for every pair a
+child ever compares. The fifth reading is word-for-word the first.
+
+And one real defect underneath it. `FaceoffRow.edge` means *which one is more*,
+and its own doc comment says so — "which is not the same as which one is
+better". The view renders it as `bg-mint/25`. Mint is the profit colour in
+`CloseScreen`, the correct-answer colour in `DealBoardScreen`, the selected
+colour in `GradePicker`, the met colour on the readiness gate. So on the screen
+in the pilot's screenshot, Apple is green on four rows out of six and Costco is
+green on one, and the grown-up reported exactly what the screen said:
+
+> Right now it seems Costco is a bad buy.
+
+The correction — *Green means more, which is not the same as better* — is
+eleven-pixel text at 2.2:1 contrast, below all six rows, off the bottom of a
+phone. We taught "lower P/E is better" by accident, in the one place
+`facedown.ts` opens by promising not to.
+
+### F. A teaching moment with one chance and a free exit
+
+Fixed in the previous section, and worth naming as a class because it had two
+instances. The deal board was one attempt with a permanent consequence. The
+spotlight tour is one attempt with a free exit — every dim panel is a "skip the
+tour" button, so a child who taps anywhere loses the only explanation of a new
+interaction model that the game will ever offer them. Both are "the lesson gets
+one shot and the exit is easier than the lesson".
+
+### What this means for the order of work
+
+Ranked by how much of the five-minute wall each one moves, not by how easy it
+is:
+
+1. **A** — a decision inside the day.
+2. **B** — something to want in stage one.
+3. **C** and **D** on the close screen: it asks rather than tells, and it says
+   where the child is in the arc.
+4. **E** — the faceoff ends in a call, with the qualitative case as the evidence
+   for it and a real price history behind it.
+5. The two correctness items: a research card on the club's proposal path (#16),
+   and a tour step pointing at compare (#18).
+
+Symptom fixes deliberately *not* done, and why: a day-over-day money chip (#8)
+is subsumed by the close screen asking about the change rather than printing it;
+a longer welcome speech (#1, #2) adds prose to a reading problem and is answered
+by putting the road inside the game instead; the forced-read blur (#11) is
+refused above.
