@@ -40,7 +40,7 @@ export function WeekReportScreen({
               <SignHeading className="mt-1 !text-lemon-light text-4xl">
                 The whole market fell
               </SignHeading>
-              <p className="mt-1 font-body text-xs font-extrabold text-white/70">
+              <p className="mt-1 font-body text-xs font-extrabold text-white/85">
                 Everything down about {Math.abs(Math.round(report.marketChangePct * 100))}% at once.
                 This week really happened.
               </p>

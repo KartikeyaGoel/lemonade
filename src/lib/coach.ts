@@ -203,6 +203,26 @@ export const MARKET_TOUR: Tour = {
       target: 'company-card',
       lines: ['Every card is a real company.', 'Tap one to read its real numbers.'],
     },
+    /*
+     * Compare, which is the verb this whole stage is about and which nothing
+     * pointed at.
+     *
+     * The pilot named it twice, and the two notes together are the diagnosis:
+     * *"the comparison of the two stocks is the fav part so far for me in the
+     * game"* and *"the ui is confusing, the compare option where ... is
+     * confusing"*. The best thing on the screen, reached by noticing an
+     * unlabelled multi-select behind a chip.
+     *
+     * Second of three rather than last, because it is the thing a child should
+     * reach for after opening one company and before being told why the stage
+     * unlocked. FRAMEWORK.md §15's table is the record that every stage has a
+     * tour and that three steps is the ceiling — this takes the market to its
+     * third and last.
+     */
+    {
+      target: 'compare',
+      lines: ['Two at a time is how you tell them apart.', 'Pick any two and hold them up.'],
+    },
     {
       target: 'gate',
       lines: ['These are the things you showed you understood.', 'That is what opened this up.'],

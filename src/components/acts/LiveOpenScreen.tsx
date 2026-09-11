@@ -63,7 +63,7 @@ export function LiveOpenScreen({
             <SignHeading className="mt-1 !text-lemon-light text-4xl leading-[0.95]">
               {sinceYouWereHere(report.days, report.weeks)}
             </SignHeading>
-            <p className="mt-2 font-body text-sm font-extrabold text-white/70">
+            <p className="mt-2 font-body text-sm font-extrabold text-white/85">
               {report.from} to {report.to}. Nobody pressed anything. This is what happened to your
               money.
             </p>
@@ -73,7 +73,7 @@ export function LiveOpenScreen({
                 up ? 'border-mint/60 bg-mint/15' : 'border-berry/50 bg-berry/15'
               }`}
             >
-              <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/60">
+              <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/85">
                 Your money
               </div>
               <div className="font-sign text-5xl leading-none text-white">
@@ -116,12 +116,12 @@ export function LiveOpenScreen({
             <SignHeading className="mt-1 !text-lemon-light text-4xl leading-[0.95]">
               Nothing has happened yet.
             </SignHeading>
-            <p className="mt-2 font-body text-sm font-extrabold text-white/70">
+            <p className="mt-2 font-body text-sm font-extrabold text-white/85">
               {runningFor(portfolio)} Prices land once a week, so there is nothing new to see and
               nothing you need to do. Waiting is most of this.
             </p>
 
-            <div className="mt-4 rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">
+            <div className="mt-4 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
               <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-lemon-light">
                 Your money
               </div>

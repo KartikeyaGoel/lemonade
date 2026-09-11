@@ -59,13 +59,13 @@ export function ReckoningScreen({
     <Sky mood="night">
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-5 pt-8" style={clearsBar()}>
         <div className="text-center">
-          <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/55">
+          <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/85">
             Twelve weeks later
           </div>
           <SignHeading className="mt-1 !text-lemon-light text-4xl">
             Were you right, or lucky?
           </SignHeading>
-          <p className="mt-2 font-body text-sm font-bold leading-snug text-white/70">
+          <p className="mt-2 font-body text-sm font-bold leading-snug text-white/85">
             Not whether you made money — whether the reason you gave turned out to be true. Those
             are different questions, and only one of them you can repeat on purpose.
           </p>
@@ -144,7 +144,7 @@ export function ReckoningScreen({
           ))}
 
           {report.scores.length === 0 && (
-            <div className="rounded-2xl border-[3px] border-white/25 bg-white/10 p-4 font-body text-sm font-bold text-white/75">
+            <div className="rounded-2xl border-[3px] border-white/25 bg-night-panel p-4 font-body text-sm font-bold text-white/85">
               You never put money in with a reason attached, so there is nothing here to grade.
               That is the one result worth avoiding.
             </div>

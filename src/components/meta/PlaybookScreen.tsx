@@ -64,7 +64,7 @@ export function PlaybookScreen({
         </button>
 
         <SignHeading className="mt-2 !text-lemon-light text-3xl">Your playbook</SignHeading>
-        <p className="mt-1 font-body text-[13px] font-bold leading-snug text-white/70">
+        <p className="mt-1 font-body text-[13px] font-bold leading-snug text-white/85">
           Four rules you decide in advance. Then the game plays them out over every twelve weeks of
           real market history there is, and tells you how they did — not once, every time.
         </p>
@@ -83,7 +83,7 @@ export function PlaybookScreen({
                   setTested(false);
                 }}
                 className={`flex h-20 flex-col items-center justify-center rounded-xl border-[3px] px-1 ${
-                  card ? 'border-lemon bg-lemon/20' : 'border-dashed border-white/25 bg-white/5'
+                  card ? 'border-lemon bg-lemon/20' : 'border-dashed border-white/25 bg-night-panel'
                 }`}
               >
                 <span aria-hidden className="text-xl">
@@ -98,7 +98,7 @@ export function PlaybookScreen({
         </div>
 
         {mine && (
-          <div className="mt-4 rounded-2xl border-[3px] border-mint/60 bg-white/10 p-4 animate-riseFade">
+          <div className="mt-4 rounded-2xl border-[3px] border-mint/60 bg-night-panel p-4 animate-riseFade">
             <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-lemon-light">
               Across {mine.windows} real twelve-week stretches
             </div>
@@ -106,7 +106,7 @@ export function PlaybookScreen({
               <span className="font-sign text-5xl leading-none text-white">
                 {Math.round(mine.winRate * 100)}%
               </span>
-              <span className="font-body text-xs font-extrabold text-white/70">
+              <span className="font-body text-xs font-extrabold text-white/85">
                 of them ended ahead
               </span>
             </div>
@@ -127,7 +127,7 @@ export function PlaybookScreen({
               />
             </div>
 
-            <p className="mt-2 font-body text-[11px] font-bold leading-snug text-white/55">
+            <p className="mt-2 font-body text-[11px] font-bold leading-snug text-white/85">
               Every one of those stretches really happened. Nothing here is a simulation of a market
               — it is the market, replayed.
             </p>
@@ -135,7 +135,7 @@ export function PlaybookScreen({
         )}
 
         {friend && theirs && mine && (
-          <div className="mt-3 rounded-2xl border-[3px] border-white/25 bg-white/10 p-3">
+          <div className="mt-3 rounded-2xl border-[3px] border-white/25 bg-night-panel p-3">
             <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-lemon-light">
               Their playbook
             </div>
@@ -143,7 +143,7 @@ export function PlaybookScreen({
               {theirs.ruleIds.map((id) => (
                 <span
                   key={id}
-                  className="rounded-full border-2 border-white/30 px-2 py-0.5 font-body text-[10px] font-extrabold text-white/80"
+                  className="rounded-full border-2 border-white/30 px-2 py-0.5 font-body text-[10px] font-extrabold text-white/85"
                 >
                   {ruleById(id)?.emoji} {ruleById(id)?.name}
                 </span>
@@ -153,7 +153,7 @@ export function PlaybookScreen({
               <Figure label="You, ahead" value={`${Math.round(mine.winRate * 100)}%`} />
               <Figure label="Them, ahead" value={`${Math.round(friend.winRate * 100)}%`} />
             </div>
-            <p className="mt-2 font-body text-[12px] font-bold leading-snug text-white/70">
+            <p className="mt-2 font-body text-[12px] font-bold leading-snug text-white/85">
               {verdict(mine.winRate, friend.winRate, mine.worstReturn, friend.worstReturn)}
             </p>
           </div>
@@ -195,14 +195,14 @@ export function PlaybookScreen({
                       </span>
                       <span
                         className={`block font-body text-[11px] font-bold leading-snug ${
-                          inDeck ? 'text-white/70' : 'text-ink/60'
+                          inDeck ? 'text-white/85' : 'text-ink/60'
                         }`}
                       >
                         {card.says}
                       </span>
                       <span
                         className={`mt-0.5 block font-body text-[11px] font-semibold italic leading-snug ${
-                          inDeck ? 'text-white/50' : 'text-ink/45'
+                          inDeck ? 'text-white/85' : 'text-ink/45'
                         }`}
                       >
                         {card.teaches}
@@ -281,8 +281,8 @@ function Figure({
   bad?: boolean;
 }) {
   return (
-    <div className="rounded-xl border-2 border-white/20 bg-white/5 px-2 py-1.5 text-center">
-      <div className="font-body text-[9px] font-extrabold uppercase tracking-wide text-white/50">
+    <div className="rounded-xl border-2 border-white/20 bg-night-panel px-2 py-1.5 text-center">
+      <div className="font-body text-[9px] font-extrabold uppercase tracking-wide text-white/85">
         {label}
       </div>
       <div

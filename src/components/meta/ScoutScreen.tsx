@@ -65,7 +65,7 @@ export function ScoutScreen({
           </span>
           <div className="min-w-0">
             <SignHeading className="!text-lemon-light text-3xl">{company.name}</SignHeading>
-            <div className="font-body text-[11px] font-extrabold uppercase tracking-wide text-white/55">
+            <div className="font-body text-[11px] font-extrabold uppercase tracking-wide text-white/85">
               {company.whatTheySell}
             </div>
           </div>
@@ -101,9 +101,9 @@ export function ScoutScreen({
               </span>
             </div>
 
-            <div className="mt-2 rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">
+            <div className="mt-2 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
               <h2 className="font-sign text-2xl leading-tight text-white">{question.ask}</h2>
-              <p className="mt-1.5 font-body text-[12px] font-bold leading-snug text-white/70">
+              <p className="mt-1.5 font-body text-[12px] font-bold leading-snug text-white/85">
                 {question.kidLine}
               </p>
             </div>
@@ -129,7 +129,7 @@ export function ScoutScreen({
                     className={`min-h-11 flex-1 rounded-2xl border-[3px] py-3 font-sign text-2xl ${
                       answered && picked
                         ? 'border-lemon bg-white text-ink'
-                        : 'border-white/20 bg-white/5 text-white/85'
+                        : 'border-white/20 bg-night-panel text-white/85'
                     }`}
                   >
                     {option.label}
@@ -181,12 +181,12 @@ export function ScoutScreen({
                 .map((mark) => (
                   <div
                     key={mark.id}
-                    className="rounded-xl border-2 border-white/20 bg-white/10 px-3 py-2"
+                    className="rounded-xl border-2 border-white/20 bg-night-panel px-3 py-2"
                   >
                     <div className="font-body text-[12px] font-extrabold text-lemon-light">
                       {mark.ask}
                     </div>
-                    <p className="mt-0.5 font-body text-[12px] font-bold leading-snug text-white/80">
+                    <p className="mt-0.5 font-body text-[12px] font-bold leading-snug text-white/85">
                       {mark.evidence}
                     </p>
                   </div>
@@ -227,13 +227,13 @@ export function ScoutScreen({
 
 function Score({ label, score }: { label: string; score: { right: number; outOf: number } }) {
   return (
-    <div className="flex-1 rounded-2xl border-[3px] border-white/25 bg-white/10 px-3 py-2 text-center">
+    <div className="flex-1 rounded-2xl border-[3px] border-white/25 bg-night-panel px-3 py-2 text-center">
       <div className="font-body text-[10px] font-extrabold uppercase tracking-[0.14em] text-lemon-light">
         {label}
       </div>
       <div className="font-sign text-3xl leading-none text-white">
         {score.right}
-        <span className="text-white/50">/{score.outOf}</span>
+        <span className="text-white/85">/{score.outOf}</span>
       </div>
     </div>
   );

@@ -23,7 +23,7 @@ const TABS: Tab[] = ['can do', 'badges', 'words', 'read', 'record'];
 const SKILL_STYLE: Record<Level, string> = {
   held: 'border-mint/70 bg-white',
   emerging: 'border-lemon/60 bg-white/90',
-  unseen: 'border-dashed border-white/25 bg-white/5',
+  unseen: 'border-dashed border-white/25 bg-night-panel',
 };
 
 const ACT_LABEL: Record<string, string> = {
@@ -75,7 +75,7 @@ export function TrophyScreen({
     <Sky mood="night">
       <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         {/* The card. Rank comes from badges, never from time played. */}
-        <div className="rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">
+        <div className="rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
           <div className="flex items-center gap-3">
             <div aria-hidden className="text-4xl">
               {card.avatar}
@@ -93,15 +93,15 @@ export function TrophyScreen({
               <div className="font-ledger text-2xl font-bold tabular-nums text-white">
                 ⭐ {card.standing.held}
                 {card.standing.nextAt !== null && (
-                  <span className="text-white/40">/{card.standing.nextAt}</span>
+                  <span className="text-white/85">/{card.standing.nextAt}</span>
                 )}
               </div>
-              <div className="font-body text-[10px] font-extrabold uppercase tracking-wide text-white/50">
+              <div className="font-body text-[10px] font-extrabold uppercase tracking-wide text-white/85">
                 {plural(card.badges.held, 'badge')}
               </div>
             </div>
           </div>
-          <div className="mt-2 font-body text-[12px] font-bold text-white/70">{card.line}</div>
+          <div className="mt-2 font-body text-[12px] font-bold text-white/85">{card.line}</div>
         </div>
 
         {/* Four tabs, each a set with a hole in it. The counts are on the tabs
@@ -119,7 +119,7 @@ export function TrophyScreen({
               className={`rounded-xl border-[3px] px-0.5 py-2.5 font-body text-[9px] font-extrabold uppercase leading-tight tracking-tight ${
                 tab === option
                   ? 'border-lemon bg-lemon text-ink'
-                  : 'border-white/25 bg-white/10 text-white/70'
+                  : 'border-white/25 bg-night-panel text-white/85'
               }`}
             >
               {option === 'words'
@@ -145,7 +145,7 @@ export function TrophyScreen({
           */}
         {tab === 'can do' && (
           <div className="mt-4 space-y-2">
-            <p className="px-1 font-body text-[12px] font-bold text-white/60">
+            <p className="px-1 font-body text-[12px] font-bold text-white/85">
               {masteryLine(mastery(game), game.act)}
             </p>
             {skills.map((skill) => (
@@ -159,7 +159,7 @@ export function TrophyScreen({
                   </span>
                   <span
                     className={`flex-1 font-sign text-lg leading-tight ${
-                      skill.level === 'unseen' ? 'text-white/40' : 'text-ink'
+                      skill.level === 'unseen' ? 'text-white/85' : 'text-ink'
                     }`}
                   >
                     {skill.plain}
@@ -186,7 +186,7 @@ export function TrophyScreen({
                     )}
                   </div>
                 ) : (
-                  <div className="mt-1 font-body text-[11px] font-bold text-white/35">
+                  <div className="mt-1 font-body text-[11px] font-bold text-white/85">
                     Nobody is going to tell you when. You will know.
                   </div>
                 )}
@@ -201,7 +201,7 @@ export function TrophyScreen({
               <div key={String(group.act)}>
                 <div className="px-1 font-sign text-lg text-lemon-light">
                   {ACT_LABEL[String(group.act)]}
-                  <span className="ml-2 font-body text-[11px] font-extrabold text-white/45">
+                  <span className="ml-2 font-body text-[11px] font-extrabold text-white/85">
                     {group.badges.filter((b) => b.held).length}/{group.badges.length}
                   </span>
                 </div>
@@ -217,7 +217,7 @@ export function TrophyScreen({
 
         {tab === 'words' && (
           <div className="mt-4 space-y-2">
-            <p className="px-1 font-body text-[12px] font-bold text-white/60">
+            <p className="px-1 font-body text-[12px] font-bold text-white/85">
               Every word here you earned by doing the thing it describes. That is why you can
               use them in a sentence.
             </p>
@@ -227,18 +227,18 @@ export function TrophyScreen({
                 <div
                   key={word.id}
                   className={`rounded-2xl border-[3px] p-3 ${
-                    has ? 'border-lemon/60 bg-white' : 'border-white/20 bg-white/5'
+                    has ? 'border-lemon/60 bg-white' : 'border-white/20 bg-night-panel'
                   }`}
                 >
                   <div className="flex items-baseline justify-between gap-2">
                     <span
-                      className={`font-sign text-xl ${has ? 'text-ink' : 'text-white/35'}`}
+                      className={`font-sign text-xl ${has ? 'text-ink' : 'text-white/85'}`}
                     >
                       {has ? word.word : '???'}
                     </span>
                     <span
                       className={`font-body text-[10px] font-extrabold uppercase tracking-wide ${
-                        has ? 'text-ink/40' : 'text-white/30'
+                        has ? 'text-ink/40' : 'text-white/85'
                       }`}
                     >
                       Act {word.act}
@@ -254,7 +254,7 @@ export function TrophyScreen({
                       </div>
                     </>
                   ) : (
-                    <div className="mt-1 font-body text-[12px] font-bold text-white/40">
+                    <div className="mt-1 font-body text-[12px] font-bold text-white/85">
                       Not earned yet.
                     </div>
                   )}
@@ -274,7 +274,7 @@ export function TrophyScreen({
           */}
         {tab === 'read' && (
           <div className="mt-4 space-y-5">
-            <p className="px-1 font-body text-[12px] font-bold text-white/60">
+            <p className="px-1 font-body text-[12px] font-bold text-white/85">
               {collectionLine(career.companiesStudied, stars)}
             </p>
             {shelves(career.companiesStudied, stars).map((shelf) => (
@@ -283,7 +283,7 @@ export function TrophyScreen({
                   <span className="font-sign text-lg text-lemon-light">
                     {shelf.open ? shelf.name : '🔒 ' + shelf.name}
                   </span>
-                  <span className="font-body text-[11px] font-extrabold text-white/45">
+                  <span className="font-body text-[11px] font-extrabold text-white/85">
                     {shelf.open ? `${shelf.read}/${shelf.slots.length}` : shelf.opensWhen}
                   </span>
                 </div>
@@ -295,7 +295,7 @@ export function TrophyScreen({
                         slot.read
                           ? 'border-lemon/70 bg-white'
                           : slot.reachable
-                            ? 'border-dashed border-white/30 bg-white/5'
+                            ? 'border-dashed border-white/30 bg-night-panel'
                             : 'border-white/15 bg-white/[0.03]'
                       }`}
                     >
@@ -304,7 +304,7 @@ export function TrophyScreen({
                       </span>
                       <span
                         className={`mt-0.5 font-body text-[9px] font-extrabold leading-none ${
-                          slot.read ? 'text-ink/70' : 'text-white/30'
+                          slot.read ? 'text-ink/70' : 'text-white/85'
                         }`}
                       >
                         {slot.reachable ? slot.ticker : '???'}
@@ -364,7 +364,7 @@ function BadgeCard({ badge, held }: { badge: Badge; held: boolean }) {
   return (
     <div
       className={`rounded-2xl border-[3px] p-2.5 ${
-        held ? TIER_STYLE[badge.tier] : 'border-white/15 bg-white/5'
+        held ? TIER_STYLE[badge.tier] : 'border-white/15 bg-night-panel'
       }`}
     >
       <div aria-hidden className={`text-2xl ${held ? '' : 'opacity-25 grayscale'}`}>
@@ -372,14 +372,14 @@ function BadgeCard({ badge, held }: { badge: Badge; held: boolean }) {
       </div>
       <div
         className={`mt-1 font-body text-[12px] font-extrabold leading-tight ${
-          held ? 'text-ink' : 'text-white/60'
+          held ? 'text-ink' : 'text-white/85'
         }`}
       >
         {badge.name}
       </div>
       <div
         className={`mt-0.5 font-body text-[11px] font-bold leading-tight ${
-          held ? 'text-ink/60' : 'text-white/40'
+          held ? 'text-ink/60' : 'text-white/85'
         }`}
       >
         {held ? badge.proves : badge.how}
@@ -390,8 +390,8 @@ function BadgeCard({ badge, held }: { badge: Badge; held: boolean }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between rounded-2xl border-[3px] border-white/20 bg-white/10 px-3.5 py-2.5">
-      <span className="font-body text-[12px] font-extrabold text-white/70">{label}</span>
+    <div className="flex items-baseline justify-between rounded-2xl border-[3px] border-white/20 bg-night-panel px-3.5 py-2.5">
+      <span className="font-body text-[12px] font-extrabold text-white/85">{label}</span>
       <span className="font-ledger text-sm font-bold tabular-nums text-white">{value}</span>
     </div>
   );

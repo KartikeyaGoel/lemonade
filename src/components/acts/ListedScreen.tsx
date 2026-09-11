@@ -55,7 +55,7 @@ export function ListedScreen({
           <SignHeading className="mt-2 text-4xl !text-lemon-light">
             {move === null ? 'You are public' : `Week ${move.week}`}
           </SignHeading>
-          <p className="mt-2 font-body text-sm font-bold text-white/80">
+          <p className="mt-2 font-body text-sm font-bold text-white/85">
             {move === null
               ? `${listing.shares} pieces. You kept ${Math.round(listing.founderShare * 100)}% of them.`
               : 'Your own share price, and the reason it moved.'}
@@ -64,7 +64,7 @@ export function ListedScreen({
 
         {/* The price, big, because it is the number the whole stage exists for. */}
         <div className="mt-6 rounded-2xl border-[3px] border-white/30 bg-night-panel p-5 text-center">
-          <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/60">
+          <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/85">
             One piece of your company
           </div>
           <div className="mt-1 font-ledger text-5xl font-bold tabular-nums text-lemon-light">
@@ -73,14 +73,14 @@ export function ListedScreen({
           {move !== null && (
             <div
               className={`mt-1 font-body text-sm font-extrabold ${
-                up ? 'text-mint' : flat ? 'text-white/70' : 'text-berry-light'
+                up ? 'text-mint' : flat ? 'text-white/85' : 'text-berry-light'
               }`}
             >
               {up ? '▲' : flat ? '·' : '▼'} {Math.abs(Math.round(move.change * 1000) / 10)}% from{' '}
               {money(move.priceBefore)}
             </div>
           )}
-          <div className="mt-1 font-body text-[11px] font-bold text-white/50">
+          <div className="mt-1 font-body text-[11px] font-bold text-white/85">
             At the float it was {money(listing.ipoPrice)}
           </div>
         </div>
@@ -88,15 +88,15 @@ export function ListedScreen({
         {/* Why. Two numbers, and the sentence that names which one did it. */}
         {move !== null && (
           <div className="mt-4 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
-            <div className="mb-2 font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/55">
+            <div className="mb-2 font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/85">
               Why it moved
             </div>
             <div className="flex items-baseline justify-between font-body text-[13px] font-extrabold text-white/85">
-              <span className="text-white/60">They expected, this week</span>
+              <span className="text-white/85">They expected, this week</span>
               <span className="font-ledger tabular-nums">{money(move.expected)}</span>
             </div>
             <div className="flex items-baseline justify-between font-body text-[13px] font-extrabold text-white/85">
-              <span className="text-white/60">You actually made</span>
+              <span className="text-white/85">You actually made</span>
               <span
                 className={`font-ledger tabular-nums ${
                   move.actual >= move.expected ? 'text-mint' : 'text-berry-light'
@@ -106,16 +106,16 @@ export function ListedScreen({
               </span>
             </div>
             <div className="mt-2 flex items-baseline justify-between border-t-2 border-dashed border-white/20 pt-1.5 font-body text-[13px] font-extrabold text-white/85">
-              <span className="text-white/60">Weeks of profit they will pay</span>
+              <span className="text-white/85">Weeks of profit they will pay</span>
               <span className="font-ledger tabular-nums">
                 {move.multipleBefore.toFixed(1)} → {move.multipleAfter.toFixed(1)}
               </span>
             </div>
-            <p className="mt-2 font-body text-[12px] font-bold leading-snug text-white/70">
+            <p className="mt-2 font-body text-[12px] font-bold leading-snug text-white/85">
               {move.reason}
             </p>
             {!up && !flat && (
-              <p className="mt-2 rounded-xl border-[3px] border-white/20 bg-white/10 px-3 py-2 font-body text-[12px] font-bold leading-snug text-white/85">
+              <p className="mt-2 rounded-xl border-[3px] border-white/20 bg-night-panel px-3 py-2 font-body text-[12px] font-bold leading-snug text-white/85">
                 The shop is the same shop it was last week. What changed is what people think next
                 week will look like.
               </p>
@@ -125,12 +125,12 @@ export function ListedScreen({
 
         {/* Back the other way: price times pieces is the whole company again. */}
         <div className="mt-4 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
-          <div className="mb-1 font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/55">
+          <div className="mb-1 font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/85">
             The whole thing
           </div>
-          <p className="font-body text-[12px] font-bold leading-snug text-white/80">{bridge.cap}</p>
+          <p className="font-body text-[12px] font-bold leading-snug text-white/85">{bridge.cap}</p>
           <div className="mt-2 flex items-baseline justify-between font-body text-[13px] font-extrabold text-white/85">
-            <span className="text-white/60">
+            <span className="text-white/85">
               Your {Math.round(listing.founderShare * 100)}% is worth
             </span>
             <span className="font-ledger tabular-nums text-lemon-light">
@@ -138,7 +138,7 @@ export function ListedScreen({
             </span>
           </div>
           <div className="flex items-baseline justify-between font-body text-[13px] font-extrabold text-white/85">
-            <span className="text-white/60">Everybody else&rsquo;s share</span>
+            <span className="text-white/85">Everybody else&rsquo;s share</span>
             <span className="font-ledger tabular-nums">
               {money(Math.round((marketCap(listing) - founderStake(listing)) * 100) / 100)}
             </span>

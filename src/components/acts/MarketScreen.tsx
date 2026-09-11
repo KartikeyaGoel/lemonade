@@ -230,7 +230,7 @@ export function MarketScreen({
         )}
 
         {/* The pot */}
-        <div className="mt-3 rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">
+        <div className="mt-3 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
           <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-lemon-light">
             Your money
           </div>
@@ -255,7 +255,7 @@ export function MarketScreen({
             </span>
             <div>
               <div className="font-body text-sm font-extrabold text-lemon-light">Your playbook</div>
-              <div className="font-body text-[11px] font-bold text-white/65">
+              <div className="font-body text-[11px] font-bold text-white/85">
                 Four rules, tested against every twelve weeks of real history there is.
               </div>
             </div>
@@ -266,7 +266,7 @@ export function MarketScreen({
           <button
             type="button"
             onClick={onClub}
-            className="mt-3 flex w-full items-center gap-2.5 rounded-2xl border-[3px] border-white/25 bg-white/10 p-3 text-left"
+            className="mt-3 flex w-full items-center gap-2.5 rounded-2xl border-[3px] border-white/25 bg-night-panel p-3 text-left"
           >
             <span aria-hidden className="text-xl">
               🧑‍🤝‍🧑
@@ -275,7 +275,7 @@ export function MarketScreen({
               <div className="font-body text-sm font-extrabold text-lemon-light">
                 Investment club
               </div>
-              <div className="font-body text-[11px] font-bold text-white/60">
+              <div className="font-body text-[11px] font-bold text-white/85">
                 Pool money with friends. Nobody buys anything without a reason the others can
                 vote down.
               </div>
@@ -296,7 +296,7 @@ export function MarketScreen({
             className={`mt-3 flex w-full items-center gap-2.5 rounded-2xl border-[3px] p-3 text-left ${
               canRunStand(portfolio)
                 ? 'border-lemon bg-lemon/20'
-                : 'border-white/15 bg-white/5 opacity-60'
+                : 'border-white/15 bg-night-panel opacity-60'
             }`}
           >
             <span aria-hidden className="text-2xl">
@@ -306,7 +306,7 @@ export function MarketScreen({
               <div className="font-body text-sm font-extrabold text-lemon-light">
                 {canRunStand(portfolio) ? 'Saturday stand' : 'Stand done for this week'}
               </div>
-              <div className="font-body text-[11px] font-bold text-white/65">
+              <div className="font-body text-[11px] font-bold text-white/85">
                 {canRunStand(portfolio)
                   ? 'You still make lemonade at weekends. Whatever it makes goes into the account.'
                   : 'Come back after next week.'}
@@ -335,7 +335,7 @@ export function MarketScreen({
                 Research is open. Buying is not, yet.
               </span>
             </div>
-            <div className="mt-0.5 font-body text-[11px] font-bold text-white/70">
+            <div className="mt-0.5 font-body text-[11px] font-bold text-white/85">
               You have shown {readiness.metCount} of the {readiness.criteria.length} things you need
               before real money moves. Tap to see which.
             </div>
@@ -386,6 +386,7 @@ export function MarketScreen({
           <span className="font-sign text-xl text-lemon-light">Businesses you could own</span>
           <button
             type="button"
+            data-coach="compare"
             onClick={() => {
               setComparing((on) => !on);
               setPicked([]);
@@ -395,13 +396,13 @@ export function MarketScreen({
                screen most wants a kid to reach for, so it now gets the full 44
                the guideline asks for, with the pill drawn exactly as before. */
             className={`inline-flex min-h-11 items-center rounded-full border-2 px-3 py-1.5 font-body text-[11px] font-extrabold ${
-              comparing ? 'border-mint bg-mint/25 text-white' : 'border-white/40 text-white/70'
+              comparing ? 'border-mint bg-mint/25 text-white' : 'border-white/40 text-white/85'
             }`}
           >
             ⚖️ Compare
           </button>
         </div>
-        <div className="mb-1 px-1 font-body text-[10px] font-bold text-white/50">
+        <div className="mb-1 px-1 font-body text-[10px] font-bold text-white/85">
           {comparing
             ? 'Pick two. Same idea as trying two prices on your stand.'
             : `Real weekly prices · figures from their own filings · data to ${SNAPSHOT_AS_OF}`}
@@ -411,14 +412,14 @@ export function MarketScreen({
             accounts fills a slot, and the only place that was visible was a tab
             in the trophy case — a long way from the moment it happens. */}
         {!comparing && (
-          <div className="mb-1 flex items-center gap-2 rounded-xl border-[3px] border-white/20 bg-white/5 px-2.5 py-1.5">
+          <div className="mb-1 flex items-center gap-2 rounded-xl border-[3px] border-white/20 bg-night-panel px-2.5 py-1.5">
             <span aria-hidden className="text-sm">
               📖
             </span>
             <span className="font-ledger text-xs font-bold tabular-nums text-lemon-light">
               {read.read}/{read.total}
             </span>
-            <span className="flex-1 font-body text-[10px] font-extrabold leading-tight text-white/55">
+            <span className="flex-1 font-body text-[10px] font-extrabold leading-tight text-white/85">
               {collectionLine(studied, badges)}
             </span>
           </div>
@@ -438,15 +439,15 @@ export function MarketScreen({
                   {TIERS[tier].name}
                 </span>
                 {!openTier && (
-                  <span className="font-body text-[10px] font-extrabold text-white/45">
+                  <span className="font-body text-[10px] font-extrabold text-white/85">
                     🔒 {TIERS[tier].opensAt - badges} more ⭐ to unlock
                   </span>
                 )}
               </div>
 
               {!openTier ? (
-                <div className="mt-1 rounded-2xl border-[3px] border-dashed border-white/20 bg-white/5 px-3 py-2.5">
-                  <p className="font-body text-[11px] font-bold text-white/55">
+                <div className="mt-1 rounded-2xl border-[3px] border-dashed border-white/20 bg-night-panel px-3 py-2.5">
+                  <p className="font-body text-[11px] font-bold text-white/85">
                     {TIERS[tier].blurb}
                   </p>
                   <div className="mt-1.5 flex gap-1.5 opacity-30">
@@ -529,9 +530,41 @@ export function MarketScreen({
       <PinnedBar className="z-30 pb-5 pt-8 bg-gradient-to-t from-black/60 to-transparent">
         <div className="mx-auto w-full max-w-md px-4">
           {comparing ? (
-            <ChunkyButton variant="mint" full disabled={picked.length < 2} onClick={() => undefined}>
-              {picked.length < 2 ? `Pick ${2 - picked.length} more` : 'Holding them up…'}
-            </ChunkyButton>
+            /*
+              An instruction, not a button.
+              
+              This was a `ChunkyButton` — disabled while fewer than two were
+              picked, and then enabled with `onClick={() => undefined}`. So a
+              child saw a big mint button reading "Pick 2 more" that could not
+              be pressed, and then one reading "Holding them up…" that did
+              nothing when it was. The comparison opens by itself the moment the
+              second card is tapped, so there was never anything for it to do.
+              
+              Two failures at once: PRODUCT.md §40's mechanic wired to nothing,
+              and a disabled primary button sitting over a scrolling list, which
+              a browser check showed reads as a rendering glitch rather than as
+              a prompt — the card underneath shows straight through it.
+              
+              Found while fixing the night screens' legibility, which is what
+              made it visible at all.
+            */
+            <div className="rounded-2xl border-[3px] border-mint/60 bg-night-panel px-4 py-3 text-center">
+              <div className="font-body text-[13px] font-extrabold text-white">
+                {picked.length === 0
+                  ? 'Tap two companies to hold them up against each other.'
+                  : 'One more. Any two you like.'}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setComparing(false);
+                  setPicked([]);
+                }}
+                className="mt-1 inline-flex min-h-11 items-center font-body text-[12px] font-extrabold text-lemon-light underline"
+              >
+                Never mind
+              </button>
+            </div>
           ) : (
             <ChunkyButton
               variant="lemon"
@@ -769,7 +802,7 @@ function Quality({ quality }: { quality: QualityItem }) {
       <div className="font-body text-[12px] font-extrabold leading-snug text-white">
         {quality.says}
       </div>
-      <div className="font-body text-[10px] font-bold leading-snug text-white/70">
+      <div className="font-body text-[10px] font-bold leading-snug text-white/85">
         {quality.because}
       </div>
     </div>

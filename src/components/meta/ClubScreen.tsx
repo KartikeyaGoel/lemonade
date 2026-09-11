@@ -150,7 +150,7 @@ export function ClubScreen({
         </div>
 
         {/* The pot. Nobody owns "their" shares here, which is the point. */}
-        <div className="mt-3 rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">
+        <div className="mt-3 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
           <div className="font-body text-[10px] font-extrabold uppercase tracking-[0.16em] text-lemon-light">
             The pot
           </div>
@@ -180,7 +180,7 @@ export function ClubScreen({
               className={`rounded-full border-[3px] px-3 py-1 font-body text-[12px] font-extrabold ${
                 whoseTurn(club) === member.name
                   ? 'border-lemon bg-lemon text-ink'
-                  : 'border-white/25 bg-white/10 text-white/70'
+                  : 'border-white/25 bg-night-panel text-white/85'
               }`}
             >
               {member.name}
@@ -256,11 +256,11 @@ export function ClubScreen({
             )}
           </div>
         ) : (
-          <div className="mt-4 rounded-2xl border-[3px] border-white/20 bg-white/5 p-4">
+          <div className="mt-4 rounded-2xl border-[3px] border-white/20 bg-night-panel p-4">
             <div className="font-body text-[13px] font-extrabold text-white">
               {myTurn ? 'Your turn.' : `Waiting on ${whoseTurn(club)}.`}
             </div>
-            <div className="mt-0.5 font-body text-[12px] font-bold text-white/60">
+            <div className="mt-0.5 font-body text-[12px] font-bold text-white/85">
               {myTurn
                 ? 'Propose one buy, with a reason the others can argue with. Or pass.'
                 : 'Pass the code to them and they can take their turn.'}
@@ -300,7 +300,7 @@ export function ClubScreen({
                 return (
                   <div
                     key={ticker}
-                    className="flex items-center gap-3 rounded-2xl border-[3px] border-white/20 bg-white/10 p-3"
+                    className="flex items-center gap-3 rounded-2xl border-[3px] border-white/20 bg-night-panel p-3"
                   >
                     <span aria-hidden className="text-2xl">
                       {company.emoji}
@@ -309,7 +309,7 @@ export function ClubScreen({
                       <div className="font-body text-[13px] font-extrabold text-white">
                         {company.name}
                       </div>
-                      <div className="font-body text-[11px] font-bold text-white/55">
+                      <div className="font-body text-[11px] font-bold text-white/85">
                         {money(currentPrice(club.portfolio, ticker))} a share ·{' '}
                         {metricsFor(company, currentPrice(club.portfolio, ticker), currentDate(club.portfolio)).pe
                           ? `P/E ${metricsFor(company, currentPrice(club.portfolio, ticker), currentDate(club.portfolio)).pe!.toFixed(0)}`
@@ -432,13 +432,13 @@ function SetupView({
             🧑‍🤝‍🧑
           </div>
           <SignHeading className="mt-2 !text-lemon-light text-4xl">Investment club</SignHeading>
-          <p className="mt-2 font-body text-sm font-bold leading-snug text-white/70">
+          <p className="mt-2 font-body text-sm font-bold leading-snug text-white/85">
             Put money in one pot with up to {MAX_MEMBERS - 1} friends. You take turns. Nobody
             gets to buy anything without giving a reason the others can vote down.
           </p>
         </div>
 
-        <div className="mt-7 rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">
+        <div className="mt-7 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
           <div className="font-body text-[10px] font-extrabold uppercase tracking-[0.16em] text-lemon-light">
             Start one
           </div>
@@ -448,7 +448,7 @@ function SetupView({
             onChange={(event) => setName(event.target.value.slice(0, 24))}
             className="mt-2 w-full rounded-xl border-[3px] border-ink/15 bg-white px-3 py-2 font-sign text-xl text-ink"
           />
-          <div className="mt-3 font-body text-[11px] font-extrabold uppercase tracking-wide text-white/55">
+          <div className="mt-3 font-body text-[11px] font-extrabold uppercase tracking-wide text-white/85">
             Your stake
           </div>
           <div className="font-sign text-3xl text-white">{money(stake)}</div>
@@ -533,7 +533,7 @@ function PickView({
     <Sky mood="night">
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         <SignHeading className="!text-lemon-light text-3xl">What should we buy?</SignHeading>
-        <p className="mt-1 font-body text-[12px] font-bold text-white/60">
+        <p className="mt-1 font-body text-[12px] font-bold text-white/85">
           {money(cash)} in the pot. You will have to say why.
         </p>
         <div className="mt-4 space-y-2">
@@ -545,7 +545,7 @@ function PickView({
                 key={company.ticker}
                 type="button"
                 onClick={() => onPick(company)}
-                className="flex w-full items-center gap-3 rounded-2xl border-[3px] border-white/20 bg-white/10 p-3 text-left"
+                className="flex w-full items-center gap-3 rounded-2xl border-[3px] border-white/20 bg-night-panel p-3 text-left"
               >
                 <span aria-hidden className="text-2xl">
                   {company.emoji}
@@ -554,12 +554,12 @@ function PickView({
                   <div className="font-body text-[13px] font-extrabold text-white">
                     {company.name}
                   </div>
-                  <div className="font-body text-[11px] font-bold text-white/55">
+                  <div className="font-body text-[11px] font-bold text-white/85">
                     {m.pe ? `P/E ${m.pe.toFixed(0)}` : 'loses money'} ·{' '}
                     {Math.round(m.netMargin * 100)}c of every dollar
                   </div>
                 </div>
-                <span className="ml-auto font-ledger text-sm font-bold tabular-nums text-white/70">
+                <span className="ml-auto font-ledger text-sm font-bold tabular-nums text-white/85">
                   {money(price)}
                 </span>
               </button>
@@ -586,17 +586,17 @@ function LogView({ club, onBack }: { club: ClubState; onBack: () => void }) {
     <Sky mood="night">
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         <SignHeading className="!text-lemon-light text-3xl">The log</SignHeading>
-        <p className="mt-1 font-body text-[12px] font-bold text-white/60">
+        <p className="mt-1 font-body text-[12px] font-bold text-white/85">
           Every reason anybody gave, and what the club decided.
         </p>
         <div className="mt-4 space-y-2">
           {log.length === 0 && (
-            <div className="font-body text-sm font-bold text-white/60">Nothing yet.</div>
+            <div className="font-body text-sm font-bold text-white/85">Nothing yet.</div>
           )}
           {log.map((line, index) => (
             <div
               key={index}
-              className="rounded-2xl border-[3px] border-white/20 bg-white/10 p-3 font-body text-[12px] font-bold leading-snug text-white/85"
+              className="rounded-2xl border-[3px] border-white/20 bg-night-panel p-3 font-body text-[12px] font-bold leading-snug text-white/85"
             >
               {line}
             </div>
@@ -626,7 +626,7 @@ function ScoresView({ club, onBack }: { club: ClubState; onBack: () => void }) {
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-6" style={clearsBar()}>
         <SignHeading className="!text-lemon-light text-3xl">How are we doing</SignHeading>
 
-        <div className="mt-3 rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">
+        <div className="mt-3 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
           <div className="font-body text-[10px] font-extrabold uppercase tracking-[0.16em] text-lemon-light">
             The pot
           </div>
@@ -647,7 +647,7 @@ function ScoresView({ club, onBack }: { club: ClubState; onBack: () => void }) {
           {attribution.members.map((member) => (
             <div
               key={member.name}
-              className="rounded-2xl border-[3px] border-white/20 bg-white/10 p-3"
+              className="rounded-2xl border-[3px] border-white/20 bg-night-panel p-3"
             >
               <div className="flex items-baseline justify-between">
                 <span className="font-sign text-xl text-white">{member.name}</span>
@@ -660,7 +660,7 @@ function ScoresView({ club, onBack }: { club: ClubState; onBack: () => void }) {
                   {money(member.gain)}
                 </span>
               </div>
-              <div className="mt-0.5 font-body text-[11px] font-bold text-white/60">
+              <div className="mt-0.5 font-body text-[11px] font-bold text-white/85">
                 {member.proposalsMade === 0
                   ? 'Has not proposed anything yet.'
                   : `${member.proposalsPassed} of ${member.proposalsMade} carried · ${money(member.dollarsCommitted)} committed · reasons held up ${member.soundCount} of ${plural(member.proposalsMade, 'time')}`}

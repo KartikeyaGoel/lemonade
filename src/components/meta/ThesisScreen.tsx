@@ -77,7 +77,7 @@ export function ThesisScreen({
           </span>
           <div>
             <SignHeading className="!text-lemon-light text-3xl">{company.name}</SignHeading>
-            <div className="font-body text-[11px] font-extrabold uppercase tracking-wide text-white/55">
+            <div className="font-body text-[11px] font-extrabold uppercase tracking-wide text-white/85">
               {money(price)} a share ·{' '}
               {metrics.pe ? `P/E ${metrics.pe.toFixed(0)}` : 'no P/E — it loses money'} ·{' '}
               {MODELS[company.model].name}
@@ -86,7 +86,7 @@ export function ThesisScreen({
         </div>
 
         {/* How much */}
-        <div className="mt-5 rounded-2xl border-[3px] border-white/25 bg-white/10 p-4">
+        <div className="mt-5 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
           <div className="font-body text-[10px] font-extrabold uppercase tracking-[0.16em] text-lemon-light">
             How much
           </div>
@@ -102,7 +102,7 @@ export function ThesisScreen({
             onChange={(event) => setDollars(Number(event.target.value))}
             style={{ ['--fill' as string]: `${(dollars / Math.max(1, maxDollars)) * 100}%` }}
           />
-          <div className="font-body text-[11px] font-bold text-white/55">
+          <div className="font-body text-[11px] font-bold text-white/85">
             Most you can put in right now: {money(maxDollars)}
           </div>
         </div>
@@ -122,7 +122,7 @@ export function ThesisScreen({
                     setOverride(false);
                   }}
                   className={`w-full rounded-2xl border-[3px] p-3 text-left ${
-                    picked ? 'border-lemon bg-white' : 'border-white/20 bg-white/5'
+                    picked ? 'border-lemon bg-white' : 'border-white/20 bg-night-panel'
                   }`}
                 >
                   <div
@@ -155,7 +155,7 @@ export function ThesisScreen({
         {/* The story half */}
         <div className="mt-5">
           <div className="px-1 font-sign text-xl text-lemon-light">And why, in your words</div>
-          <p className="mt-0.5 px-1 font-body text-[11px] font-bold text-white/50">
+          <p className="mt-0.5 px-1 font-body text-[11px] font-bold text-white/85">
             {company.story}
           </p>
           <div className="mt-2 space-y-2">
@@ -170,7 +170,7 @@ export function ThesisScreen({
                     setOverride(false);
                   }}
                   className={`w-full rounded-2xl border-[3px] p-3 text-left ${
-                    picked ? 'border-lemon bg-white' : 'border-white/20 bg-white/5'
+                    picked ? 'border-lemon bg-white' : 'border-white/20 bg-night-panel'
                   }`}
                 >
                   <div
@@ -205,7 +205,7 @@ export function ThesisScreen({
         */}
         <div className="mt-5">
           <div className="px-1 font-sign text-xl text-lemon-light">Biggest risk</div>
-          <p className="mt-0.5 px-1 font-body text-[11px] font-bold text-white/50">
+          <p className="mt-0.5 px-1 font-body text-[11px] font-bold text-white/85">
             Every business has one. Naming it now is how you spot it later.
           </p>
           <div className="mt-2 space-y-2">
@@ -217,7 +217,7 @@ export function ThesisScreen({
                   type="button"
                   onClick={() => setRiskId(picked ? null : claim.id)}
                   className={`min-h-11 w-full rounded-2xl border-[3px] p-3 text-left ${
-                    picked ? 'border-lemon bg-white' : 'border-white/20 bg-white/5'
+                    picked ? 'border-lemon bg-white' : 'border-white/20 bg-night-panel'
                   }`}
                 >
                   <div
@@ -241,7 +241,7 @@ export function ThesisScreen({
 
         <div className="mt-5">
           <div className="px-1 font-sign text-xl text-lemon-light">I plan to hold unless…</div>
-          <p className="mt-0.5 px-1 font-body text-[11px] font-bold text-white/50">
+          <p className="mt-0.5 px-1 font-body text-[11px] font-bold text-white/85">
             A test you set yourself. Notice that none of these is &ldquo;it went down&rdquo;.
           </p>
           <div className="mt-2 space-y-2">
@@ -253,7 +253,7 @@ export function ThesisScreen({
                   type="button"
                   onClick={() => setExitId(picked ? null : claim.id)}
                   className={`min-h-11 w-full rounded-2xl border-[3px] p-3 text-left font-body text-[13px] font-extrabold leading-tight ${
-                    picked ? 'border-lemon bg-white text-ink' : 'border-white/20 bg-white/5 text-white/85'
+                    picked ? 'border-lemon bg-white text-ink' : 'border-white/20 bg-night-panel text-white/85'
                   }`}
                 >
                   {claim.label}
@@ -291,7 +291,7 @@ export function ThesisScreen({
         <button
           type="button"
           onClick={onCancel}
-          className="mt-1 h-11 w-full font-body text-xs font-extrabold uppercase tracking-wide text-white/50"
+          className="mt-1 h-11 w-full font-body text-xs font-extrabold uppercase tracking-wide text-white/85"
         >
           Cancel
         </button>

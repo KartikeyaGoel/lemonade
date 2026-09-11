@@ -221,13 +221,13 @@ export function FinaleScreen({
             <li>· Sit still when the price of something good goes down.</li>
           </ul>
           {summary.heldThroughDrawdown && (
-            <p className="mt-2 rounded-xl bg-white/15 p-2.5 font-body text-[12px] font-extrabold text-lemon-light">
+            <p className="mt-2 rounded-xl bg-night-panel p-2.5 font-body text-[12px] font-extrabold text-lemon-light">
               You watched something you owned fall more than 10% and you kept it. Most grown adults
               cannot do that.
             </p>
           )}
           {summary.panicSold && (
-            <p className="mt-2 rounded-xl bg-white/15 p-2.5 font-body text-[12px] font-bold text-white/80">
+            <p className="mt-2 rounded-xl bg-night-panel p-2.5 font-body text-[12px] font-bold text-white/85">
               You sold something while it was down. Worth asking yourself what had actually changed
               about that business.
             </p>
@@ -264,7 +264,7 @@ export function FinaleScreen({
             )}
           </div>
           {onNewSeason && (
-            <p className="text-center font-body text-[11px] font-bold text-white/55">
+            <p className="text-center font-body text-[11px] font-bold text-white/85">
               A new season keeps every badge and every word. Only the stand starts again.
             </p>
           )}
