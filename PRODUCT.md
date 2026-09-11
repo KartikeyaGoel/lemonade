@@ -4655,3 +4655,122 @@ line rather than an archaeology exercise.
   screen on which a child decides whether to have a third.
 
   Same mechanic, same argument, no boundary moved.
+
+## 71. Stepping back: is the game actually better?
+
+Asked directly, and worth answering without flattering the work. Five commits,
+3,300 lines, over 1,400 tests. The question is whether any of it moves the thing
+that matters, which is four children out of five closing the app in five
+minutes.
+
+### What is better, and can be proved
+
+These are true whether or not a child ever notices, because the evidence is in
+the code rather than in a reaction.
+
+- **A wrong tap no longer ends the run.** Picking the cheapest cart — the most
+  likely wrong answer, and the one the board exists to provoke — barred a child
+  from ever committing money in the market for the whole run. Reproduced, fixed,
+  and the recovery path walked in a browser. This one was worth the session on
+  its own.
+- **The reward card can be read.** The readiness gate's *met* card measured
+  1.35:1 against a 4.5:1 bar. It now measures 7.5:1, and the contrast gate
+  composites translucent fills over the sky's three stops so the next one fails
+  the build.
+- **Four figures that did not add up, do.** "28 cups x $1.00 = $29.50" on the
+  first day of a fresh run; a live scoreboard charging one price for a two-price
+  day; a word card quoting the wrong deal board's multiples; an elasticity card
+  blaming 28 walk-aways on a price 14 of them never saw. All §4. All guarded
+  now, including a general sweep of every arithmetic claim the insight deriver
+  can produce.
+- **`money` has one home**, and the copy of it that had lost its dollar sign is
+  gone.
+
+### What is probably better, and cannot yet be proved
+
+**The lunchtime decision.** What can be shown: it works, the arithmetic closes,
+the answer visibly changes the outcome ($9.00 → $12.00 for the same twelve
+cups), it fires on about 70% of days at competent play, it cannot be skipped by
+hurrying, and a test sweeps its copy for advice.
+
+What cannot be shown: **that any child plays longer because of it.** Nobody has
+played this build. The reasoning is that it restores the one property the loop
+was missing — a decision whose outcome is uncertain — and restores it
+permanently rather than for two more days, because the situation is drawn fresh
+from the weather every morning.
+
+That reasoning is sound and it is also exactly the kind of reasoning that
+produced `interactive` mode, which was argued just as carefully and which five
+children out of five bypassed. **Design reasoning has a track record here and
+it is one for two.** The honest status is "the best available guess, with the
+falsification test written down".
+
+### What is weakest, named as such
+
+**The staggered levers.** Its justification is internal (§13) rather than from
+the pilot, and it carries a risk in the opposite direction from the problem:
+the wall was on day three, and this change makes **day one simpler**. If the
+first two minutes were fine, thinning them is a regression.
+
+The defence is that day one did not actually lose a decision — it lost the
+recipe and gained the lunchtime question, so the count is unchanged and only the
+sequencing moved. But that is an argument, not a measurement, and it is the
+first thing to look at in the next pilot.
+
+It is one constant to undo: `LEVER_ARRIVES.grade = 0`.
+
+**The close-screen strip** has a smaller version of the same problem: it is two
+more lines of prose on a screen the pilot says children scroll past, which is
+cause D. It is short, it is the last thing before the button, and it carries a
+padlock rather than a paragraph — but it is prose, and prose is what they
+skipped.
+
+### What was not addressed at all
+
+Honest scorecard against §68's map. Of twenty-three points:
+
+| Addressed | Points |
+|---|---|
+| **Fixed** | 10 (the trapdoor), 10b (contrast), 17 (shortcut, earlier) |
+| **Substantially addressed** | 3, 22, 23 (a decision in the day), 5a, 5b (the goal and the padlock), 9's causes A/B/C in part |
+| **Partially** | 4 (the lunchtime line is in Pip's bubble; the spec's *Diagnostic feedback* row is still unbuilt), 6 (the lever has an introduction that names the trade; the *effect* is still never shown), 11 (the blur refused; "ask instead of tell" is half-built) |
+| **Not touched** | 1, 2 (the opening), 7 (where to change the price), 8 (day against day), 12, 13, 18, 19, 20, 21 (all of Level 2's compare), 16 (the club's research card) |
+
+**Cause E — the entire Level 2 half — is untouched**, and it contains a live
+defect this document has already diagnosed: `edge` means *which is more* and is
+rendered in the colour that means *good* everywhere else in the product, so the
+faceoff screen tells a child that Costco is a bad buy and that a lower P/E is
+better. `facedown.ts` opens by promising not to teach that. It is the one
+remaining item where the game is actively teaching something false, and it
+should go first.
+
+Also outstanding and found on the way: **roughly fifty instances of
+`text-white/40`–`/65` on the night screens**, which is the whole market half of
+the game. Measured against the sky they sit on, almost all fail AA — pure white
+on the sky's lightest stop is 4.18:1, so the surfaces are the problem rather
+than the opacities. Part of why the pilot called the markets UI confusing is
+that its secondary text cannot be read.
+
+### Did any foundational change turn out to be a mistake?
+
+Two candidates, and the test for both is not "was it justified" but "is it a
+one-way door".
+
+- **A decision inside the day** changes the core loop, which is the most
+  foundational thing here. It is additive rather than replacing: the outer loop
+  is untouched, a day nobody changes is byte-identical, and the whole thing is
+  gated behind a function that returns null when there is nothing at stake.
+  Removing it is `return null` from `middayCall`.
+- **The staggered levers** are one constant.
+
+Neither is irreversible, and that is the property that made them safe to make on
+n = 6. The changes that would *not* have been safe — moving a stage-two upgrade
+into stage one, cutting `ACT2_DAYS`, forcing a read — are the ones §70 refused,
+and each of them would have been hard to walk back.
+
+### The one number to watch
+
+Not retention. **Whether a child answers the lunchtime question or ignores it.**
+If they answer it, the loop has a decision in it and the rest follows. If they
+tap "Keep" every time without reading, this was `interactive` mode again with
+more steps — and that is a cheap thing to find out with five more children.
