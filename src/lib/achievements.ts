@@ -22,7 +22,7 @@
  * Pure module. No React, no I/O.
  */
 
-import { type DayRecord } from './simulation';
+import { swingAfterWorstDay, type DayRecord } from './simulation';
 import { HANDS_OFF_DAYS_REQUIRED, type BusinessState } from './business';
 import { GROWING_MULTIPLE, judgeDealChoice, type OwnershipState } from './ownership';
 import { founderStake, type Listing } from './listing';
@@ -90,15 +90,17 @@ function raisedPriceAndEarnedMore(history: DayRecord[]): boolean {
   return false;
 }
 
-/** Their worst day, and what they did the day after it. */
-function reactionToWorstDay(history: DayRecord[]): number | null {
-  const judgeable = history.filter((day) => history.some((other) => other.day === day.day + 1));
-  if (judgeable.length === 0) return null;
-  const worst = judgeable.reduce((a, day) => (day.profit < a.profit ? day : a), judgeable[0]);
-  const next = history.find((day) => day.day === worst.day + 1);
-  if (!next) return null;
-  return Math.abs(next.price - worst.price);
-}
+/**
+ * The steadiest a price can be called, in cents.
+ *
+ * Ten, and it has to be counted in cents rather than dollars: the test was
+ * `swing <= 0.1` on two subtracted floats, and a ten-cent move — the smallest
+ * one the slider can make — came out as 0.10000000000000009. So the badge for
+ * keeping a steady price refused the child who moved it by one step, which is
+ * the tightest possible pass. See `swingAfterWorstDay`, which both this and
+ * the readiness criterion now read.
+ */
+const STEADY_CENTS = 10;
 
 /** Did they hold their own against a rival rather than undercutting them? */
 function heldTheLine(history: DayRecord[]): boolean {
@@ -201,8 +203,8 @@ export const BADGES: BadgeDef[] = [
     tier: 'gold',
     act: 1,
     test: (c) => {
-      const swing = reactionToWorstDay(c.history);
-      return swing !== null && c.history.length >= 4 && swing <= 0.1;
+      const swing = swingAfterWorstDay(c.history);
+      return swing !== null && c.history.length >= 4 && swing <= STEADY_CENTS;
     },
   },
   {

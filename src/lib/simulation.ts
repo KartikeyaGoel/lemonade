@@ -1842,3 +1842,59 @@ export function closingTakeaway(history: DayRecord[]): string {
 
   return `You charged ${money(best.price)} on your best day and made ${money(best.profit)}.`;
 }
+
+/* ------------------------------------------------------------------ *
+ * What they did the day after the worst day
+ * ------------------------------------------------------------------ */
+
+/**
+ * How far the price moved the day after the worst day, in whole cents.
+ *
+ * Two places judge this — `readiness`'s "did not panic after a bad day" and the
+ * badge for holding a price steady — and until now each found the worst day
+ * itself and subtracted two floats. That is PRODUCT.md §62 twice over: one fact
+ * with two homes, and the arithmetic was wrong in both.
+ *
+ * Wrong because `Math.abs(1.5 - 1.2) <= 0.3` is **false**. The subtraction
+ * lands on 0.30000000000000004, so a child who moved their price by exactly
+ * the amount the rule allows was told they had panicked — and since this is
+ * one of the four readiness criteria, the market then refused to let them buy
+ * anything. Found by running the demo shortcut across sixty seeds: sixteen of
+ * them reached the market and could not trade, all of them on a thirty-cent
+ * move.
+ *
+ * So it returns cents, as an integer, and both callers compare integers. The
+ * price slider steps in cents and every price a child can pick is a whole
+ * number of them, so there is nothing left to round.
+ *
+ * `null` when there is nothing to judge: no day that was followed by another
+ * one, which is the case on a first day and on an abandoned run.
+ *
+ * `centsApart` is the primitive, and it is exported because the same mistake
+ * was in `mastery.ts`: `Math.abs(1.52 - 1.5) <= 0.02` is false, so the skill
+ * that credits a child for *not* moving their price after a loss refused the
+ * child who nudged it by the two cents its own comment calls rounding. Any
+ * threshold on a difference of two prices belongs here.
+ */
+export function centsApart(a: number, b: number): number {
+  return Math.abs(Math.round(a * 100) - Math.round(b * 100));
+}
+
+export function swingAfterWorstDay(history: DayRecord[]): number | null {
+  // Only days that were actually followed by another day. Judging the worst
+  // day outright meant a kid whose worst day happened to be their last was
+  // locked out for a reason that had nothing to do with them.
+  const judgeable = history.filter((day) => history.some((other) => other.day === day.day + 1));
+  if (judgeable.length === 0) return null;
+  const worst = judgeable.reduce((a, day) => (day.profit < a.profit ? day : a), judgeable[0]);
+  const next = history.find((day) => day.day === worst.day + 1);
+  if (!next) return null;
+  return centsApart(next.price, worst.price);
+}
+
+/** The worst day itself, so a message can name what happened on it. */
+export function worstJudgeableDay(history: DayRecord[]): DayRecord | null {
+  const judgeable = history.filter((day) => history.some((other) => other.day === day.day + 1));
+  if (judgeable.length === 0) return null;
+  return judgeable.reduce((a, day) => (day.profit < a.profit ? day : a), judgeable[0]);
+}

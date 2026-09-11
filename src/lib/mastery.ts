@@ -38,7 +38,7 @@
  * Pure module. No React, no I/O.
  */
 
-import type { DayRecord } from './simulation';
+import { centsApart, type DayRecord } from './simulation';
 import { judgeDealChoice } from './ownership';
 import { LOCATIONS, STAFF } from './business';
 import { SHOP } from './retail';
@@ -269,7 +269,7 @@ const DETECTORS: Detector[] = [
         .filter(
           ([today, tomorrow]) =>
             today.profit < 0 &&
-            Math.abs(tomorrow.price - today.price) <= PRICE_UNCHANGED &&
+            centsApart(tomorrow.price, today.price) <= PRICE_UNCHANGED_CENTS &&
             tomorrow.profit > 0,
         )
         .map(([today, tomorrow]) => ({
@@ -455,8 +455,14 @@ const DETECTORS: Detector[] = [
  *
  * A cent either way is a kid nudging the dial past the number they meant, not a
  * change of mind.
+ *
+ * Counted in cents, because this was `<= 0.02` on two subtracted floats and
+ * `Math.abs(1.52 - 1.5)` is `0.020000000000000018` — so the check written to
+ * forgive a two-cent nudge was the one thing it would not forgive. Same defect
+ * as the readiness criterion in PRODUCT.md §67, found by grepping for the shape
+ * rather than by another playthrough.
  */
-const PRICE_UNCHANGED = 0.02;
+const PRICE_UNCHANGED_CENTS = 2;
 /** Cups poured away before it is worth calling waste rather than rounding. */
 const WASTE_WORTH_NOTICING = 4;
 /** Cups the batch has to move by before it counts as a decision. */

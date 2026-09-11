@@ -198,3 +198,66 @@ describe('deleting everything on a fresh install', () => {
     expect(screen.getByText(/the name Ada/i)).toBeInTheDocument();
   });
 });
+
+/**
+ * The admin shortcut, which is the only control on this screen that belongs to
+ * the person running a demo rather than to the family.
+ *
+ * Three render-level facts, because all three are the kind that a refactor
+ * quietly loses: it is absent unless the host asks for it, it takes two taps
+ * with the second one somewhere else, and it never offers the stage already on
+ * screen — which is the one tap that would replace a run with the same run.
+ */
+describe('skipping ahead, for a demo', () => {
+  const report = () => parentReport(createGame(1), createCareer(), []);
+
+  it('is absent unless the host passes the handler', () => {
+    render(<ParentScreen report={report()} onBack={() => {}} />);
+    expect(screen.queryByRole('button', { name: /skip ahead/i })).not.toBeInTheDocument();
+  });
+
+  it('takes two taps, and the first one replaces nothing', async () => {
+    const onJump = vi.fn();
+    render(<ParentScreen report={report()} onJump={onJump} onBack={() => {}} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /skip ahead to a stage/i }));
+    expect(onJump).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(ACT_TITLES[5].name, 'i') }));
+    expect(onJump).not.toHaveBeenCalled();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: new RegExp(`start at ${ACT_TITLES[5].name}`, 'i') }),
+    );
+    expect(onJump).toHaveBeenCalledWith(5);
+  });
+
+  it('does not offer the stage already on screen', async () => {
+    const onJump = vi.fn();
+    render(<ParentScreen report={report()} onJump={onJump} onBack={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /skip ahead to a stage/i }));
+
+    // A fresh report is Act 1, so every other stage is on offer and that one
+    // is not.
+    expect(
+      screen.queryByRole('button', { name: new RegExp(`1\\. ${ACT_TITLES[1].name}`) }),
+    ).not.toBeInTheDocument();
+    for (const act of [2, 3, 4, 5] as const) {
+      expect(
+        screen.getByRole('button', { name: new RegExp(`${act}\\. ${ACT_TITLES[act].name}`) }),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it('says what it costs before it does it', async () => {
+    render(<ParentScreen report={report()} onJump={() => {}} onBack={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /skip ahead to a stage/i }));
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(ACT_TITLES[5].name, 'i') }));
+
+    // Names what is replaced, and offers the way out. The wording matters: a
+    // demo-er should know the save is a played week rather than a finished
+    // game before they put it in front of an audience.
+    expect(screen.getByText(/replace this run/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /pick a different one/i })).toBeInTheDocument();
+  });
+});

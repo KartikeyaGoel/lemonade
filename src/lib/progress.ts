@@ -16,6 +16,8 @@ import {
   type DayRecord,
   type GameState,
   type Insight,
+  swingAfterWorstDay,
+  worstJudgeableDay,
 } from './simulation';
 import {
   ACT2_DAYS,
@@ -441,23 +443,26 @@ export interface Readiness {
  * a single day is noise, which is the habit that most reliably ruins people in
  * markets. We look at their actual worst day and what they did next.
  */
+/**
+ * The most a price may move the day after the worst day, in cents.
+ *
+ * Cents rather than dollars because the comparison used to be `swing <= 0.3`
+ * on two subtracted floats, and a thirty-cent move came out as
+ * 0.30000000000000004 — so the one thing the rule explicitly permits was the
+ * thing it rejected. See `swingAfterWorstDay`.
+ */
+export const STEADY_ENOUGH_CENTS = 30;
+
 export function heldThroughWorstDay(history: DayRecord[]): { met: boolean; detail: string } {
   if (history.length < 3) {
     return { met: false, detail: 'Trade a few more days first.' };
   }
-  // Only consider days that were actually followed by another day. Judging
-  // the single worst day outright meant a kid whose worst day happened to be
-  // their last was locked out for a reason that had nothing to do with them.
-  const judgeable = history.filter((day) =>
-    history.some((other) => other.day === day.day + 1),
-  );
-  if (judgeable.length === 0) {
+  const swing = swingAfterWorstDay(history);
+  const worst = worstJudgeableDay(history);
+  if (swing === null || !worst) {
     return { met: false, detail: 'Trade another day and this will be checked.' };
   }
-  const worst = judgeable.reduce((a, day) => (day.profit < a.profit ? day : a), judgeable[0]);
-  const next = history.find((day) => day.day === worst.day + 1)!;
-  const swing = Math.abs(next.price - worst.price);
-  if (swing <= 0.3) {
+  if (swing <= STEADY_ENOUGH_CENTS) {
     return {
       met: true,
       detail: `After your worst day (${money(worst.profit)}) you kept your price near ${money(worst.price)} instead of panicking.`,
@@ -465,7 +470,7 @@ export function heldThroughWorstDay(history: DayRecord[]): { met: boolean; detai
   }
   return {
     met: false,
-    detail: `After your worst day you swung the price by ${money(swing)}. One day is mostly weather.`,
+    detail: `After your worst day you swung the price by ${money(swing / 100)}. One day is mostly weather.`,
   };
 }
 

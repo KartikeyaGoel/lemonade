@@ -258,6 +258,39 @@ describe('did they panic after their worst day?', () => {
   it('needs some history before it claims anything', () => {
     expect(heldThroughWorstDay(withHistory([10])).met).toBe(false);
   });
+
+  /**
+   * The boundary, in the currency the slider actually moves in.
+   *
+   * The rule permits a thirty-cent move and the code rejected one, because
+   * `Math.abs(1.5 - 1.2) <= 0.3` is false — the subtraction lands on
+   * 0.30000000000000004. A child who dropped their price by exactly three
+   * steps was told they had panicked, and since this is one of the four
+   * readiness criteria, the market then refused to let them buy anything.
+   *
+   * Every price below is a whole number of cents, which is all the slider can
+   * produce, so this is the real case rather than a contrived one.
+   */
+  it('allows exactly the move it says it allows', () => {
+    for (const [worst, next] of [
+      [1.5, 1.2],
+      [1.2, 1.5],
+      [2.2, 1.9],
+      [1.9, 2.2],
+      [1.05, 1.35],
+      [3, 2.7],
+    ] as const) {
+      const history = withHistory([20, -4, 10, 12], [1.6, worst, next, next]);
+      expect(heldThroughWorstDay(history).met, `${worst} to ${next}`).toBe(true);
+    }
+  });
+
+  it('still refuses one cent past it', () => {
+    const history = withHistory([20, -4, 10, 12], [1.6, 1.5, 1.19, 1.19]);
+    expect(heldThroughWorstDay(history).met).toBe(false);
+    // And reports the move as money rather than as a count of cents.
+    expect(heldThroughWorstDay(history).detail).toContain('$0.31');
+  });
 });
 
 describe('the readiness gate is a real lock', () => {

@@ -109,7 +109,9 @@ import {
   seededWith,
   whatsNext,
   type Game,
+  type Act,
 } from '@/lib/progress';
+import { DEMO_STAGES, demoGame } from '@/lib/demo';
 import { parentReport } from '@/lib/parent';
 import { catchUp, createLivePortfolio, type CatchUp } from '@/lib/live';
 import { LiveOpenScreen } from '@/components/acts/LiveOpenScreen';
@@ -174,7 +176,14 @@ import {
   toured,
   type TourId,
 } from '@/lib/coach';
-import { announceable, isFirstRun, isUnlocked, newlyUnlocked, type Unlock } from '@/lib/unlocks';
+import {
+  announceable,
+  isFirstRun,
+  isUnlocked,
+  newlyUnlocked,
+  unlockedFeatures,
+  type Unlock,
+} from '@/lib/unlocks';
 import { road, roadLine } from '@/lib/journey';
 import { desks } from '@/lib/friends';
 import { cardFor } from '@/lib/table';
@@ -1652,6 +1661,61 @@ export default function Page() {
     setPhase('morning');
   }, [game, career]);
 
+  /**
+   * The admin shortcut: hand the app a save that starts part-way through.
+   *
+   * Asked for as a way to shortcut to the market for a demo. It unlocks
+   * nothing — `unlocks.ts` and `readiness` are untouched, and `demoGame` gets
+   * past both by playing the game forward with the same functions this file
+   * uses. So the gated path a child plays is exactly the gated path a child
+   * plays, with or without this button existing.
+   *
+   * The club and the playbook are carried for the same reason `restart` carries
+   * them: one belongs to a group of people and the other is the kid's own
+   * thinking, and neither is this button's to destroy. The career is left
+   * alone, which means the badge effect will award the jumped save whatever its
+   * own history deserves rather than this handing any out.
+   */
+  const jumpToStage = useCallback(
+    (act: Act) => {
+      const stage = DEMO_STAGES.find((entry) => entry.act === act);
+      if (!stage) return;
+      const next: Game = {
+        ...demoGame(act),
+        club: game?.club ?? null,
+        playbook: game?.playbook ?? createPlaybook(),
+      };
+      setGame(next);
+      /*
+       * Bank what the save earned, and mark it as already celebrated.
+       *
+       * Without this the jump lands on a stack of full-screen cards — the
+       * trophy case, Friends, the club — each announcing a system as new when
+       * the save has had it for a fortnight. That is the one-card rule working
+       * correctly on a save that lied to it: the features did all become real
+       * in the same instant.
+       *
+       * The badges themselves are still `earnedBadges` over the save's own
+       * history, so §16 holds and nothing is handed out. Only the party is
+       * skipped, which is right — a week that was played off-screen had its
+       * party off-screen too.
+       */
+      setCareer((current) => {
+        if (!current) return current;
+        const banked = recordBadges(current, earnedBadges(badgeContext(next, current)));
+        return recordAnnounced(banked, unlockedFeatures(next, banked));
+      });
+      // Everything mid-day is about a day that no longer exists.
+      setOutcome(null);
+      setPlanned(null);
+      setNewInsights([]);
+      setHasSave(true);
+      setReturnPhase(stage.phase);
+      setPhase(stage.phase);
+    },
+    [game],
+  );
+
   const restart = useCallback(() => {
     clearGame();
     // The club belongs to a group of people rather than to this run, so
@@ -2931,6 +2995,7 @@ export default function Page() {
     case 'parent':
       return (
         <ParentScreen
+          onJump={jumpToStage}
           fromChild={grownUpThread(inbox)?.messages ?? []}
           notices={{ state: noticeState, onAsk: askForNotices }}
           onReply={handleGrownUpReply}

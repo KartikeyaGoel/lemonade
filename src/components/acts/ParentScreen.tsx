@@ -4,6 +4,8 @@ import { useState } from 'react';
 import type { ParentReport } from '@/lib/parent';
 import type { Stage } from '@/lib/curriculum';
 import type { Skill } from '@/lib/mastery';
+import type { Act } from '@/lib/progress';
+import { DEMO_STAGES } from '@/lib/demo';
 import { ChunkyButton, clearsBar, PinnedBar, SignHeading, Sky } from '../ui';
 import { plural } from '@/lib/copy';
 
@@ -18,6 +20,7 @@ import { plural } from '@/lib/copy';
  */
 export function ParentScreen({
   report,
+  onJump,
   onClassroom,
   onEraseAll,
   fromChild,
@@ -51,6 +54,19 @@ export function ParentScreen({
     state: 'unsupported' | 'default' | 'granted' | 'denied';
     onAsk: () => void;
   };
+  /**
+   * Skip to a stage, for showing the game to somebody.
+   *
+   * Optional in the type and only passed by the app, so a harness has to opt
+   * in — the same rule `onEraseAll` follows, and for the same reason: this
+   * replaces a run.
+   *
+   * Behind this screen rather than anywhere near the child, because the
+   * gated path is the product. Nothing about it changes: `unlocks.ts` and
+   * `readiness` are untouched, and a jumped save gets past them by having
+   * been played forward rather than by being waved through. See `demo.ts`.
+   */
+  onJump?: (act: Act) => void;
   /** The teacher's way in. Nothing on the child's side links here. */
   onClassroom?: () => void;
   /**
@@ -188,6 +204,8 @@ export function ParentScreen({
           </p>
         </div>
 
+        {onJump && <JumpBlock onJump={onJump} at={report.act} />}
+
         {onEraseAll && (
           <EraseBlock
             confirming={confirming}
@@ -298,6 +316,110 @@ export function ParentScreen({
         </div>
       </PinnedBar>
     </Sky>
+  );
+}
+
+/**
+ * The admin door: start somewhere other than the beginning.
+ *
+ * Asked for as "a way to shortcut to level 2", level 2 being the market, with
+ * the suggestion that the stages could be unlocked for a demo. They are not
+ * unlocked, here or anywhere — the gated path stays exactly as a child plays
+ * it, which is the whole product. Each button plays the game forward instead
+ * and hands over the save that produces. `demo.ts` has the argument for why
+ * that is not the same thing, and why unlocking would have shown an empty
+ * market rather than a working one.
+ *
+ * Styled like the erase below it and for the same reason: small print rather
+ * than an action, because this is a control for the person running the demo and
+ * a landmine for anybody else. The stage they are already on is not offered,
+ * which removes the only tap that would replace a run with an identical one.
+ */
+function JumpBlock({ onJump, at }: { onJump: (act: Act) => void; at: number }) {
+  const [open, setOpen] = useState(false);
+  const [picked, setPicked] = useState<Act | null>(null);
+
+  if (!open) {
+    return (
+      <div className="mt-5 border-t-2 border-dashed border-ink/15 pt-3">
+        <p className="font-body text-[11px] font-bold leading-snug text-ink/50">
+          Showing the game to somebody? A stage normally takes days to reach, because each one is
+          unlocked by the thing that makes it make sense.
+        </p>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="mt-0.5 flex h-11 items-center font-body text-[12px] font-extrabold uppercase tracking-wide text-ink/60 underline decoration-2 underline-offset-2"
+        >
+          Skip ahead to a stage
+        </button>
+      </div>
+    );
+  }
+
+  const chosen = picked === null ? null : DEMO_STAGES.find((stage) => stage.act === picked);
+
+  return (
+    <div className="mt-5 rounded-2xl border-[3px] border-ink/25 bg-white/85 p-4">
+      <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/50">
+        Skip ahead
+      </div>
+
+      {chosen ? (
+        <>
+          {/* Named, because "are you sure" is not a question. What goes is a
+              run; what arrives is somebody else's week, and a demo-er should
+              know which of the two is on the screen they are about to show. */}
+          <p className="mt-1 font-body text-[13px] font-extrabold leading-snug text-ink">
+            Replace this run with a game that has been played up to {chosen.name}?
+          </p>
+          <p className="mt-1 font-body text-[12px] font-bold leading-snug text-ink/65">
+            The days are real ones: every figure on screen is what those days actually made. The
+            badges and words are whatever that week earned, so it is a played save rather than a
+            finished one. Trophies and names already on this device are kept.
+          </p>
+          <div className="mt-3 space-y-2">
+            <ChunkyButton variant="ghost" full onClick={() => setPicked(null)}>
+              Pick a different one
+            </ChunkyButton>
+            <ChunkyButton variant="lemon" full onClick={() => onJump(chosen.act)}>
+              Start at {chosen.name}
+            </ChunkyButton>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="mt-1 font-body text-[12px] font-bold leading-snug text-ink/65">
+            This replaces the run on this device with one that has been played that far. It is for
+            demos — a child gets here by playing.
+          </p>
+          <div className="mt-3 space-y-2">
+            {DEMO_STAGES.filter((stage) => stage.act !== at).map((stage) => (
+              <button
+                key={stage.act}
+                type="button"
+                onClick={() => setPicked(stage.act)}
+                className="w-full rounded-xl border-[3px] border-ink/15 bg-white px-3 py-2 text-left"
+              >
+                <div className="font-sign text-lg leading-tight text-ink">
+                  {stage.act}. {stage.name}
+                </div>
+                <div className="font-body text-[11px] font-bold leading-tight text-ink/55">
+                  {stage.promise}
+                </div>
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="mt-2 flex h-11 w-full items-center justify-center font-body text-[12px] font-extrabold uppercase tracking-wide text-ink/50"
+          >
+            Never mind
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 

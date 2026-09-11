@@ -3954,3 +3954,145 @@ anything about them. Changed to *them*, and I checked the rest of the new copy
 for the same mistake. A wrong guess misgenders a real child in a way the
 neutral word never does.
 
+
+## 67. A shortcut to the market, and the thirty-cent move that blocked it
+
+The cofounder asked: *"Is there a way to shortcut to level 2?"* — level 2 being
+the market, the fifth stage — and suggested how. *"For the demo we can make each
+of the steps not locked behind the others, i know thats how its supposed to be
+in the real game but for demo purposes we can make it unlocked or there should
+be some sort of admin button to unlock it temporarily?"* Then, mid-build:
+*"it should be invoked by an admin button but people should be able to play it
+how its supposed to be played without the admin mode."*
+
+That is the right instinct and the wrong lever, and the difference is worth
+writing down because it is invisible from outside the code.
+
+### Nothing that stops you reaching the market is an unlock
+
+`unlocks.ts` gates the meta-game: the trophy case, the word collection, the
+club, the playbook, the live market. None of them is in the way of the market
+itself. What is in the way is `readiness` — four criteria, each read off state
+that only playing produces, and the fourth of them gates *committing money*:
+
+- knows what they keep per cup,
+- did not panic after a bad day,
+- picked the better deal of two businesses,
+- turned down a good business at a bad price.
+
+So turning every unlock on gets you a market screen with a **$0 account and a
+Buy button that refuses**. Zero because `beginAct5` seeds the account from
+`seededWith` — the buyout or the float — and both are zero on a fresh save.
+Refuses because `readiness` is not an unlock and was never consulted.
+
+An unlock-everything demo would therefore have demonstrated a locked, empty
+version of the one stage it was meant to show. That is a worse outcome than the
+gates, and it is exactly the kind of failure that only appears when somebody
+puts the build in front of an audience.
+
+### So it plays the game forward instead
+
+`src/lib/demo.ts` does not unlock anything, force a flag, or invent a figure.
+It plays the game with the same functions the app uses — `runDay` for every
+day, `buyUpgrade` / `toggleStaff` / `openStand` for the business, the loan and
+the fit-out for the shop, `recordDealChoice` and `acceptBuyout` for the sale,
+`beginAct2`..`beginAct5` for the transitions — and hands back the save that
+produces. A jump to the market carries a real week at one stand, a manager, a
+second pitch, a shop with a loan against it and a sale, and the account it opens
+with is what that business actually fetched.
+
+Three consequences, all of them the point:
+
+1. **The gated path is untouched.** No gate was loosened, so nothing about how
+   a child plays can have regressed. `tests/demo.test.ts` asserts a fresh game
+   is exactly as locked as it was — six features locked, `canTrade` false, zero
+   criteria met — and those assertions would pass if the module did not exist.
+   They are there to stop passing the moment somebody makes the shortcut work
+   by weakening a gate instead.
+2. **No badge is handed out.** `page.tsx` already derives badges from
+   `earnedBadges(badgeContext(...))` whenever the game settles, so a jumped save
+   earns exactly what its own history deserves. §16 says a badge is evidence of
+   a decision; a demo save that arrives decorated would make it a sticker.
+3. **The figures reconcile.** §4 requires that any two figures shown together
+   agree. A save handed $900 of cash next to a week that earned $207 fails that
+   in front of the one audience most likely to check. Playing forward means
+   there is nothing to reconcile.
+
+The playthrough policy itself used to live in `tests/arc.test.ts`, which walks
+the whole arc to prove the game is finishable. It is now imported from
+`demo.ts`, because a policy with two homes is §62's defect class — and the
+arrangement is better anyway: the arc test now drives the code that builds a
+real demo save rather than a copy of it, so the shortcut cannot rot without
+fourteen assertions going red.
+
+The door is one block behind the grown-up screen, styled like the erase below
+it: small print rather than an action, two taps with the second one somewhere
+else, and it never offers the stage already on screen. **Like the reset in §61
+it is a demo affordance and should come out before real families have the app.**
+
+### The defect underneath: a thirty-cent move
+
+The first version of the test checked the default seed and passed. Sixty seeds
+found that **sixteen of them reached the market and could not trade**, every one
+failing the same criterion — *did not panic after a bad day* — and every one on
+a thirty-cent price move.
+
+The rule permits thirty cents. The code was:
+
+```js
+const swing = Math.abs(next.price - worst.price);
+if (swing <= 0.3) { /* held their nerve */ }
+```
+
+`Math.abs(1.5 - 1.2)` is `0.30000000000000004`. So the one move the rule
+explicitly allows was the move it rejected, and because this is a readiness
+criterion, the market then refused to let that child buy anything. A child who
+dropped their price by exactly three steps of the slider was told they had
+panicked and then locked out of the stage the whole game builds to.
+
+The badge for keeping a steady price had it too, at a tighter threshold:
+`Math.abs(1.6 - 1.5) <= 0.1` is also false, so the badge refused a child who
+moved the price by **one step** — the tightest possible pass.
+
+Both are fixed by counting in cents. `swingAfterWorstDay` in `simulation.ts` is
+now the single answer to "what did they do the day after their worst day",
+returns whole cents, and both callers compare integers against
+`STEADY_ENOUGH_CENTS` (30) and `STEADY_CENTS` (10). That also removes the
+duplicate: the worst-judgeable-day search existed twice, once in `progress.ts`
+and once in `achievements.ts`, which is §62 again — and the arithmetic was
+wrong in both copies.
+
+### And a third copy, found by looking for the shape
+
+The generalised class is: **a threshold compared against a difference of two
+decimal quantities is wrong at the threshold.** Having named it, the right move
+is to grep for the shape rather than wait for another playthrough — which found
+a third instance in `mastery.ts`:
+
+```js
+/** A cent either way is a kid nudging the dial past the number they meant. */
+const PRICE_UNCHANGED = 0.02;
+...
+Math.abs(tomorrow.price - today.price) <= PRICE_UNCHANGED
+```
+
+`Math.abs(1.52 - 1.5)` is `0.020000000000000018`. The tolerance written
+specifically to forgive a two-cent nudge was the one thing it would not forgive,
+so the skill *judges the business on a run of days, not one day* refused the
+child who held their price and moved the dial by one step. Fixed the same way,
+against `PRICE_UNCHANGED_CENTS`.
+
+`centsApart` in `simulation.ts` is now the primitive all three read, and it is
+exported so the next one has somewhere to go. Three places compared a price
+difference to a threshold and all three were wrong at the boundary; nothing else
+in `src/lib` does, which was checked rather than assumed — the remaining
+`Math.abs` comparisons are on ratios, percentages and integer cup counts, where
+landing exactly on the threshold is not a case a child can produce.
+
+Worth being clear about what found the first one. Not a review of
+`heldThroughWorstDay`, which had five tests and passed them all, because every
+one of them used prices whose difference happened to land the right side of a
+float. What found it was running the demo shortcut across sixty seeds and
+refusing to accept that fifty-six was good enough. A test that picks its
+fixtures by hand will almost never sit on a boundary; a test that sweeps sixty
+seeds sits on every boundary the simulation can reach.

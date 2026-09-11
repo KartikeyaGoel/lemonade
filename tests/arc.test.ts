@@ -46,6 +46,24 @@ import {
 import { acceptBuyout, recordDealChoice, type BuyoutOffer } from '../src/lib/ownership';
 import { MARKET_WEEKS, advanceWeek, buy } from '../src/lib/market';
 import { batchPlan, runDay, ECON } from '../src/lib/simulation';
+/*
+ * The playthrough itself lives in `src/lib/demo.ts`.
+ *
+ * It started here, as a test double that deliberately mirrored `closeDay` in
+ * `page.tsx`. Then the demo shortcut needed exactly the same thing — a save
+ * played forward to a given stage — and a policy with two homes is the defect
+ * class PRODUCT.md §62 names. So the app owns it and this file drives it,
+ * which is the better arrangement anyway: the assertions below are now checking
+ * the code that actually builds a demo save rather than a copy of it.
+ */
+import {
+  batchForCapacity,
+  playDay,
+  sensiblePrice,
+  throughActOne,
+  throughShop,
+  throughStands,
+} from '../src/lib/demo';
 
 /**
  * Can the game be finished by playing it?
@@ -90,12 +108,6 @@ function offerOf(multiple: number, price: number): BuyoutOffer {
   };
 }
 
-function sensiblePrice(game: Game): number {
-  if (game.stand.forecast === 'probably-cold') return 2.2;
-  if (game.stand.forecast === 'probably-hot') return 1.9;
-  return 2;
-}
-
 /**
  * And a batch that matches the sky.
  *
@@ -108,116 +120,6 @@ function sensibleBatch(game: Game): number {
   if (game.stand.forecast === 'probably-cold') return 14;
   if (game.stand.forecast === 'probably-hot') return 36;
   return 24;
-}
-
-/**
- * A batch sized to the business rather than to one table.
- *
- * The fixed numbers above are right for one stand and hopeless for three
- * pitches and a shop, where a 24-cup batch turns a 114-cup crowd into a
- * sold-out morning and a loss against $145 of rent and wages. Sizing off
- * capacity is what a player does once the business is bigger than their hands.
- */
-function batchForCapacity(game: Game): number {
-  const cap = serviceCapacity(game.business);
-  const share =
-    game.stand.forecast === 'probably-cold' ? 0.45 : game.stand.forecast === 'probably-hot' ? 1 : 0.72;
-  return Math.max(8, Math.floor(cap * share));
-}
-
-/**
- * One day, with every counter the close screen advances.
- *
- * Deliberately mirrors `closeDay` in `src/app/page.tsx`: the hands-off streak,
- * the two-stand streak, the shop's run of good days and a day off the loan. If
- * this drifts from that, a stage goal can become unreachable in the app while
- * every test here still passes — which is the exact failure this file exists
- * to catch.
- */
-function playDay(game: Game, price: number, cups: number, byManager = false): Game {
-  const params = deriveDayParams(game.business, price);
-  const plan = batchPlan(game.stand, cups);
-  const outcome = runDay(game.stand, { ...plan.order, price }, { ...params, lastDay: null });
-  return {
-    ...game,
-    stand: outcome.nextState,
-    business: {
-      ...updateHandsOff(game.business, byManager, outcome.profit),
-      twoStandDays: updateTwoStandDays(game.business, outcome.profit).twoStandDays,
-      shop: updateShopDays(game.business.shop, outcome.profit),
-      loan: repayLoan(game.business.loan),
-    },
-  };
-}
-
-/** Act 1, played sensibly, which is where every later stage starts from. */
-function throughActOne(seed = 2026): Game {
-  let game = createGame(seed);
-  for (let i = 0; i < ECON.TOTAL_DAYS; i += 1) {
-    const plan = batchPlan(game.stand, 28);
-    game = { ...game, stand: runDay(game.stand, { ...plan.order, price: 1.6 }).nextState };
-  }
-  return { ...game, stand: { ...game.stand, status: 'playing' } };
-}
-
-/**
- * The stands stage, played the way the goal strip asks.
- *
- * Buy the cooler, hire a manager once there is a wage in hand, wait for the
- * hands-off days, then open at the park. Returns the game and how many days it
- * took, because "before the fallback fires" is the assertion that matters.
- */
-function throughStands(start: Game): { game: Game; days: number } {
-  let game = beginAct2(start);
-  let days = 0;
-  while (days < ACT2_DAYS && !act2Progress(game.business, days).complete) {
-    if (!game.business.upgrades.cooler && game.stand.cash > 80) {
-      const bought = buyUpgrade(game.stand.cash, game.business, 'cooler');
-      if (bought.ok) {
-        game = { ...game, stand: { ...game.stand, cash: bought.cash }, business: bought.business };
-      }
-    }
-    if (!game.business.staff.manager && game.stand.cash > 120) {
-      game = { ...game, business: toggleStaff(game.business, 'manager') };
-    }
-    if (
-      game.business.staff.manager &&
-      game.business.handsOffDays >= HANDS_OFF_DAYS_REQUIRED &&
-      standCount(game.business) < 2
-    ) {
-      const opened = openStand(game.business, 'park', game.stand.cash);
-      if (opened.opened) {
-        game = { ...game, stand: { ...game.stand, cash: opened.cash }, business: opened.business };
-      }
-    }
-    game = playDay(game, sensiblePrice(game), batchForCapacity(game), game.business.staff.manager);
-    days += 1;
-  }
-  return { game, days };
-}
-
-/** The shop stage, paid for with a loan and traded until it pays for itself. */
-function throughShop(start: Game): { game: Game; days: number } {
-  let game = beginAct3(start);
-  const loan = loanQuote();
-  game = {
-    ...game,
-    business: { ...game.business, loan },
-    stand: { ...game.stand, cash: game.stand.cash + loan.principal },
-  };
-  let days = 0;
-  while (days < ACT3_DAYS && !shopProgress(game.business.shop).complete) {
-    if (!game.business.shop.open && game.stand.cash >= SHOP.fitOut) {
-      game = {
-        ...game,
-        stand: { ...game.stand, cash: game.stand.cash - SHOP.fitOut },
-        business: { ...game.business, shop: { ...game.business.shop, open: true } },
-      };
-    }
-    game = playDay(game, sensiblePrice(game), batchForCapacity(game), true);
-    days += 1;
-  }
-  return { game, days };
 }
 
 describe('the whole arc, played', () => {

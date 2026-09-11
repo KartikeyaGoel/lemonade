@@ -203,6 +203,28 @@ describe('the boundaries', () => {
     expect(levelOf(wobbled, 'judges-on-a-run')).toBe('unseen');
   });
 
+  /**
+   * The two cents the rule forgives on purpose.
+   *
+   * `PRICE_UNCHANGED_CENTS` exists so that nudging the dial past the number you
+   * meant does not read as a change of mind — and the check was
+   * `Math.abs(tomorrow.price - today.price) <= 0.02`, which is false for
+   * `1.52 - 1.5`. So the one move the tolerance was written for was the move it
+   * refused. Both directions, because the subtraction is wrong either way
+   * round.
+   */
+  it('forgives exactly the nudge it says it forgives', () => {
+    for (const nudged of [1.52, 1.48]) {
+      const steady = withDays([
+        day({ day: 1, profit: -3 }),
+        day({ day: 2, price: nudged, profit: 8 }),
+        day({ day: 3, profit: -1 }),
+        day({ day: 4, price: nudged, profit: 9 }),
+      ]);
+      expect(levelOf(steady, 'judges-on-a-run'), String(nudged)).toBe('held');
+    }
+  });
+
   it('counts holding a price through a loss that then came good', () => {
     const steady = withDays([
       day({ day: 1, profit: -3 }),
