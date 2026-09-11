@@ -4859,3 +4859,160 @@ same answer fails three.
 is now the *only* open question about this feature, it is bounded — the feature
 is neither decoration nor a trap — and §71's "one number to watch" is the way
 to close it.
+
+## 72. The other thirteen
+
+§71 reported ten of twenty-three points addressed and named the rest as
+outstanding, including one where the game was actively teaching something
+false. This is the rest of them.
+
+### Level 2, which had been untouched
+
+**#13 — "Right now it seems Costco is a bad buy."** The one defect where the
+product taught something untrue. `FaceoffRow.edge` means *which is more* and its
+own comment says "which is not the same as which one is better"; the view
+rendered it as `bg-mint/25`, and mint is the profit colour on the close screen,
+the correct-answer colour on the deal board, the selected colour on the grade
+picker and the met colour on the readiness gate. Four rows out of six went green
+for Apple. The correction — "green means more" — was eleven-pixel white/50 at
+2.2:1, below all six rows, off the bottom of a phone.
+
+The marker is now a word and an arrow in ink, and "Nobody wins this table" moved
+to the top on a panel. Costco reads as what it is: profit up seven years
+running, keeping 3c of every dollar, at 62 years of profit.
+
+**#12 and #19 — strengths and risks.** Asked for twice, in two different ways.
+Built in `qualities.ts` and **derived from the filings**, because a hand-written
+list for twenty-four companies is twenty-four pairs of opinions the game would
+be asserting, and `scout.ts` is explicit that nothing here is an opinion the game
+holds. Each claim is a threshold crossed by a filed figure and carries that
+figure. Tests hold that every company gets at least one strength *and* at least
+one risk — three strengths and no risks is a recommendation whatever the heading
+says — that what you pay is never filed as a weakness of the business, and that
+no claim contains advice.
+
+One input is authored rather than filed and is disclosed as such:
+`company.model`. It earns its place because it is the only thing that gives Nike
+and Starbucks a case at all, both having seen profit roughly halve, and the
+honest thing to say about them is that people pay extra for the name.
+
+**#20 — repetitive comparisons.** Literally true: `FaceoffRow.meaning` is a
+constant per row, so the same six sentences appeared for every pair anybody ever
+compared and the fifth comparison was word-for-word the first. They are now
+behind a tap, and what varies — the trade-off sentence, the two price shapes,
+each company's own case — is above them.
+
+**#21 — a historical timeline.** A year of real weekly closes for each side,
+drawn as a shape rather than a chart. `pastCloses` stops at the current week and
+a test holds that ceiling: this market replays real history, so the future is
+sitting in the same array, and one off-by-one turns a price chart into a cheat
+sheet.
+
+**#18 — the compare option is confusing.** Three separate causes, all fixed.
+Nothing in the game pointed at Compare, so `MARKET_TOUR` now has a step on it.
+The footer was a *disabled* primary button reading "Pick 2 more" over a
+scrolling list — which reads as a rendering glitch — and at two picks became
+"Holding them up…" wired to `undefined`, because the comparison opens by itself
+on the second tap. And the screen's secondary text could not be read.
+
+That last one turned out to be systemic. Every night screen put
+`text-white/40`–`/65` on `bg-white/10`, and a translucent white panel over a
+night sky composites *lighter* than the sky: at the mid stop `white/65` is
+3.84:1 and at the bottom 2.39:1. Pure white on the lightest stop is 4.18:1, so
+the surface was the problem rather than the opacity — there is no value at which
+that idiom works. Fifty-three instances of dim text and thirty-nine translucent
+panels across eleven screens, which is the whole market half of the game plus
+the trophy case, the club, the thesis, the playbook and the finale. **Part of
+why the pilot called the markets UI confusing is that they could not read it.**
+
+**#16 — a research card on the club's propose flow.** Worse than the note
+realised: the club's route in is `PickView → ThesisScreen`, so a child
+proposing a buy to their friends had never seen the company's accounts at all.
+The numbers now come with the screen — closed by default for a child arriving
+from the market who read them one tap ago, open on one tap for a child arriving
+from the club who has not.
+
+**#14 — a long-term read as an input.** Already built and left alone:
+`thesis.ts` has `EXIT_CLAIMS` ("what would make me sell") and grades every
+thesis twelve weeks later on whether the reasoning held, not on whether the
+money went up. The research card now sits on the same screen, which is what was
+missing.
+
+### Level 1
+
+**#4 and #8 — nobody read the results, and they wanted to compare days.** One
+mechanic answers both, and it is FRAMEWORK §1's *Diagnostic feedback* row, which
+was never built: yesterday's profit, today's, and **one question** about what
+moved between them. A question rather than a sentence because a well-written
+diagnosis would be skipped exactly as the ledger is. `diagnose.ts` has the two
+versions that were measured and thrown away — a priority ladder where the
+weather was never once the answer in 280 days, and a shares-of-the-day version
+where price won 241 of 280 because a refusal rate is structurally about a half
+at any price.
+
+**#6 — the quality effect was invisible.** The mechanic has been in the
+simulation since §15 and its effect had never appeared on a screen.
+`wordOfMouth` names the cups the recipe moved, on every day it moved any — as a
+sentence rather than a quiz option, because the recipe shifts demand by at most
+a quarter while the price can shift it by everything, so a child who only met it
+as a question would almost never meet it.
+
+**#7 — could not find where to adjust the price.** Two causes. The label
+"tap the sign" was `text-ink/45` on the lemon sign, which is **2.69:1** at nine
+pixels — an idiom that works on white and fails on a sign already most of the
+way to the ink. And the tour that teaches it had one chance: `Spotlight` makes
+all four dim panels a skip button, so any stray tap spent the only explanation
+of a new interaction model for ever, on a career record that outlives the run.
+That is cause F again, and it now takes two skips.
+
+**#1 and #2 — the opening.** Measured before touching it: the whole title
+screen fits a 375×812 phone with no scrolling, and the "$20 and a folding table"
+sign sits at 130px. The fact was **on screen and missed**, so the fix is not
+more words — §70 still refuses a longer speech. What was wrong is narrower: the
+only character in the game named where this goes and never where the child is
+standing. Pip's three lines now include "This is your lemonade stand. You have
+$20", with the figure from `ECON.STARTING_CASH`.
+
+**#11 — the kids are not reading.** The customer's fix, blurring everything
+until the duck has been read, stays refused for §68's reason. What shipped
+instead is the same instinct applied where it works: the day now asks a question
+at lunchtime and the close screen asks one about yesterday. Two decisions
+replacing two paragraphs.
+
+### Every point, finally
+
+| # | Point | Where |
+|---|---|---|
+| 1, 2 | The opening, and the $20 | §72, `guide.ts` |
+| 3, 22, 23 | The day had nothing in it | §69 |
+| 4, 8 | Nobody read the results; wanted to compare days | §72, `diagnose.ts` |
+| 5a | Repetitive by day three | §69, §70 (levers) |
+| 5b | Could not tell how long | §71 (close-screen strip) |
+| 6 | Quality effect invisible | §72, `wordOfMouth` |
+| 7 | Where to adjust the price | §72 |
+| 9 | Four of five quit in five minutes | §68's causes A–D |
+| 10, 10b | The gate trapdoor, and its contrast | §68 |
+| 11 | Not reading | §68 (refused), §69, §72 |
+| 12, 19 | Strengths and risks | §72, `qualities.ts` |
+| 13 | "Costco is a bad buy" | §72 |
+| 14 | A long-term read | already built |
+| 15 | *Compare is the favourite part* | protected |
+| 16 | The club's research card | §72 |
+| 17 | A shortcut to Level 2 | §67 |
+| 18 | The markets UI is confusing | §72 |
+| 20 | Comparisons repetitive | §72 |
+| 21 | A historical timeline | §72 |
+
+### What is still true from §71
+
+Everything in it about confidence. The lunchtime decision is measured as
+consequential, situational and un-farmable, and the one thing still unknown is
+whether a child reads the card. Nothing in this section changes that, and
+nothing in it has been in front of a child either.
+
+Three of the four causes §68 named now have a mechanic against them. Cause B —
+money in stage one is a score with no sink — has only the visible padlock, which
+is the fix that does not move FRAMEWORK §1's stage boundary. If the next pilot
+still stalls on day three with the lunchtime question answered and the padlock
+read, that boundary is the next thing to argue about, and it should be argued
+about with the customer rather than decided in a commit.
