@@ -304,12 +304,51 @@ describe('the recipe is a standing decision', () => {
     ).toBe('true');
   });
 
-  it('starts a brand new stand on the normal lemon', () => {
-    /* Nothing to carry forward on day one, so the plain choice is the default. */
-    render(<ShopScreen state={createGame(7).stand} onConfirm={() => {}} onBack={() => {}} />);
-    const normal = screen.getAllByRole('radio').find((el) =>
-      /Normal/i.test(el.getAttribute('aria-label') ?? ''),
-    );
-    expect(normal?.getAttribute('aria-checked')).toBe('true');
+  it('does not offer a recipe on the first morning at all', () => {
+    /*
+     * The third lever no longer arrives on day one. §68's account of the
+     * five-minute wall is that the stage front-loaded its whole decision set
+     * and then had nothing new to give, and `src/lib/levers.ts` staggers them:
+     * price and batch for the two exploratory days, the profit goal on day
+     * three, the recipe on day four.
+     *
+     * So a brand new stand has no picker — and it still pours the normal lemon,
+     * which is what the old version of this test was really guaranteeing.
+     */
+    const fresh = createGame(7).stand;
+    render(<ShopScreen state={fresh} onConfirm={() => {}} onBack={() => {}} />);
+    expect(screen.queryAllByRole('radio'), 'three recipes on the first morning').toHaveLength(0);
+    expect(screen.queryByText(/Which lemons/i)).toBeNull();
+
+    // And the day it does open with is the plain one.
+    const plan = batchPlan(fresh, 28);
+    expect(runDay(fresh, { ...plan.order, price: 1 }).grade).toBe('regular');
+  });
+
+  it('opens the recipe on the fourth day, and never shuts it again', () => {
+    /*
+     * The arrival, driven through the screen a child actually meets it on.
+     * Swept across the rest of the arc rather than checked once, because the
+     * failure mode that matters is a control that comes back and then goes
+     * away again — a returning child finding a decision missing has no way to
+     * tell that from a broken game.
+     */
+    let state = createGame(7).stand;
+    for (let day = 1; day <= 8; day++) {
+      cleanup();
+      render(<ShopScreen state={state} onConfirm={() => {}} onBack={() => {}} />);
+      const offered = screen.queryAllByRole('radio').length;
+      if (day <= 3) {
+        expect(offered, `day ${day} offered a recipe too early`).toBe(0);
+      } else {
+        expect(offered, `day ${day} lost the recipe`).toBe(3);
+      }
+      const plan = batchPlan(state, 28);
+      state = runDay(
+        state,
+        { ...plan.order, price: 1.5 },
+        { ...DEFAULT_DAY_PARAMS, lastDay: null },
+      ).nextState;
+    }
   });
 });

@@ -36,6 +36,7 @@ import { PipBubble, PipSays } from './Pip';
 import { StandScene, type SpotId } from './StandScene';
 import { CoachTour } from './CoachTour';
 import { GradeHint, GradePicker } from './GradePicker';
+import { gradeEverChosen, leverReady } from '@/lib/levers';
 import { STAND_TOUR } from '@/lib/coach';
 
 /**
@@ -552,15 +553,17 @@ export function PlanScreen({
             and the same picker, so the two days agree about where a recipe is
             chosen. FRAMEWORK.md §1, Lever 1.
           */}
-          <div className="mt-4 border-t-2 border-dashed border-ink/15 pt-3">
-            <div className="text-center font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/55">
-              Which lemons?
+          {leverReady('grade', state.history.length, gradeEverChosen(state.history)) && (
+            <div className="mt-4 border-t-2 border-dashed border-ink/15 pt-3">
+              <div className="text-center font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/55">
+                Which lemons?
+              </div>
+              <div className="mt-1.5">
+                <GradePicker grade={grade} lemons={plan.order.buyLemons} onPick={setGrade} />
+                <GradeHint grade={grade} lemons={plan.order.buyLemons} />
+              </div>
             </div>
-            <div className="mt-1.5">
-              <GradePicker grade={grade} lemons={plan.order.buyLemons} onPick={setGrade} />
-              <GradeHint grade={grade} lemons={plan.order.buyLemons} />
-            </div>
-          </div>
+          )}
         </Sheet>
       )}
 

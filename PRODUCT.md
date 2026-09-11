@@ -4556,3 +4556,102 @@ there is not a price at all — it is **whether to go and buy more lemons**, whi
 is marginal cost and is a genuinely better lesson than a price nudge on the day
 it applies. It needs a mid-day purchase against the pantry and the cash box, so
 it is a second beat rather than a variant of this one.
+
+## 70. What a pilot of five is allowed to change
+
+A fair challenge arrived mid-build: *are we breaking foundational principles we
+established early on, and if so for a good reason or on the whim of feedback
+from one customer?*
+
+Worth answering precisely, because the answer is the difference between a
+product that learns and a product that gets pushed around. Five students and
+one adult is **n = 6**. It is the only real evidence this project has ever had,
+and it is still six people.
+
+### The standard
+
+**A pilot observation earns a change when it is corroborated by something other
+than itself.** Three kinds of corroboration, in descending confidence:
+
+1. **A defect provable in code.** The observation points; the code is the
+   evidence, and it is true whether or not anybody noticed. The deal-board
+   trapdoor, the 1.35:1 contrast on the readiness gate, the word card quoting
+   the wrong board, the live scoreboard multiplying one price by two prices'
+   worth of cups. For these, n = 1 is enough to *find* them and the confidence
+   comes from elsewhere entirely.
+2. **A principle the product already stated and did not follow.** "No harsh
+   failure" for the readiness gate. §13's progressive disclosure for the first
+   stage's own levers. §4 for a two-price ledger. Here the pilot is a pointer
+   and the justification is internal — the argument was already written down and
+   won, and one part of the build had not been held to it.
+3. **A hypothesis the pilot falsified.** `RunDayScreen`'s `interactive` mode was
+   built on a written-down prediction: "a tap turns the payoff into something
+   they are causing". Five children out of five behaved contrary to it, and the
+   most engaged of them taught the others to bypass it. For *falsifying a
+   specific prediction* — as opposed to establishing a preference — five
+   subjects with unanimous behaviour is strong.
+
+What none of the three licenses is redrawing the design on taste.
+
+### Audited: what actually changed, and against what
+
+| Change | Principle it touches | Verdict |
+|---|---|---|
+| Three deal boards | FRAMEWORK §1 "no harsh failure ... retry"; §16 badges are evidence | **Aligns** with both. §16 preserved by recording `dealRoundsTaken`, so the parent report says which go it was. The one-shot board was never a stated principle — it was an unexamined consequence of there being one board. |
+| Gate contrast | none | Correctness. |
+| `money` in one place | §62 a fact with one home | **Strengthens.** |
+| A decision inside the day | `guide.ts` "never say what to do next" | **Preserved, and now enforced** — a test sweeps every sentence the module can produce for imperatives. It was a convention; it is now a gate. |
+| " | `buildCustomers` draw count must not depend on a decision | **Preserved exactly.** The unchanged path short-circuits; asserted on the whole customer list across five seeds, not just the totals. |
+| " | §4 figures must reconcile | **Strengthened.** The change would have broken it in two places and both were found and fixed. |
+| " | §1 "demand driven only by price + quality" | Still price. |
+| " | §1's core loop *configure → price → sell → results → adjust* | **Extended, not replaced.** The outer loop is untouched; a tighter one is added inside the day. §13's own research says two nested loops is what makes this shape work, and names our decision cadence as "the price dial, the batch slider" — a seconds-scale cadence we had specified and never built. |
+| " | §13's 13.5-second day | §13 is explicit that "the number is not the principle"; the claim is that the consequence arrives while the decision is still in mind. A pause makes it arrive *sooner* relative to the decision. |
+| " | `interactive` mode's rationale | **Contradicted, on evidence.** Kept rather than removed; the decision sits alongside it. |
+| Staggered levers | §1 lists the recipe as a Stage 1 lever | **Not removed from Stage 1** — moved to day four of seven. |
+| " | §1 "1–2 exploratory rounds without a target" | **Supports it.** The exploratory days are now about the core question rather than three levers at once. |
+| " | §13 bound the decisions, disclose progressively | This is the principle being *applied*. |
+
+So: no foundational principle has been broken. In the two places something was
+contradicted it was a **hypothesis** rather than a principle, it was written
+down as a prediction, and the prediction failed.
+
+### The weakest link, named
+
+**The staggered levers are the least well-supported change in this pass.** The
+pilot only points at it indirectly — "after Day 3 ... too repetitive" and
+"I could not tell easily that choosing good lemons will make less people come
+back" — and the real justification is internal, from §13. That makes it a
+design argument rather than a finding.
+
+It is also the most reversible thing here: `LEVER_ARRIVES.grade = 0` puts it
+back exactly as it was, and the module exists partly so that undoing it is one
+line rather than an archaeology exercise.
+
+### And what was refused on the same standard
+
+- **The forced-read blur.** Would invert `Pip.tsx`'s one rule, and nothing
+  corroborates it but frustration. §68 has the argument.
+- **A longer welcome speech.** Adds prose to a reading problem.
+- **Real-time multiplayer.** §68: expensive, aimed at retention rather than a
+  first-session wall, and the pilot's own social dynamic suggests it backfires.
+- **Moving a stage-two upgrade into stage one.** This is the one worth recording
+  as refused, because it is genuinely tempting and it is the direct fix for
+  §68's cause B — money in stage one is a score with no sink, so it stops being
+  interesting on about the third repetition, which is exactly when the pilot
+  stopped.
+
+  It is refused because it **would** break something foundational: FRAMEWORK
+  §1's stage ladder puts "cost, price and margin" in Stage 1 and "capacity,
+  capital, hiring" in Stage 2, and a capex purchase in Stage 1 moves the
+  boundary. "Six people found day three boring" does not buy that.
+
+  And it is not the only fix. `journey.ts` already argues the right mechanic at
+  length — Clash of Clans does not motivate you with a shop, it motivates you
+  with **a padlock you can see**: "You do not need a way to *go* there; you need
+  to *see* it." That argument is correct and the implementation put it on the
+  title screen, which is the one screen a child is not looking at while they
+  play. The fix for cause B is therefore the fix for cause C: **put the road
+  inside the run**, where the reward for two good days is visible from the
+  screen on which a child decides whether to have a third.
+
+  Same mechanic, same argument, no boundary moved.

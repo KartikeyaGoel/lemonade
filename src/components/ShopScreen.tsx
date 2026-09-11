@@ -11,6 +11,7 @@ import {
   totalLemons,
 } from '@/lib/simulation';
 import { GradeHint, GradePicker } from './GradePicker';
+import { gradeEverChosen, leverReady } from '@/lib/levers';
 import { PipBubble } from './Pip';
 import { ActionFooter, ChunkyButton, HeaderBar, SignHeading, Sky, money, plural } from './ui';
 
@@ -216,15 +217,32 @@ export function ShopScreen({
           be read first — the choice only means something once a child has seen
           what a cup costs.
         */}
-        <div className="mt-4">
-          <div className="text-center font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/55">
-            Which lemons?
+        {/*
+          And only once it has arrived.
+
+          This screen is only ever reached on a run's first morning, and on that
+          morning a child has seen nobody decide anything yet — so three kinds
+          of lemon is a third decision handed over before the first one has been
+          asked. `src/lib/levers.ts` has the argument; the short version is that
+          the game applies progressive disclosure to companies and to vocabulary
+          and did not apply it to its own first stage.
+
+          In practice this means the picker never appears here at all, because
+          day one is day zero of the arc. It is still conditional rather than
+          deleted, because `LEVER_ARRIVES` is the one home for that decision and
+          a screen that hard-coded its own answer would be a second home for it.
+        */}
+        {leverReady('grade', state.history.length, gradeEverChosen(state.history)) && (
+          <div className="mt-4">
+            <div className="text-center font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/55">
+              Which lemons?
+            </div>
+            <div className="mt-1.5">
+              <GradePicker grade={grade} lemons={plan.order.buyLemons} onPick={setGrade} />
+              <GradeHint grade={grade} lemons={plan.order.buyLemons} />
+            </div>
           </div>
-          <div className="mt-1.5">
-            <GradePicker grade={grade} lemons={plan.order.buyLemons} onPick={setGrade} />
-            <GradeHint grade={grade} lemons={plan.order.buyLemons} />
-          </div>
-        </div>
+        )}
 
         <ActionFooter className="mt-auto flex gap-3 pt-6">
           <ChunkyButton variant="ghost" onClick={onBack} className="!px-5 !text-xl">
