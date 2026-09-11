@@ -5,6 +5,7 @@ import { ECON, type DayOutcome, type DayProjection, type Insight, weekSummary } 
 import { sellingPoints, splitCups, type BusinessState } from '@/lib/business';
 import { closingLine, ledgerNoveltyOf, ledgerStartsOpen } from '@/lib/guide';
 import { middayResult } from '@/lib/midday';
+import { diagnose, wordOfMouth, type Cause } from '@/lib/diagnose';
 import type { Stop } from '@/lib/journey';
 import { play } from '@/lib/sound';
 import { PipSays } from './Pip';
@@ -159,6 +160,19 @@ export function CloseScreen({
   const changedAtLunch = outcome.afternoonPrice !== outcome.price;
   const lunchLine = middayResult(outcome);
 
+  /**
+   * The day before this one, which is what the question compares against.
+   *
+   * `outcome.nextState.history` has today appended, so yesterday is the
+   * second-to-last entry. Sliced rather than indexed because `diagnose` and
+   * `wordOfMouth` both want the history *as it was before today* — the same
+   * thing `deriveInsights` is handed.
+   */
+  const before = history.slice(0, -1);
+  const question = diagnose(outcome, before);
+  const mouth = wordOfMouth(outcome, before);
+  const [answered, setAnswered] = useState<Cause | null>(null);
+
   useEffect(() => {
     const timer = window.setTimeout(() => play(madeMoney ? 'cash' : 'sad'), COUNT_SETTLE_MS);
     return () => window.clearTimeout(timer);
@@ -189,6 +203,83 @@ export function CloseScreen({
           lines={lunchLine ? [lunchLine, closingLine(outcome)] : [closingLine(outcome)]}
           point="up"
         />
+
+        {/*
+          One question, where the eye already is.
+
+          Directly under the money and above the ledger, because the pilot is
+          exact about the order a child reads this screen in: *"they all looked
+          at how much money and immediately went to day 2."* A question below
+          the statement would be read by nobody.
+
+          Deliberately **not recorded**. It would be easy to feed this into the
+          grown-up report, and §16's rule is that a claim about a child has to
+          rest on something they did with their own money at stake and nobody
+          asking them to. Tapping the right box in a four-way question is not
+          that. The value here is the retrieval, not the score.
+
+          See `src/lib/diagnose.ts` — silent on day one, and on any pair of days
+          that were really the same day.
+        */}
+        {question && (
+          <div className="mt-4 rounded-2xl border-[3px] border-wood-dark bg-lemon-light p-3.5">
+            <div className="flex items-baseline justify-between">
+              <span className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-wood-deep">
+                Yesterday vs today
+              </span>
+              {/*
+                The comparison they asked for, unprompted: "Most kids asked
+                laksh how much money he made in day 1 and day 2 — so a compare
+                option might be great."
+              */}
+              <span className="font-ledger text-[13px] font-bold tabular-nums text-ink/80">
+                {money(question.yesterdayProfit)} → {money(question.todayProfit)}
+              </span>
+            </div>
+
+            {answered === null ? (
+              <>
+                <p className="mt-1 font-body text-sm font-extrabold leading-snug text-ink">
+                  What made today different?
+                </p>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {question.answers.map((answer) => (
+                    <button
+                      key={answer.cause}
+                      type="button"
+                      onClick={() => setAnswered(answer.cause)}
+                      className="min-h-11 rounded-xl border-[3px] border-wood-dark/40 bg-white/80 px-3 py-2 text-left font-body text-[13px] font-extrabold text-ink active:translate-y-[1px]"
+                    >
+                      {answer.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="animate-popIn">
+                <p className="mt-1 font-body text-sm font-extrabold leading-snug text-ink">
+                  {answered === question.cause
+                    ? 'That was the biggest change.'
+                    : question.correction}
+                </p>
+                <p className="mt-1 font-body text-[13px] font-bold leading-snug text-ink/80">
+                  {question.because}
+                </p>
+                {/*
+                  The recipe's own effect, said whether or not it was the
+                  biggest change — because the pilot wanted it *legible*, not
+                  quizzed, and it almost never wins the question. See
+                  `wordOfMouth`.
+                */}
+                {mouth && (
+                  <p className="mt-1.5 font-body text-[12px] font-bold leading-snug text-wood-deep">
+                    {mouth}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* The statement. Deliberately plain and exact. */}
         <div className="mt-4 rounded-2xl border-[3px] border-ink/25 bg-white p-4 shadow-xl">
