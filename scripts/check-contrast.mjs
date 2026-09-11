@@ -126,7 +126,30 @@ const LAYERED = [
     ['white', 1, 'night-panel', 1, stop, 'body'],
   ]),
   /* The market's own white cards, which are nearly opaque over the same sky. */
-  ...Object.keys(NIGHT_SKY).map((stop) => ['ink', 1, 'white', 0.9, stop, 'body']),
+  ...Object.keys(NIGHT_SKY).flatMap((stop) => [
+    ['ink', 1, 'white', 0.9, stop, 'body'],
+    /*
+     * The faceoff rows, which are the pair the pilot misread.
+     *
+     * `ink/65` is the figure on the side that is *not* more; `ink/70` is the
+     * "▲ more" marker, the row label, the summary and the meaning.
+     *
+     * The marker matters most and was nearly shipped at `ink/45`, which
+     * measures **2.63:1**. That would have been worse than the defect it
+     * replaced: the mint fill at least *communicated*, wrongly, whereas an
+     * unreadable marker communicates nothing at all and the row would have
+     * had no indication of which side was more. Caught here rather than by a
+     * person, which is the point of adding these pairs at the same time as the
+     * change rather than afterwards.
+     *
+     * `ink/65` is the floor on this surface — 4.62:1 against the sky's darkest
+     * stop, where `white/90` composites lightest.
+     */
+    ['ink', 0.7, 'white', 0.9, stop, 'body'],
+    ['ink', 0.65, 'white', 0.9, stop, 'body'],
+  ]),
+  /* The derived strengths and risks, on the solid night panel. */
+  ...Object.keys(NIGHT_SKY).map((stop) => ['white', 0.7, 'night-panel', 1, stop, 'body']),
   /*
    * Un-panelled text, each against the stop it actually sits over.
    *

@@ -19,6 +19,8 @@ import {
   MAX_POSITION_FRACTION,
   advanceWeek,
   buy,
+  closesUpToNow,
+  pastCloses,
   createPortfolio,
   currentPrice,
   holdingGain,
@@ -626,5 +628,65 @@ describe('the historical figures are on the same footing as the prices', () => {
       expect(hasAccountsBy(company, company.annuals[0].filedOn)).toBe(true);
       expect(hasAccountsBy(company, '2000-01-01')).toBe(false);
     }
+  });
+});
+
+/*
+ * A price chart in a game that replays real history is one array index away
+ * from being a cheat sheet. The pilot asked for a historical timeline; this is
+ * the ceiling that makes it safe to give them one.
+ */
+describe('the price chart cannot see the future', () => {
+  it('never reads a week the child has not reached', () => {
+    /*
+     * The whole point. `closes` holds 263 weeks of real prices and the replay
+     * window starts somewhere inside it, so the weeks *after* the current one
+     * are the answer to every question the market asks. One off-by-one here
+     * and a child who spots it never reads a set of accounts again.
+     */
+    for (const seed of [1, 7, 42, 2026]) {
+      const windowStart = windowStartFor(seed);
+      for (const week of [0, 1, 5, 11, 12]) {
+        for (const company of SNAPSHOT.slice(0, 4)) {
+          const series = pastCloses(company.ticker, windowStart, week);
+          const today = realClose(company.ticker, windowStart, week);
+          expect(series.length, `${company.ticker} w${week}`).toBeGreaterThan(0);
+          // The last point is this week, not next.
+          expect(series[series.length - 1].close, `${company.ticker} w${week}`).toBe(today);
+          // And no point in it equals a future week that differs from today's.
+          const future = realClose(company.ticker, windowStart, week + 1);
+          if (Math.abs(future - today) > 0.005) {
+            expect(
+              series.some((p) => Math.abs(p.close - future) < 0.0001 && p.date === weekDate(windowStart, week + 1)),
+              `${company.ticker} w${week} leaked next week`,
+            ).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it('looks backwards past the start of the run, which is fair game', () => {
+    /*
+     * Weeks before the replay began already happened before the child's run
+     * did, so they are context rather than a spoiler — and a chart that began
+     * at week zero of a twelve-week run would show a child four points and
+     * call it a history.
+     */
+    const windowStart = windowStartFor(2026);
+    expect(windowStart, 'this seed starts at week zero, so it proves nothing').toBeGreaterThan(4);
+    const series = pastCloses(SNAPSHOT[0].ticker, windowStart, 0, 52);
+    expect(series.length).toBeGreaterThan(20);
+  });
+
+  it('stops at the beginning of the data rather than running off it', () => {
+    const series = pastCloses(SNAPSHOT[0].ticker, 0, 0, 52);
+    expect(series).toHaveLength(1);
+  });
+
+  it('reads the portfolio the child is holding', () => {
+    const portfolio = createPortfolio(500, 2026);
+    const series = closesUpToNow(portfolio, SNAPSHOT[0].ticker);
+    expect(series[series.length - 1].close).toBe(currentPrice(portfolio, SNAPSHOT[0].ticker));
   });
 });

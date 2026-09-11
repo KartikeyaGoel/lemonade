@@ -96,6 +96,55 @@ export function realClose(ticker: string, windowStart: number, week: number): nu
   return toCents(closes[index]);
 }
 
+/**
+ * Real weekly closes up to *this* week, and not one week further.
+ *
+ * The pilot asked for it — *"Maybe add historical timeline or comparison for
+ * stocks"* — and the reason the market did not have one is the reason this
+ * function is written so carefully: **the market replays real history, so the
+ * future is sitting right there in the array.** A chart that ran a single week
+ * past the current one would hand a child the answer, and a child who notices
+ * that once will never read a set of accounts again.
+ *
+ * So the window ends at `windowStart + week`, inclusive, and starts up to
+ * `weeksBack` before it. Looking *backwards* past the start of the replay is
+ * legitimate and is what a real chart does: those weeks already happened before
+ * the child's run began, and they say nothing about what happens next.
+ *
+ * `tests/market.test.ts` holds the ceiling. It is the only thing standing
+ * between a price chart and a cheat sheet.
+ */
+export function pastCloses(
+  ticker: string,
+  windowStart: number,
+  week: number,
+  weeksBack = 52,
+): Array<{ date: string; close: number }> {
+  const today = windowStart + week;
+  const from = Math.max(0, today - weeksBack);
+  const out: Array<{ date: string; close: number }> = [];
+  for (let index = from; index <= today; index++) {
+    out.push({ date: weekDate(0, index), close: realClose(ticker, 0, index) });
+  }
+  return out;
+}
+
+/**
+ * The same, for the portfolio a child is actually holding.
+ *
+ * Named `closesUpToNow` rather than `priceHistory` on purpose: `PortfolioState`
+ * already has a `priceHistory` field holding the run's own short series, and
+ * two things with one name in one module is how a caller ends up charting
+ * twelve points when it meant a year.
+ */
+export function closesUpToNow(
+  portfolio: PortfolioState,
+  ticker: string,
+  weeksBack = 52,
+): Array<{ date: string; close: number }> {
+  return pastCloses(ticker, portfolio.windowStart, portfolio.week, weeksBack);
+}
+
 /* ------------------------------------------------------------------ *
  * State
  * ------------------------------------------------------------------ */

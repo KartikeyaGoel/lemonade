@@ -23,6 +23,21 @@
  * parent) can check it. Nothing here is about a company's products, its
  * management or its future; those would be opinions.
  *
+ * **With one disclosed exception.** `company.model` — brand, subscription,
+ * platform and the rest — is *authored*, in `market-data.json`, by us. It is
+ * not in any filing. Everything else in this module is a comparison against a
+ * number a company reported about itself; the model is a judgement about the
+ * shape of a business, and calling it anything else would be dishonest about
+ * where it came from.
+ *
+ * It earns its place because it is the only thing that gives Nike and Starbucks
+ * a case at all — both have seen profit roughly halve, so every quantitative
+ * strength threshold fails, and the honest thing to say about them is that
+ * people pay extra for the name. It is also stable in a way a figure is not: a
+ * brand is a brand across a bad year. `tests/qualities.test.ts` permits exactly
+ * this one class of claim to cite a classification instead of a quantity, and
+ * requires a figure from everything else.
+ *
  * ## The two sides stay apart
  *
  * `scout.ts` makes the argument and it is the most valuable thing in the
@@ -52,7 +67,7 @@
  * Pure module. No React, no I/O.
  */
 
-import { formatMillions, metricsFor, type Company } from './companies';
+import { MODELS, formatMillions, metricsFor, type BusinessModel, type Company } from './companies';
 import { plural } from './copy';
 
 /** Which of `scout.ts`'s two questions a quality answers. */
@@ -94,6 +109,23 @@ export const ENORMOUS_M = 100_000;
 export const MOST_SHOWN = 2;
 
 /**
+ * The three ways of making money that are an advantage in themselves.
+ *
+ * Not a judgement about any company — a judgement about the *shape*, and the
+ * shapes are the ones `MODELS` already describes as charging more for the same
+ * thing, getting paid without being thought about, and selling the fee rather
+ * than the goods.
+ */
+export const STRUCTURAL_EDGE: BusinessModel[] = ['brand', 'subscription', 'membership'];
+
+/** What that edge is, in six words. */
+export const MODEL_EDGE = {
+  brand: 'People pay extra for the name',
+  subscription: 'Gets paid whether you think about it or not',
+  membership: 'The fee is the business, not the goods',
+} as const;
+
+/**
  * Has profit gone up every year, for as far back as the filings go?
  *
  * Counted as a run ending at the most recent year, because "grew in four of
@@ -124,15 +156,29 @@ function profitFell(company: Company): boolean {
  * read as good news: revenue climbing while profit does not is a business
  * whose costs are climbing faster than its sales.
  */
-function sellingMoreKeepingLess(company: Company): boolean {
+function sellingMoreKeepingLess(
+  company: Company,
+): { was: number; now: number; year: string } | null {
   const m = company.annuals;
-  if (m.length < 2) return false;
+  if (m.length < 2) return null;
   const now = m[m.length - 1];
   const before = m[m.length - 2];
-  if (now.revenueM <= before.revenueM) return false;
+  if (now.revenueM <= before.revenueM) return null;
   const marginNow = now.revenueM > 0 ? now.netIncomeM / now.revenueM : 0;
   const marginBefore = before.revenueM > 0 ? before.netIncomeM / before.revenueM : 0;
-  return marginNow < marginBefore;
+  if (marginNow >= marginBefore) return null;
+  /*
+   * Returns the two margins rather than a boolean, because the claim has to
+   * carry them. `tests/qualities.test.ts` requires a figure in every `because`
+   * and this one read "Sales went up last year and the share it kept went
+   * down" — true, and unauditable, which is the thing §16 is about. A parent
+   * cannot check a direction; they can check 14c against 11c.
+   */
+  return {
+    was: Math.round(marginBefore * 100),
+    now: Math.round(marginNow * 100),
+    year: now.fiscalYear,
+  };
 }
 
 /**
@@ -183,6 +229,35 @@ export function qualitiesOf(company: Company, price = company.price, asOf?: stri
     });
   }
 
+  /*
+   * How the money arrives, where the way it arrives is itself an advantage.
+   *
+   * Only three of the nine models qualify, and the restraint is the point. A
+   * brand charges more for a nearly identical thing; a subscription gets paid
+   * whether or not anybody thinks about it; a membership sells the fee rather
+   * than the goods. Those are structural — they are true of the *shape* of the
+   * business rather than of last year's figures.
+   *
+   * A platform is deliberately not on the list even though it sounds like one.
+   * `MODELS` is explicit that it "often spends more than it earns for years",
+   * which is a trade rather than an edge, and calling it a strength would be
+   * the game holding an opinion.
+   *
+   * This exists because six of the twenty-four companies had no quantitative
+   * strength at all and fell back to "you can see what it sells" — Nike and
+   * Starbucks among them, whose profits have roughly halved. Their real case
+   * is the brand, and it is the most legible thing about them to a child.
+   */
+  if (STRUCTURAL_EDGE.includes(company.model)) {
+    found.push({
+      id: `model-${company.model}`,
+      kind: 'strength',
+      side: 'business',
+      says: MODEL_EDGE[company.model as keyof typeof MODEL_EDGE],
+      because: `${MODELS[company.model].name}: ${MODELS[company.model].effect}`,
+    });
+  }
+
   if (m.year.revenueM >= ENORMOUS_M) {
     found.push({
       id: 'enormous',
@@ -194,13 +269,38 @@ export function qualitiesOf(company: Company, price = company.price, asOf?: stri
   }
 
   if (!m.profitable) {
-    found.push({
-      id: 'no-profit',
-      kind: 'risk',
-      side: 'business',
-      says: 'Does not make a profit yet',
-      because: `It lost ${formatMillions(Math.abs(m.year.netIncomeM))} in its last filed year.`,
-    });
+    /*
+     * Two very different businesses look identical if you only read the most
+     * recent year, and the difference is the whole judgement.
+     *
+     * Roblox has lost money in every year on file — that is a business model
+     * nobody has made work yet. Crocs earned $950M and then lost $81M — that
+     * is one bad year at a business that has been profitable for seven. Saying
+     * "does not make a profit **yet**" about the second one is false in the
+     * way that matters: "yet" claims it never has.
+     *
+     * Found by printing the derived qualities for all twenty-four companies
+     * and reading them, which is the only way this kind of thing is ever
+     * found.
+     */
+    const everEarned = company.annuals.some((year) => year.netIncomeM > 0);
+    found.push(
+      everEarned
+        ? {
+            id: 'lost-money-lately',
+            kind: 'risk',
+            side: 'business',
+            says: 'Lost money in its last year',
+            because: `It lost ${formatMillions(Math.abs(m.year.netIncomeM))} in ${m.year.fiscalYear}, after making a profit in earlier years.`,
+          }
+        : {
+            id: 'never-earned',
+            kind: 'risk',
+            side: 'business',
+            says: 'Has never made a profit',
+            because: `It lost ${formatMillions(Math.abs(m.year.netIncomeM))} last year, and has lost money in every year on file.`,
+          },
+    );
   } else if (m.netMargin <= THIN_MARGIN) {
     found.push({
       id: 'thin-margin',
@@ -211,15 +311,22 @@ export function qualitiesOf(company: Company, price = company.price, asOf?: stri
     });
   }
 
-  if (sellingMoreKeepingLess(company)) {
+  /*
+   * Both of these are about a *profitable* business getting worse, so neither
+   * is said about one that lost money — "has never made a profit" followed by
+   * "profit went down last year" is the same fact twice, and it crowds out the
+   * second risk a child would otherwise be shown.
+   */
+  const slipping = m.profitable ? sellingMoreKeepingLess(company) : null;
+  if (slipping) {
     found.push({
       id: 'margin-slipping',
       kind: 'risk',
       side: 'business',
       says: 'Selling more without keeping more',
-      because: 'Sales went up last year and the share it kept went down.',
+      because: `Sales went up in ${slipping.year}, and it kept ${slipping.now}c of each $1 instead of ${slipping.was}c.`,
     });
-  } else if (profitFell(company)) {
+  } else if (m.profitable && profitFell(company)) {
     found.push({
       id: 'profit-fell',
       kind: 'risk',

@@ -18,10 +18,12 @@ import {
 } from '@/lib/companies';
 import { collectionLine, progress } from '@/lib/collection';
 import { faceoff } from '@/lib/facedown';
+import { strengthsAndRisks, type Quality as QualityItem } from '@/lib/qualities';
 import {
   MAX_POSITION_FRACTION,
   MARKET_WEEKS,
   canRunStand,
+  closesUpToNow,
   currentDate,
   currentPrice,
   holdingGain,
@@ -140,6 +142,12 @@ export function MarketScreen({
     return (
       <FaceoffView
         result={faceoff(a, b, currentPrice(portfolio, a.ticker), currentPrice(portfolio, b.ticker), asOfDate(portfolio))}
+        history={{
+          a: closesUpToNow(portfolio, a.ticker).map((point) => point.close),
+          b: closesUpToNow(portfolio, b.ticker).map((point) => point.close),
+        }}
+        priceOf={(ticker) => currentPrice(portfolio, ticker)}
+        asOf={asOfDate(portfolio)}
         onBack={() => setPicked([])}
       />
     );
@@ -553,12 +561,39 @@ export function MarketScreen({
  */
 function FaceoffView({
   result,
+  history,
+  priceOf,
+  asOf,
   onBack,
 }: {
   result: ReturnType<typeof faceoff>;
+  /**
+   * Real weekly closes up to this week for each side, oldest first.
+   *
+   * Passed in because `closesUpToNow` needs the portfolio and this component
+   * deliberately does not have one — and because the *ceiling* on that series
+   * is the only thing stopping a price chart being a cheat sheet. See
+   * `pastCloses`.
+   */
+  history: { a: number[]; b: number[] };
+  /** The price each side is being bought at this week. */
+  priceOf: (ticker: string) => number;
+  /** The week being replayed, so the accounts are the ones public then. */
+  asOf: string;
   onBack: () => void;
 }) {
   const { a, b, rows, tradeOff } = result;
+  /*
+   * At the price on screen, and as of the week being replayed — the same two
+   * arguments every other figure on this screen is computed from. A "the price
+   * already expects a lot" risk worked out against today's real-world price
+   * while a child is paying a price from 2022 would be a warning about a
+   * company nobody is buying.
+   */
+  const caseFor = {
+    a: strengthsAndRisks(a, priceOf(a.ticker), asOf),
+    b: strengthsAndRisks(b, priceOf(b.ticker), asOf),
+  };
   return (
     <Sky mood="night">
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pb-10 pt-5">
@@ -571,58 +606,221 @@ function FaceoffView({
         </button>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
-          {[a, b].map((c) => (
-            <div key={c.ticker} className="rounded-2xl border-[3px] border-white/25 bg-white/10 p-2.5 text-center">
+          {[a, b].map((c, i) => (
+            <div
+              key={c.ticker}
+              className="rounded-2xl border-[3px] border-white/25 bg-night-panel p-2.5 text-center"
+            >
               <div aria-hidden className="text-2xl">
                 {c.emoji}
               </div>
               <div className="font-body text-sm font-extrabold text-lemon-light">{c.name}</div>
+              {/*
+                A year of real weekly closes, ending this week.
+
+                The pilot asked for a historical timeline. It goes here rather
+                than on the company card because the whole value of it is the
+                comparison — two shapes side by side say something neither says
+                alone. Unlabelled on purpose: an axis would make it a chart to
+                study, and what a child needs from it is the shape.
+              */}
+              <Sparkline
+                points={i === 0 ? history.a : history.b}
+                label={`${c.name}, the last year of weekly prices`}
+              />
             </div>
           ))}
         </div>
 
-        <p className="mt-3 rounded-2xl border-[3px] border-lemon/50 bg-lemon/10 px-3 py-2.5 font-body text-[13px] font-extrabold leading-snug text-white">
+        {/*
+          The explanation *above* the table, not under it.
+
+          It used to be the last line on the screen, at eleven pixels and
+          white/50 on a night sky — 2.2:1, and below six rows on a phone, so
+          nobody ever reached it. The pilot's grown-up read the six highlighted
+          cells and concluded "Costco is a bad buy", which is exactly what the
+          screen was saying.
+        */}
+        <p className="mt-3 rounded-2xl border-[3px] border-white/25 bg-night-panel px-3 py-2 font-body text-[12px] font-bold leading-snug text-white/85">
+          Nobody wins this table. <strong className="text-lemon-light">More</strong> is marked on
+          each row, and more is not the same as better — every row is a trade-off somebody is
+          paying for.
+        </p>
+
+        <p className="mt-2 rounded-2xl border-[3px] border-lemon/50 bg-lemon/10 px-3 py-2.5 font-body text-[13px] font-extrabold leading-snug text-white">
           {tradeOff}
         </p>
+
+        {/*
+          What is good about each, and what could go wrong.
+
+          Two questions the pilot asked in two different ways — "including
+          Strengths and Risks for both companies will be helpful" and "why would
+          i buy something ... there are qualitative risks and benefits of each
+          stock right, the app should articulate these?" — and the answer is
+          derived from the filings rather than written by us. `qualities.ts` has
+          the argument, including the one input that is authored.
+        */}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {[
+            { company: a, side: caseFor.a },
+            { company: b, side: caseFor.b },
+          ].map(({ company, side }) => (
+            <div
+              key={company.ticker}
+              className="rounded-2xl border-[3px] border-white/20 bg-night-panel p-2.5"
+            >
+              <div className="font-body text-[10px] font-extrabold uppercase tracking-[0.12em] text-mint">
+                Going for it
+              </div>
+              {side.strengths.map((quality) => (
+                <Quality key={quality.id} quality={quality} />
+              ))}
+              <div className="mt-2 font-body text-[10px] font-extrabold uppercase tracking-[0.12em] text-berry-light">
+                Could go wrong
+              </div>
+              {side.risks.map((quality) => (
+                <Quality key={quality.id} quality={quality} />
+              ))}
+            </div>
+          ))}
+        </div>
 
         <div className="mt-3 space-y-1.5">
           {rows.map((row) => (
             <div key={row.label} className="rounded-2xl border-[3px] border-white/20 bg-white/90 px-3 py-2">
               <div className="flex items-center gap-2">
                 <span aria-hidden>{row.emoji}</span>
-                <span className="flex-1 font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/50">
+                <span className="flex-1 font-body text-[11px] font-extrabold uppercase tracking-wide text-ink/70">
                   {row.label}
                 </span>
               </div>
               <div className="mt-1 grid grid-cols-2 gap-2">
-                <div
-                  className={`rounded-lg px-2 py-1 text-center font-body text-[13px] font-extrabold ${
-                    row.edge === 'a' ? 'bg-mint/25 text-ink' : 'text-ink/65'
-                  }`}
-                >
-                  {row.a}
-                </div>
-                <div
-                  className={`rounded-lg px-2 py-1 text-center font-body text-[13px] font-extrabold ${
-                    row.edge === 'b' ? 'bg-mint/25 text-ink' : 'text-ink/65'
-                  }`}
-                >
-                  {row.b}
-                </div>
+                {(['a', 'b'] as const).map((which) => (
+                  <div
+                    key={which}
+                    /*
+                      Neutral, and that is the whole fix.
+
+                      `FaceoffRow.edge` means *which one is more* — its own doc
+                      comment says "which is not the same as which one is
+                      better" — and this rendered it as `bg-mint/25`. Mint is
+                      the profit colour on the close screen, the correct-answer
+                      colour on the deal board, the selected colour on the grade
+                      picker and the met colour on the readiness gate. So the
+                      screen was saying "wins" in the only colour vocabulary the
+                      product has, on four rows out of six, and the pilot read
+                      it exactly that way: "Right now it seems Costco is a bad
+                      buy."
+
+                      We taught "lower P/E is better" by accident, in the one
+                      file that opens by promising not to. The marker is now a
+                      word and an arrow in ink — legible, directional, and
+                      carrying no verdict.
+                    */
+                    className={`rounded-lg px-2 py-1 text-center font-body text-[13px] font-extrabold ${
+                      row.edge === which ? 'bg-ink/[0.07] text-ink' : 'text-ink/65'
+                    }`}
+                  >
+                    {which === 'a' ? row.a : row.b}
+                    {row.edge === which && (
+                      <span className="mt-0.5 block font-body text-[9px] font-extrabold uppercase tracking-[0.1em] text-ink/70">
+                        ▲ more
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
-              <p className="mt-1 font-body text-[11px] font-bold leading-snug text-ink/50">
-                {row.meaning}
-              </p>
+              {/*
+                The row's meaning, behind a tap.
+
+                It is a constant per row — the same six sentences for every pair
+                of companies anybody ever compares — which is literally why the
+                pilot said "reading comparisons over and over again people just
+                end up scrolling over it". The fifth comparison was word-for-word
+                the first. What varies now is above: the trade-off sentence, the
+                two shapes, and each company's own case. This stays reachable
+                for a child meeting a row for the first time, and stops being
+                the bulk of the screen for one meeting it for the fifth.
+              */}
+              <details className="group mt-1">
+                <summary className="inline-flex min-h-6 cursor-pointer list-none items-center gap-1 font-body text-[10px] font-extrabold uppercase tracking-wide text-ink/70">
+                  What this means
+                  <span aria-hidden className="transition-transform group-open:rotate-90">
+                    ›
+                  </span>
+                </summary>
+                <p className="mt-1 font-body text-[11px] font-bold leading-snug text-ink/70">
+                  {row.meaning}
+                </p>
+              </details>
             </div>
           ))}
         </div>
-
-        <p className="mt-3 text-center font-body text-[11px] font-bold text-white/50">
-          Green means <em>more</em>, which is not the same as better. Every one of these is a
-          trade-off somebody is paying for.
-        </p>
       </div>
     </Sky>
+  );
+}
+
+/** One derived strength or risk, with the figure it came from underneath. */
+function Quality({ quality }: { quality: QualityItem }) {
+  return (
+    <div className="mt-1">
+      <div className="font-body text-[12px] font-extrabold leading-snug text-white">
+        {quality.says}
+      </div>
+      <div className="font-body text-[10px] font-bold leading-snug text-white/70">
+        {quality.because}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A year of weekly closes, drawn small and unlabelled.
+ *
+ * No axis and no figures: this is a *shape*, and the numbers that matter are
+ * already on the rows underneath. A chart with an axis invites a child to
+ * read a trend off it and buy the line that goes up, which is the one habit
+ * `thesis.ts` exists to prevent.
+ *
+ * Flat when there is nothing to draw — a run at week zero of the earliest
+ * window has one point — rather than dividing by a zero range.
+ */
+function Sparkline({ points, label }: { points: number[]; label: string }) {
+  if (points.length < 2) return <div className="mt-1 h-6" aria-hidden />;
+  const low = Math.min(...points);
+  const high = Math.max(...points);
+  const range = high - low;
+  const width = 100;
+  const height = 24;
+  const path = points
+    .map((close, i) => {
+      const x = (i / (points.length - 1)) * width;
+      const y = range === 0 ? height / 2 : height - ((close - low) / range) * height;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+  /* Up or down over the whole stretch, which is the one thing worth colouring. */
+  const rose = points[points.length - 1] >= points[0];
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="mt-1 h-6 w-full"
+      role="img"
+      aria-label={label}
+      preserveAspectRatio="none"
+    >
+      <polyline
+        points={path}
+        fill="none"
+        stroke={rose ? '#2ED9A0' : '#FF9DAE'}
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
   );
 }
 
