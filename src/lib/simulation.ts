@@ -324,6 +324,14 @@ export interface DayRecord {
   ingredientCost?: number;
   /** Share of the street that came to them, after competition. 1 means alone. */
   marketShare?: number;
+  /**
+   * The sign after lunch, if the child moved it.
+   *
+   * Absent on every day with one price, which is every day before the
+   * lunchtime decision existed and most days after it. `price` is always the
+   * morning figure — see the note where this is written.
+   */
+  afternoonPrice?: number;
   /** Everything owed today whether or not anyone bought. */
   fixedCost?: number;
   /** Lemons bought and thrown away. Money spent on nothing. */
@@ -368,6 +376,18 @@ export interface Decisions {
    * a lemon cost and sold before this decision existed.
    */
   grade?: LemonGrade;
+  /**
+   * What the sign says after lunch, if the child changed it.
+   *
+   * The one decision in the day that is made *while the day is happening*, and
+   * the reason it exists is the pilot: five children were handed twelve seconds
+   * of animation with nothing to do in it, every one of them pressed the button
+   * that skips it, and one of them taught the others how. See PRODUCT.md §68.
+   *
+   * Absent, or equal to `price`, and the day runs exactly as it always did —
+   * byte for byte, see `buildCustomers`.
+   */
+  afternoonPrice?: number;
 }
 
 /* ------------------------------------------------------------------ *
@@ -529,6 +549,15 @@ export interface Customer {
    * seeing your regulars arrive first on a cold day is the whole lesson.
    */
   kind: 'passerby' | 'regular';
+  /**
+   * True for the half of the crowd that read the afternoon sign.
+   *
+   * Only present on a day whose price actually moved, so a customer list from
+   * an ordinary day is the same object it has always been. `RunDayScreen` uses
+   * it to draw the price this person was looking at rather than the price the
+   * day opened on.
+   */
+  afternoon?: true;
 }
 
 export interface DayOutcome {
@@ -572,6 +601,23 @@ export interface DayOutcome {
   subscriberRevenue: number;
   /** Revenue from people who walked past today and chose to buy. */
   walkupRevenue: number;
+  /**
+   * The sign after lunch, and the two halves of the walk-up day it produced.
+   *
+   * `afternoonPrice` equals `price` on a day nobody changed anything, so a
+   * caller can always read it and a caller that does not care never has to.
+   *
+   * The split is reported rather than left to be worked out, because §4's rule
+   * is that any two figures shown together have to reconcile and there is no
+   * way to recover it afterwards: `walkupRevenue` on a day with two prices is
+   * not `cups × price` for any single price, so a close screen printing one
+   * price beside one revenue would be showing arithmetic that does not close.
+   */
+  afternoonPrice: number;
+  morningCups: number;
+  afternoonCups: number;
+  morningRevenue: number;
+  afternoonRevenue: number;
   ingredients: ReturnType<typeof ingredientCostOf>;
   grossProfit: number;
   grossMarginPerCup: number;
@@ -655,6 +701,40 @@ function drawWeather(rng: Rng, forecast: Forecast): Weather {
  * person a reservation price consistent with their decision purely so the
  * animation has something honest to show. No hidden randomness in the money.
  */
+/**
+ * The share of the walk-up crowd that arrives before the child is asked.
+ *
+ * A third, and the figure is measured rather than chosen.
+ *
+ * It was a half, which reads better and was wrong. Found by playing a hot day
+ * at a dollar a cup: twenty-four cups gone, four left, sixteen people already
+ * turned away, the screen saying "You're going to sell out soon" — and no
+ * question asked, because by the halfway mark the batch was **already empty**
+ * and there was nothing left to price. The one day where the decision matters
+ * most was the one day it could not be offered.
+ *
+ * Swept across eight prices, six batch sizes and twenty-five seeds, counting
+ * how often a day that runs out of lemonade gets asked about it in time:
+ *
+ * | Share | Missed a sell-out | Days with a question |
+ * |---|---|---|
+ * | 0.50 | 15% | 59% |
+ * | 0.40 | 9% | 67% |
+ * | **0.33** | **6%** | **70%** |
+ * | 0.25 | 3% | 76% |
+ *
+ * A third is where that curve stops paying. Going to a quarter buys three more
+ * points and asks a child to decide on a quarter of the evidence, which is the
+ * other way to make the beat meaningless. A third of a day is a real sample —
+ * busy or quiet is obvious by then — and it leaves two thirds for the answer to
+ * act on.
+ *
+ * The 6% that remain are days whose jug is dry before any reasonable ask
+ * point. The decision there is not a price at all, it is whether to go and buy
+ * more lemons, and that is a second beat that is not built. See PRODUCT.md §69.
+ */
+export const MORNING_SHARE = 1 / 3;
+
 function buildCustomers(
   rng: Rng,
   price: number,
@@ -663,6 +743,13 @@ function buildCustomers(
   params: DayParams,
   cupsWanted: number,
   subscriberCups: number,
+  /**
+   * The price the afternoon half of the crowd reads off the sign.
+   *
+   * Defaults to the morning price, and when it *is* the morning price this
+   * function takes the original path exactly — see `changed` below.
+   */
+  afternoonPrice: number = price,
 ) {
   /*
    * How many people walk past, which is not how many want a cup.
@@ -706,20 +793,66 @@ function buildCustomers(
   let walkupSold = 0;
   let walkedAwayOnPrice = 0;
   let turnedAwaySoldOut = 0;
+  let morningSold = 0;
+  let afternoonSold = 0;
+
+  /*
+   * Did the sign change at lunchtime?
+   *
+   * Everything below hangs off this one boolean, and it is the whole reason a
+   * second price in a day was affordable to build.
+   *
+   * **When it is false, this loop is the loop that was here before, exactly.**
+   * `reservationPrice` is drawn from the same branch in the same order, so the
+   * generator advances identically and the seed carried into tomorrow is
+   * untouched. That is the invariant `tests/challenge.test.ts` rests on — two
+   * children on one code get the same week — and it is worth a short-circuit
+   * rather than a proof about float comparisons.
+   */
+  const changed = centsApart(afternoonPrice, price) > 0;
+  /** The first index that reads the afternoon sign. */
+  const afternoonFrom = Math.floor(flags.length * MORNING_SHARE);
 
   for (let i = 0; i < flags.length; i++) {
     const isWilling = flags[i];
+    /*
+     * Drawn against the *morning* price whether or not the sign changed, and
+     * that is not a shortcut — it is what makes the afternoon honest.
+     *
+     * The draw already produces a full willingness to pay: a willing
+     * passer-by gets a reservation somewhere between the price and the most
+     * anybody will pay, an unwilling one gets a reservation somewhere below
+     * it. So the question "would this person buy at a different price" is
+     * already answered by the number we drew for them, and re-asking it at the
+     * afternoon price is the demand curve doing its own job. No extra draw, no
+     * new randomness, and a price cut can only ever gain customers while a
+     * rise can only ever lose them.
+     */
     const reservationPrice = isWilling
       ? round2(price + rng.next() * Math.max(0, ECON.MAX_RESERVATION_PRICE - price))
       : round2(rng.next() * price);
 
+    const afternoon = changed && i >= afternoonFrom;
+    const facing = afternoon ? afternoonPrice : price;
+    /*
+     * The flag, not the comparison, whenever the price did not move.
+     *
+     * `reservationPrice >= price` is equivalent to `isWilling` for every price
+     * the game can reach except zero, where an unwilling draw of `rng * 0` is
+     * zero and `0 >= 0` is true. Rather than argue about whether a child can
+     * set the sign to nothing, the unchanged path keeps reading the flag.
+     */
+    const wants = afternoon ? reservationPrice >= facing : isWilling;
+
     let outcome: Customer['outcome'];
-    if (!isWilling) {
+    if (!wants) {
       outcome = 'too-expensive';
       walkedAwayOnPrice++;
     } else if (walkupSold < walkupCapacity) {
       outcome = 'bought';
       walkupSold++;
+      if (afternoon) afternoonSold++;
+      else morningSold++;
     } else {
       outcome = 'sold-out';
       turnedAwaySoldOut++;
@@ -730,6 +863,9 @@ function buildCustomers(
       reservationPrice,
       outcome,
       kind: 'passerby',
+      /* Only set when it is true, so a snapshot of an unchanged day is
+         identical to the one this function used to produce. */
+      ...(afternoon ? { afternoon: true as const } : {}),
     });
   }
 
@@ -738,6 +874,8 @@ function buildCustomers(
     willing,
     customers,
     walkupSold,
+    morningSold,
+    afternoonSold,
     sold: subscriberCups + walkupSold,
     walkedAwayOnPrice,
     turnedAwaySoldOut,
@@ -980,6 +1118,16 @@ export function runDay(
   const subscriberCups = Math.max(0, Math.min(Math.floor(params.subscribers), cupsMakeable));
   const walkupCapacity = Math.max(0, cupsMakeable - subscriberCups);
 
+  /*
+   * The afternoon sign.
+   *
+   * Clamped like the morning one, and defaulted to it. Everything downstream
+   * of a day where these two are equal is identical to what it was before the
+   * lunchtime decision existed.
+   */
+  const afternoonPrice =
+    decisions.afternoonPrice === undefined ? price : clampPrice(decisions.afternoonPrice);
+
   const crowd = buildCustomers(
     rng,
     price,
@@ -988,12 +1136,20 @@ export function runDay(
     params,
     cupsWanted,
     subscriberCups,
+    afternoonPrice,
   );
   const cupsSold = crowd.sold;
 
   const subscriberPrice = toCents(price * (1 - params.subscriberDiscount));
   const subscriberRevenue = round2(subscriberCups * subscriberPrice);
-  const walkupRevenue = round2(crowd.walkupSold * price);
+  /*
+   * Two halves, added. On an unchanged day `afternoonSold` is zero and
+   * `morningSold` is the whole walk-up count, so this is the old
+   * `walkupSold * price` to the cent.
+   */
+  const morningRevenue = round2(crowd.morningSold * price);
+  const afternoonRevenue = round2(crowd.afternoonSold * afternoonPrice);
+  const walkupRevenue = round2(morningRevenue + afternoonRevenue);
   const revenue = round2(subscriberRevenue + walkupRevenue);
   /*
    * Ingredients leave the pantry *before* they are costed.
@@ -1063,6 +1219,17 @@ export function runDay(
     ingredientCost: ingredients.total,
     forecast: state.forecast,
     seedBefore: state.seed,
+    /*
+     * Only written when the sign actually moved.
+     *
+     * `price` stays the morning price, which is what every later reader means
+     * by "the price that day" — `swingAfterWorstDay` compares one day's
+     * opening sign to the next, and the parent report quotes it. Recording the
+     * change as its own optional field means a save from before the lunchtime
+     * decision existed reads back as a day with one price, which is what it
+     * was.
+     */
+    ...(centsApart(afternoonPrice, price) > 0 ? { afternoonPrice } : {}),
   };
 
   const isLastDay = params.lastDay !== null && state.day >= params.lastDay;
@@ -1112,6 +1279,11 @@ export function runDay(
     subscriberPrice,
     subscriberRevenue,
     walkupRevenue,
+    afternoonPrice,
+    morningCups: crowd.morningSold,
+    afternoonCups: crowd.afternoonSold,
+    morningRevenue,
+    afternoonRevenue,
     ingredients,
     grossProfit,
     grossMarginPerCup,

@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ECON, type DayOutcome, type DayProjection, type Insight, weekSummary } from '@/lib/simulation';
 import { sellingPoints, splitCups, type BusinessState } from '@/lib/business';
 import { closingLine, ledgerNoveltyOf, ledgerStartsOpen } from '@/lib/guide';
+import { middayResult } from '@/lib/midday';
 import { play } from '@/lib/sound';
 import { PipSays } from './Pip';
 import { ChunkyButton, SignHeading, Sky, money, plural, useCountUp } from './ui';
@@ -130,6 +131,16 @@ export function CloseScreen({
     ) / 100;
   const [ledgerOpen, setLedgerOpen] = useState(() => ledgerStartsOpen(outcome, history));
 
+  /**
+   * Did they move the sign at lunchtime?
+   *
+   * Read from the outcome rather than passed in, because the close screen is
+   * the one place in the game that has to reconcile every figure a day
+   * produced and it should not need telling what happened in it.
+   */
+  const changedAtLunch = outcome.afternoonPrice !== outcome.price;
+  const lunchLine = middayResult(outcome);
+
   useEffect(() => {
     const timer = window.setTimeout(() => play(madeMoney ? 'cash' : 'sad'), COUNT_SETTLE_MS);
     return () => window.clearTimeout(timer);
@@ -149,8 +160,17 @@ export function CloseScreen({
 
         {/* What happened, in one line, from the only character in the game.
             Observation with a number in it — never a suggestion for tomorrow.
-            See the rule at the top of `guide.ts`. */}
-        <PipSays className="mt-4" lines={[closingLine(outcome)]} point="up" />
+            See the rule at the top of `guide.ts`.
+
+            The lunchtime change goes in the same bubble when there was one,
+            because it is the only decision the child made *during* the day and
+            reading its consequence next to the profit is the whole reason the
+            decision was worth offering. */}
+        <PipSays
+          className="mt-4"
+          lines={lunchLine ? [lunchLine, closingLine(outcome)] : [closingLine(outcome)]}
+          point="up"
+        />
 
         {/* The statement. Deliberately plain and exact. */}
         <div className="mt-4 rounded-2xl border-[3px] border-ink/25 bg-white p-4 shadow-xl">
@@ -186,18 +206,46 @@ export function CloseScreen({
           {/* With a round running there are two prices in the day, so revenue
               is shown as the two lines that add up to it. One number covering
               both would not reconcile by hand. */}
-          {outcome.subscriberCups > 0 ? (
+          {/*
+            Revenue, as however many lines it takes to reconcile.
+
+            Up to three prices can be charged in one day — the standing price a
+            regular prepaid, the morning sign, and the afternoon sign if the
+            child moved it at lunchtime. §4's rule is that any two figures shown
+            together add up, and `cups × price` for a single price does not add
+            up to the takings on a day with two of them. So each price gets its
+            own row and the subtotal is the sum, which is a child's own
+            arithmetic either way.
+          */}
+          {outcome.subscriberCups > 0 || changedAtLunch ? (
             <>
-              <Line
-                label="Regulars"
-                detail={`${plural(outcome.subscriberCups, 'cup')} × ${money(outcome.subscriberPrice)} — they came whatever the weather`}
-                amount={outcome.subscriberRevenue}
-              />
-              <Line
-                label="Walk-ups"
-                detail={`${plural(outcome.cupsSold - outcome.subscriberCups, 'cup')} × ${money(outcome.price)}`}
-                amount={outcome.walkupRevenue}
-              />
+              {outcome.subscriberCups > 0 && (
+                <Line
+                  label="Regulars"
+                  detail={`${plural(outcome.subscriberCups, 'cup')} × ${money(outcome.subscriberPrice)} — they came whatever the weather`}
+                  amount={outcome.subscriberRevenue}
+                />
+              )}
+              {changedAtLunch ? (
+                <>
+                  <Line
+                    label="Morning"
+                    detail={`${plural(outcome.morningCups, 'cup')} × ${money(outcome.price)}`}
+                    amount={outcome.morningRevenue}
+                  />
+                  <Line
+                    label="Afternoon"
+                    detail={`${plural(outcome.afternoonCups, 'cup')} × ${money(outcome.afternoonPrice)} — after you changed the sign`}
+                    amount={outcome.afternoonRevenue}
+                  />
+                </>
+              ) : (
+                <Line
+                  label="Walk-ups"
+                  detail={`${plural(outcome.cupsSold - outcome.subscriberCups, 'cup')} × ${money(outcome.price)}`}
+                  amount={outcome.walkupRevenue}
+                />
+              )}
               <Subtotal label="Revenue" amount={outcome.revenue} />
             </>
           ) : (

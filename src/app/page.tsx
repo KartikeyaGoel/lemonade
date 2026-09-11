@@ -11,6 +11,9 @@ import {
   round2,
   runDay,
   type DayOutcome,
+  type DayParams,
+  type Decisions,
+  type GameState,
   type DayProjection,
   type Insight,
   DEFAULT_GRADE,
@@ -205,6 +208,7 @@ import { ShopScreen } from '@/components/ShopScreen';
 import { PriceScreen } from '@/components/PriceScreen';
 import { PlanScreen } from '@/components/PlanScreen';
 import { RunDayScreen } from '@/components/RunDayScreen';
+import { middayCall } from '@/lib/midday';
 import { createLedger, hasAnything, localDay, type Deed, type Ledger } from '@/lib/ledger';
 import { balance as balanceOf, streak as streakOf } from '@/lib/ledger';
 import { CheckInScreen } from '@/components/meta/CheckInScreen';
@@ -424,6 +428,25 @@ export default function Page() {
    */
   const [targetGrade, setTargetGrade] = useState<LemonGrade>(DEFAULT_GRADE);
   const [outcome, setOutcome] = useState<DayOutcome | null>(null);
+  /**
+   * Enough of today to run it again.
+   *
+   * The day stopped being decided at the moment it starts: a child is asked
+   * once, at lunchtime, whether to move the sign. Answering re-runs `runDay`
+   * from the same stand, the same decisions and the same seed with an
+   * `afternoonPrice` added — so the morning is reproduced exactly and only the
+   * second half of the crowd sees anything different.
+   *
+   * Held here rather than recomputed because `params` depends on the business
+   * as it was this morning and on the price the day opened at, and rebuilding
+   * it from a `game` that has since moved on would be a different day.
+   */
+  const [dayPlan, setDayPlan] = useState<{
+    state: GameState;
+    decisions: Decisions;
+    params: Partial<DayParams>;
+    ranByManager: boolean;
+  } | null>(null);
   const [planned, setPlanned] = useState<DayProjection | null>(null);
   const [newInsights, setNewInsights] = useState<Insight[]>([]);
   const [weekReport, setWeekReport] = useState<WeekReport | null>(null);
@@ -920,7 +943,78 @@ export default function Page() {
           : { ...deriveDayParams(game.business, price), equityShare: outsideShare };
 
       const order = orderForTargetCups(game.stand, cups);
-      const result = runDay(game.stand, { ...order, price, grade }, params);
+      const decisions = { ...order, price, grade };
+      const result = runDay(game.stand, decisions, params);
+
+      /*
+       * Projected at the recipe the day was actually played with.
+       *
+       * At the normal lemon this said a perfect day had "planned $17.54"
+       * against an actual $14.74 — a $2.80 shortfall on a day where every cup
+       * planned was a cup sold. The comparison screen exists to show a child
+       * where a plan went wrong, so a phantom gap is worse than no gap.
+       */
+      setPlanned(projectDay(game.stand, cups, price, params, grade));
+      /*
+       * Everything needed to run this exact day again.
+       *
+       * Kept because the day is no longer decided when it starts: the child is
+       * asked once, at lunchtime, whether to move the sign, and answering
+       * re-runs the day from the same state and the same seed with an
+       * `afternoonPrice` added. Same weather, same footfall, same draws — only
+       * the second half of the crowd faces a different number. See
+       * `buildCustomers`.
+       */
+      setDayPlan({ state: game.stand, decisions, params, ranByManager });
+      setOutcome(result);
+      setPhase('run');
+    },
+    [game, outsideShare],
+  );
+
+  /**
+   * The one decision inside a day.
+   *
+   * Re-runs the same day from the same stand with an afternoon price on it.
+   * Same seed, same weather, same footfall, same draws — `buildCustomers` only
+   * re-reads the reservation prices it had already drawn, so the morning the
+   * child has just watched is reproduced exactly and only the second half of
+   * the crowd sees a different number.
+   *
+   * See PRODUCT.md §68 for why the day needed a decision in it at all.
+   */
+  const changeMiddayPrice = useCallback(
+    (afternoonPrice: number) => {
+      if (!dayPlan) return;
+      setOutcome(
+        runDay(
+          dayPlan.state,
+          { ...dayPlan.decisions, afternoonPrice },
+          dayPlan.params,
+        ),
+      );
+    },
+    [dayPlan],
+  );
+
+  /**
+   * The day is over. Work out what it taught and what it changed.
+   *
+   * This used to run inside `openStand`, the instant the day was computed and
+   * before a single customer had walked on screen. That was fine while a day
+   * was wholly decided by the two dials pressed before it started. It is not
+   * fine now: the child is asked at lunchtime whether to move the sign, and
+   * answering re-runs the day — so a day settled on the way in would have
+   * banked the morning's insights, the morning's hands-off streak and the
+   * morning's profit, and then quietly disagreed with the close screen.
+   *
+   * So nothing is banked until the crowd has gone home. Everything here is
+   * computed from the *pre-day* game and the final outcome, which is what makes
+   * it safe to be called once at the end rather than incrementally.
+   */
+  const settleDay = useCallback(
+    (result: DayOutcome, ranByManager: boolean) => {
+      if (!game) return;
 
       const act1Insights = deriveInsights(result, result.nextState.history);
       const act2Insights =
@@ -951,16 +1045,6 @@ export default function Page() {
       const today = queue.slice(0, WORDS_PER_DAY);
       const waiting = queue.slice(WORDS_PER_DAY);
 
-      /*
-       * Projected at the recipe the day was actually played with.
-       *
-       * At the normal lemon this said a perfect day had "planned $17.54"
-       * against an actual $14.74 — a $2.80 shortfall on a day where every cup
-       * planned was a cup sold. The comparison screen exists to show a child
-       * where a plan went wrong, so a phantom gap is worse than no gap.
-       */
-      setPlanned(projectDay(game.stand, cups, price, params, grade));
-      setOutcome(result);
       setNewInsights(today);
 
       /*
@@ -990,9 +1074,8 @@ export default function Page() {
         business: businessAfter,
         ownership: recordInvestorCut(game.ownership, result.investorCut),
       });
-      setPhase('run');
     },
-    [game, outsideShare],
+    [game],
   );
 
   /** The manager runs a sensible day so the kid can genuinely step away. */
@@ -2596,7 +2679,30 @@ export default function Page() {
         <RunDayScreen
           outcome={outcome}
           interactive={game.act === 1}
-          onDone={() => setPhase('close')}
+          /*
+           * Asked in every stage, unlike the tap-to-admit pacing above.
+           *
+           * The pacing is handed over only where the scene is the lesson. The
+           * lunchtime question is the opposite case: it is the *decision*, and
+           * the stages that need it most are the long ones — the pilot's
+           * complaint was "lemonade stand is 40 days ... just next next next",
+           * and stages two and three are where most of those forty days are.
+           */
+          midday={middayCall(outcome)}
+          onMidday={changeMiddayPrice}
+          onDone={() => {
+            /*
+             * Settled here rather than on the way in.
+             *
+             * The day is not decided until the crowd has gone home, so the
+             * insights, the streaks and the business updates are worked out
+             * from the *final* outcome. Settling on the way in — which is what
+             * `openStand` used to do — would have banked the morning's figures
+             * and then disagreed with the close screen.
+             */
+            settleDay(outcome, dayPlan?.ranByManager ?? false);
+            setPhase('close');
+          }}
         />
       ) : null;
 

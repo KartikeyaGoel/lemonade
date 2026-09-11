@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { WEATHER_COPY, round2, type DayOutcome } from '@/lib/simulation';
+import { MORNING_SHARE, WEATHER_COPY, round2, type DayOutcome } from '@/lib/simulation';
+import { middayOptions, type MiddayCall } from '@/lib/midday';
 import { play } from '@/lib/sound';
 import { ChunkyButton, Ground, SignHeading, Sky, WeatherArt, money, plural } from './ui';
 import { Stand } from './Stand';
@@ -72,11 +73,27 @@ export function RunDayScreen({
   outcome,
   onDone,
   interactive = false,
+  midday = null,
+  onMidday,
 }: {
   outcome: DayOutcome;
   onDone: () => void;
   /** Hand the pace to the child: the crowd waits to be let in. Stage 1 only. */
   interactive?: boolean;
+  /**
+   * The question at lunchtime, if this day has one.
+   *
+   * The only decision inside a day, and the reason this screen stopped being
+   * something every child in the pilot skipped. `null` on a day that is simply
+   * going fine, and then nothing interrupts. See `src/lib/midday.ts`.
+   */
+  midday?: MiddayCall | null;
+  /**
+   * Answering it. The caller re-runs the same day with the new afternoon
+   * price and hands back a fresh `outcome`; this component keeps its place in
+   * the crowd, because the morning half of the new outcome is identical.
+   */
+  onMidday?: (price: number) => void;
 }) {
   // Pace the day so it always resolves in roughly twelve seconds regardless of
   // how big the crowd is, then let an impatient kid speed it up.
@@ -139,7 +156,40 @@ export function RunDayScreen({
    */
   const [drained, setDrained] = useState(false);
 
-  const permitted = Math.min(allowed, outcome.customers.length);
+  /**
+   * Lunchtime, and whether it has been dealt with.
+   *
+   * `askedAt` is the customer index the day stops at. Derived from the walk-up
+   * crowd and `MORNING_SHARE` so it is the same boundary `buildCustomers` uses
+   * — the child is asked at exactly the point the afternoon sign starts being
+   * read, or the people they are pricing for would already have walked past.
+   *
+   * `answered` latches. A day gets one question: re-running the day hands this
+   * component a new `outcome` with the same crowd length, and without the
+   * latch the beat would fire again the moment the pause lifted.
+   */
+  const [answered, setAnswered] = useState(false);
+  const regulars = outcome.subscriberCups;
+  const walkUps = Math.max(0, outcome.customers.length - regulars);
+  const askedAt = regulars + Math.floor(walkUps * MORNING_SHARE);
+  /** The question is on screen, and the day is holding still for it. */
+  const asking = Boolean(midday && onMidday) && !answered && revealed >= askedAt && askedAt > 0;
+
+  /*
+   * The pause.
+   *
+   * Implemented as a ceiling on `permitted` rather than by stopping the
+   * interval, because that is the same mechanism tap-to-admit already uses and
+   * it means the two cannot fight. A hurrying child is stopped too: the point
+   * of the beat is that hurrying should cost you the chance to react, and a
+   * speed-up button that skipped the only decision in the day would be the
+   * "Let the rest come" mistake a second time.
+   */
+  const permitted = Math.min(
+    allowed,
+    outcome.customers.length,
+    asking ? askedAt : Number.POSITIVE_INFINITY,
+  );
 
   useEffect(() => {
     if (revealedRef.current >= permitted) return;
@@ -229,9 +279,40 @@ export function RunDayScreen({
     // the thing being taught.
     play(gainedSale ? 'coin' : 'sad');
   }, [sold, walked]);
-  const taken = round2(sold * outcome.price);
+  /*
+   * The takings, summed per cup rather than multiplied.
+   *
+   * This was `sold * outcome.price`, which is exact on a day with one price and
+   * wrong the moment there are two: a child who raised the sign at lunchtime
+   * would have watched the counter charge the morning price for the whole
+   * afternoon, and then met a different figure on the close screen. §4's rule
+   * is that any two figures shown together reconcile, and this is the pair a
+   * child watches most closely — it moves while they look at it.
+   *
+   * Regulars are at the standing price, which is discounted, so they are added
+   * separately rather than folded in at the walk-up rate.
+   */
+  const taken = round2(
+    decided.reduce((sum, customer) => {
+      if (customer.outcome !== 'bought') return sum;
+      if (customer.kind === 'regular') return sum + outcome.subscriberPrice;
+      return sum + (customer.afternoon ? outcome.afternoonPrice : outcome.price);
+    }, 0),
+  );
 
-  const finished = drained;
+  /** The sign as it stands right now, which is what the stand must draw. */
+  const signNow = answered ? outcome.afternoonPrice : outcome.price;
+
+  /*
+   * A day cannot be over while it is still asking.
+   *
+   * `drained` is set from a timer that fires once `revealed` reaches the whole
+   * crowd, and on a tiny crowd the pause and that timer can race. Without this
+   * the footer would offer "count up the money" underneath an unanswered
+   * question, and the child's answer would arrive after the day had been
+   * settled.
+   */
+  const finished = drained && !asking;
 
   /*
    * Show the tap control only when there is somebody left to let in *and* the
@@ -240,7 +321,7 @@ export function RunDayScreen({
    * of each other and turn their own pacing back into the automatic one.
    */
   const waiting =
-    !finished && allowed < outcome.customers.length && revealed >= permitted;
+    !asking && !finished && allowed < outcome.customers.length && revealed >= permitted;
 
   // Keep only the sprites still on screen; a crowd of 90 must not pile up in
   // the DOM on a phone.
@@ -335,6 +416,58 @@ export function RunDayScreen({
         )}
       </div>
 
+      {/*
+        The lunchtime question, in the empty sky rather than over the street.
+
+        It started life in the footer, where every other control on this screen
+        lives, and a browser check killed that: three stacked buttons and two
+        lines of text is about 340 of 812 pixels, which buried the stand, the
+        jar and the customers — the evidence the child is being asked to reason
+        about. The top of this screen is empty sky on every weather, so the card
+        goes there and the whole scene stays visible underneath it.
+
+        Three answers, always the same three and always in the same order,
+        including the one that changes nothing. A screen that offered "raise it"
+        on a busy day and "drop it" on a quiet one would be telling a child the
+        answer and asking them to confirm it, which is the game playing the
+        game. See `src/lib/midday.ts`.
+      */}
+      {asking && midday && onMidday && (
+        <div className="pointer-events-none absolute inset-x-0 top-[22dvh] z-40 px-5">
+          <div className="pointer-events-auto mx-auto w-full max-w-md animate-popIn rounded-2xl border-[3px] border-wood-dark bg-lemon-light p-3 shadow-xl">
+            <div className="font-body text-[10px] font-extrabold uppercase tracking-[0.16em] text-wood-deep">
+              Lunchtime
+            </div>
+            {midday.says.map((line) => (
+              <p
+                key={line}
+                className="mt-0.5 font-body text-[13px] font-extrabold leading-snug text-ink"
+              >
+                {line}
+              </p>
+            ))}
+            <div className="mt-2 flex flex-col gap-1">
+              {middayOptions(midday.price).map((option) => (
+                <ChunkyButton
+                  key={option.id}
+                  variant={option.id === 'hold' ? 'ghost' : 'mint'}
+                  full
+                  className="!py-2 !text-base"
+                  onClick={() => {
+                    setAnswered(true);
+                    /* Nothing to re-run when the sign does not move — the
+                       outcome in hand is already that day. */
+                    if (option.id !== 'hold') onMidday(option.price);
+                  }}
+                >
+                  {option.label}
+                </ChunkyButton>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* The street. Sprites cross this, pausing in front of the sign. */}
       <div
         className="absolute inset-x-0 bottom-0 top-[15dvh] overflow-hidden"
@@ -347,7 +480,9 @@ export function RunDayScreen({
         <Backdrop />
 
         <div className="absolute bottom-[32%] left-[3vw] z-20">
-          <Stand price={outcome.price} fill={jarFill} compact />
+          {/* The sign changes when the child changes it. Watching the number on
+              the stand move is most of what makes the decision feel real. */}
+          <Stand price={signNow} fill={jarFill} compact />
         </div>
 
         <div className="absolute inset-x-0 bottom-[31%] h-[60px]">
@@ -355,7 +490,10 @@ export function RunDayScreen({
             <CustomerSprite
               key={customer.id}
               customer={customer}
-              price={outcome.price}
+              /* Each person is drawn against the price *they* read, so an
+                 afternoon shopper thinking "$1.75? no thanks" is thinking it
+                 about the sign that was actually up when they arrived. */
+              price={customer.afternoon ? outcome.afternoonPrice : outcome.price}
               lane={lane}
               speedMs={walkMs}
             />
@@ -403,6 +541,18 @@ export function RunDayScreen({
               Let the rest come
             </button>
           </div>
+        ) : asking ? (
+          /*
+            Nothing, while the day is holding still for a question.
+
+            Found in the browser: "Tap to speed up" sat under the lunchtime
+            card, which is a second control competing for the same thumb and
+            one that cannot do anything — the pause is a ceiling on how many
+            customers may arrive, so hurrying moves nothing until the question
+            is answered. A button that does nothing is indistinguishable from a
+            game that has stopped working.
+          */
+          null
         ) : (
           <button
             type="button"

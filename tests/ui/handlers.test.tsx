@@ -164,6 +164,15 @@ async function playOutTheDay(): Promise<void> {
     const hurry = find(/Tap to speed up|Let the rest come/);
     if (hurry) fireEvent.click(hurry);
     for (let i = 0; i < 80; i++) {
+      /*
+       * The lunchtime question, answered by holding the price.
+       *
+       * A day now stops halfway and asks, and it stops for a hurrying child
+       * too. "Keep" is the answer that changes nothing, so every figure these
+       * tests assert on is identical to what it was before the beat existed.
+       */
+      const lunch = find(/^Keep \$/);
+      if (lunch) fireEvent.click(lunch);
       const done = find(/Count up the money/);
       if (done) {
         fireEvent.click(done);
@@ -218,7 +227,10 @@ async function playUntil(pattern: RegExp, steps = 80): Promise<void> {
   for (let step = 0; step < steps && !there(); step++) {
     await dismissRewards();
     if (there()) return;
-    if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) {
+    if (
+      find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/) ||
+      /Lunchtime/.test(body())
+    ) {
       await playOutTheDay();
       await dismissRewards();
       continue;

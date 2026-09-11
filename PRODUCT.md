@@ -4311,3 +4311,248 @@ is subsumed by the close screen asking about the change rather than printing it;
 a longer welcome speech (#1, #2) adds prose to a reading problem and is answered
 by putting the road inside the game instead; the forced-read blur (#11) is
 refused above.
+
+### Why it is five minutes, from first principles
+
+§13 did the research on the clock and came to the right conclusion — the
+principle is "the consequence arrives while the decision is still in mind", the
+feedback unit is the day, and the day was measured flat at 13.5 seconds across
+every crowd the simulation can produce. That work holds. Its closing line was
+*"No child has played this"*, and its one open risk was *"whether that is enough
+is not a question measurement can answer"*.
+
+Five children have now played it, and the answer is no. So it is worth asking
+the question §13 did not: not *how long should a loop be*, but **what makes a
+loop worth repeating at all.**
+
+A loop gets repeated when each turn does four things:
+
+1. **presents a decision whose outcome is uncertain** — if you already know what
+   will happen, there is no reason to play it out
+2. **resolves it quickly and unambiguously** — the part §13 measured
+3. **changes the world in a way the player wanted** — progress
+4. **opens a decision that was not available before** — novelty
+
+Against the day loop:
+
+| | Act 1's day | |
+|---|---|---|
+| 1. Uncertain decision | **decays** | Price and batch are genuinely uncertain on days one and two. By day three a child has found a price that works, and the same inputs produce the same outputs apart from weather. The decision space is exhausted before the stage is. |
+| 2. Resolved quickly | yes | 13.5 seconds, measured, flat. |
+| 3. Changes the world | **no** | Cash goes up. Nothing is bought, built or unlocked. Day four's stand is identical to day one's. |
+| 4. A new decision | **no** | All three levers — price, batch, grade — are on screen from day one. Day four offers exactly day three's choices. |
+
+**Two of the four are absent and a third decays on the third iteration.** That
+is a complete account of a five-minute wall, and it predicts the timing the
+pilot actually reported — *"After Day 3 I got the feeling the game is getting
+too repetitive"*. Not day two, not day six. Day three, which is where the
+pricing question stops being a question.
+
+This is a sharper statement of causes A and B, and it adds one they missed:
+
+**A′.** A decision inside the day restores (1), and restores it *permanently*
+rather than for two days, because the lunchtime situation is drawn fresh from
+the weather every single day. There is no price a child can find that makes
+tomorrow's afternoon predictable.
+
+**B′.** Something to buy restores (3) and (4) together: a purchase changes the
+stand and hands over a lever.
+
+**G. The levers all arrive at once, which is the game breaking its own rule.**
+§13's own finding is that *what has to be bounded is the number of choices in
+front of a player at the moment they choose*, and that Clash Royale works
+because a hundred cards are learned over months — "chunking and progressive
+disclosure". The build applies that to companies, which arrive eight at a time
+by tier, and to vocabulary, which arrives one word a day. It does not apply it
+to Act 1's own three levers, which are all available on day one. So the stage
+front-loads its entire decision set and then has nothing left to give. Day
+three should be the day a lever arrives; instead it is the day the last question
+runs out.
+
+### Multiplayer, asked honestly
+
+The suggestion is worth taking seriously and the answer is that **this product
+already has multiplayer, it already unlocks early, and it did not help — for a
+reason that is instructive.**
+
+What exists: the Same-Sky Challenge (two children play the identical seeded
+week and compare, `challenge.ts`), the investment club (a pooled portfolio
+passed by code, propose and vote, `club.ts`), the table with four separate
+honours (`table.ts`), friends, and messages. `unlocks.ts` opens the challenge at
+`daysPlayed >= 2`, which is inside the first five minutes.
+
+Two things stopped any of it mattering.
+
+**It is only visible on the screen you see when you are not playing.** Every
+social affordance is an `extras` button on the title screen. A child mid-run
+never sees one. This is the same defect as the road in cause C: the game's whole
+sense of *other people and other places* lives on the screen you have left.
+
+**And the pilot was already multiplayer, in the room, and it made things worse.**
+Two observations from the notes, read together:
+
+> Most kids who played the game, asked laksh how much money he made in day 1 and
+> day 2 — so a compare option might be great.
+
+> At one point laksh told the other boys to just press the speed up button to
+> get through it fast.
+
+The first is the feature request writing itself: unprompted, they invented
+comparison. The second is what social pressure does to a loop with no decisions
+in it — **the most engaged player taught the others the fastest route to the
+end.** Adding real-time competition on top of a loop whose outcome is already
+determined does not create engagement; it creates a race, and a race through a
+cutscene is won by whoever skips hardest.
+
+So: no real-time multiplayer. It is the most expensive thing on the list
+(§19 costs the server out), it addresses retention rather than a first-session
+wall, and the pilot's own behaviour suggests it would shorten the session rather
+than lengthen it. The cheap version is already built and merely hidden, and it
+is what they asked for in their own words: put the comparison where a child can
+reach it *during* a run.
+
+## 69. A decision inside the day
+
+The first of §68's foundational fixes, and the one aimed at the five-minute
+wall.
+
+A day used to be: two dials, twelve seconds of animation, a profit and loss, a
+button. Every child in the pilot pressed the button that skips the animation,
+and one of them taught the others how. §68 works out why — a turn is worth
+repeating when it presents a decision whose outcome is *uncertain*, and the
+price-and-batch question stops being uncertain on about the third day.
+
+So the day now stops once, a third of the way through, and asks.
+
+> **Lunchtime**
+> It turned out mild — and 14 cups already gone.
+> 18 cups left, and the afternoon crowd is still coming.
+>
+> `Drop to $0.50` · `Keep $0.75` · `Raise to $1.00`
+
+### Why this is not the same mistake twice
+
+`RunDayScreen` already had a go at this. Its `interactive` mode hands the *pace*
+to the child: the street stays empty until tapped, eight taps a day, so "the
+payoff [becomes] something they are causing". The pilot is that experiment's
+result, and the tell is which control the children reached for — **"Let the rest
+come"**, the button that ends the pretence. Controlling the pace of an outcome
+that is already decided is a progress bar you have to hold down.
+
+The difference is that this one **changes the answer**. Raising the sign at
+lunchtime on a day that is selling out really does earn more from the cups that
+are left; dropping it on a day nobody is buying really does clear the jug. A
+browser run: `$0.75` in the morning, `$1.00` after, 12 cups at each — **$9.00
+and then $12.00 for the same twelve cups**, and the close screen says so in the
+child's own figures.
+
+It also makes the speed-up button honest. The pause is a ceiling on how many
+customers may arrive, so it stops a hurrying child too. Hurrying now costs you
+the chance to react, which is what it should always have cost.
+
+### How a second price in one day was affordable
+
+The constraint that shaped everything: `buildCustomers` insists the *number* of
+random draws depends "only on the weather and the day's parameters — never on
+the price or the batch", because two children on one challenge code must get the
+same week. Any mechanism that drew again would break the Same-Sky Challenge and
+the classroom board with it.
+
+It does not have to draw again. **Every passer-by already has a full
+willingness to pay.** The draw produces a reservation price — somewhere above
+the sign for a willing customer, somewhere below it for an unwilling one — so
+the question "would this person buy at a different price" is already answered by
+the number we drew for them. Re-reading it at the afternoon price is the demand
+curve doing its own job: no extra draw, no new randomness, and a cut can only
+ever gain customers while a rise can only ever lose them. `tests/midday.test.ts`
+holds that monotonicity, because a game that ever taught "charging more sells
+more" would be worse than no game.
+
+Three consequences fell out of that, each of them a small correctness fix:
+
+- **A day nobody changed is byte-identical.** `buildCustomers` short-circuits on
+  an unmoved price and takes the original branch, so the generator advances the
+  same way and tomorrow's seed is untouched. Asserted across five seeds on the
+  whole customer list, not just the totals.
+- **Revenue needs as many rows as there were prices.** `cups × price` is not the
+  takings on a day with two of them, so the ledger shows Morning and Afternoon
+  and a subtotal. Up to three prices can be charged in one day, counting the
+  discounted standing price a regular prepaid.
+- **The live scoreboard was wrong.** It read `sold * outcome.price`, which is
+  exact on a one-price day and a lie on a two-price one — a child would have
+  watched the counter charge the morning price all afternoon and then met a
+  different figure on the close screen. It is now summed per cup at the price
+  each person actually read. That is the pair of figures a child watches most
+  closely, because it moves while they look at it.
+
+And the day is no longer *settled* on the way in. `openStand` used to derive the
+insights, the streaks and the business updates the instant the day was computed,
+before a single customer had walked on. That was safe while a day was wholly
+decided by the two dials pressed before it; with a decision inside the day it
+would have banked the morning's figures and then quietly disagreed with the
+close screen. Nothing is banked until the crowd has gone home.
+
+### The ask point, measured rather than chosen
+
+It was the halfway mark, which reads better and was wrong. Found by playing a
+hot day at a dollar a cup: twenty-four cups gone, four left, sixteen people
+already turned away, the screen saying *"You're going to sell out soon"* — and
+no question asked, because by halfway the batch was **already empty** and there
+was nothing left to price. The one day where the decision matters most was the
+one day it could not be offered.
+
+Swept across eight prices, six batch sizes and twenty-five seeds:
+
+| Share of the day before the ask | Misses a sell-out | Days with a question |
+|---|---|---|
+| 0.50 | 15% | 59% |
+| 0.40 | 9% | 67% |
+| **0.33** | **6%** | **70%** |
+| 0.25 | 3% | 76% |
+
+A third is where the curve stops paying. A quarter buys three more points and
+asks a child to decide on a quarter of the evidence, which is the other way to
+make the beat meaningless.
+
+### What it is allowed to say
+
+`guide.ts`'s rule — *name what happened, never say what to do* — is load-bearing
+here more than anywhere, because this is the one moment the game could most
+easily play itself. So:
+
+- The card reports facts with the child's own figures in them. A test sweeps
+  every sentence the module can produce against `should`, `try`, `raise it`,
+  `drop it`, `charge` and the rest.
+- **The same three answers appear in every situation, in the same order,
+  including the wrong one.** A screen offering "raise it" on a busy day and
+  "drop it" on a quiet one is a screen telling a child the answer and asking
+  them to confirm it. A child who raises the price on a day nobody is buying is
+  allowed to, and should be, because that is where the learning is.
+- The middle option is not a cancel button. Holding a price while the day
+  misbehaves is a real strategy, and one of the four readiness criteria is about
+  exactly that steadiness.
+
+And the beat stays quiet on a day that is simply going fine — a third of days at
+competent play — because a beat with nothing at stake teaches a child that the
+beat does not matter.
+
+### Two layout defects found by looking
+
+Both in a browser, neither by a test.
+
+- The card started in the footer, where every other control on the screen
+  lives. Three stacked buttons and two lines of text is about 340 of 812 pixels,
+  which buried the stand, the jar and the customers — the evidence the child is
+  being asked to reason about. It now sits in the empty sky above the scene.
+- **"Tap to speed up" stayed on screen underneath it**, which is a second
+  control competing for the same thumb and one that cannot do anything, since
+  the pause is a ceiling on arrivals. A button that does nothing is
+  indistinguishable from a game that has stopped working.
+
+### Not built, and named so it is not forgotten
+
+The 6% of days whose jug is dry before any reasonable ask point. The decision
+there is not a price at all — it is **whether to go and buy more lemons**, which
+is marginal cost and is a genuinely better lesson than a price nudge on the day
+it applies. It needs a mid-day purchase against the pantry and the cash box, so
+it is a second beat rather than a variant of this one.

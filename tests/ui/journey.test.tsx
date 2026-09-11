@@ -129,6 +129,17 @@ async function playOutTheDay(): Promise<void> {
     const hurry = find(/Tap to speed up|Let the rest come/);
     if (hurry) fireEvent.click(hurry);
     for (let i = 0; i < 80; i++) {
+      /*
+       * The lunchtime question, answered by holding the price.
+       *
+       * A day now stops halfway and asks, and it stops for a hurrying child
+       * too — that is the point of it. So a harness that drives a day has to
+       * answer, exactly as a child does. "Keep" is chosen because it is the
+       * answer that changes nothing, which keeps every figure these tests
+       * assert on identical to what it was before the beat existed.
+       */
+      const lunch = find(/^Keep \$/);
+      if (lunch) fireEvent.click(lunch);
       const done = find(/Count up the money/);
       if (done) {
         fireEvent.click(done);
@@ -166,7 +177,10 @@ async function playADay(): Promise<boolean> {
   for (let step = 0; step < 12; step++) {
     await dismissRewards();
     // The day is running: see it out and bank it.
-    if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) {
+    if (
+      find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/) ||
+      /Lunchtime/.test(body())
+    ) {
       await playOutTheDay();
       clean('the close screen');
       await dismissRewards();
