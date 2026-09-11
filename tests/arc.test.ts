@@ -4,24 +4,14 @@ import {
   HANDS_OFF_DAYS_REQUIRED,
   TWO_STAND_DAYS_REQUIRED,
   act2Progress,
-  buyUpgrade,
   createBusinessState,
-  deriveDayParams,
   openStand,
-  serviceCapacity,
   standCount,
   toggleStaff,
   trailingWeeklyProfit,
-  updateHandsOff,
-  updateTwoStandDays,
 } from '../src/lib/business';
 import {
-  SHOP,
   SHOP_DAYS_REQUIRED,
-  loanQuote,
-  repayLoan,
-  shopProgress,
-  updateShopDays,
 } from '../src/lib/retail';
 import {
   ACT3_DAYS,
@@ -57,7 +47,6 @@ import { batchPlan, runDay, ECON } from '../src/lib/simulation';
  * the code that actually builds a demo save rather than a copy of it.
  */
 import {
-  batchForCapacity,
   playDay,
   sensiblePrice,
   throughActOne,
