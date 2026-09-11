@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { MODELS, metricsFor, type Company } from '@/lib/companies';
+import { MODELS, formatMillions, metricsFor, type Company } from '@/lib/companies';
+import { strengthsAndRisks } from '@/lib/qualities';
 import { EXIT_CLAIMS, QUAL_CLAIMS, QUANT_CLAIMS, RISK_CLAIMS, checkQuant } from '@/lib/thesis';
-import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
+import { ChunkyButton, clearsBar, money, PinnedBar, plural, SignHeading, Sky } from '../ui';
 
 /**
  * Write the reason before the money moves.
@@ -61,6 +62,8 @@ export function ThesisScreen({
   const [override, setOverride] = useState(false);
 
   const metrics = metricsFor(company, price, asOf);
+  /* The same derivation the compare screen shows. See the research card below. */
+  const research = strengthsAndRisks(company, price, asOf);
   const check = quantId ? checkQuant(quantId, company, price, asOf) : null;
   const qual = qualId ? QUAL_CLAIMS.find((claim) => claim.id === qualId) : null;
   const ready = Boolean(quantId && qualId);
@@ -84,6 +87,89 @@ export function ThesisScreen({
             </div>
           </div>
         </div>
+
+        {/*
+          The research card, on the screen where the reason is written.
+
+          The pilot: *"In the investment club - propose buy, a link to research
+          card would be great. The kids won't remember the details."* Exactly
+          right, and worse than they realised — the club's route in is
+          `PickView → ThesisScreen`, so a child proposing a buy to their friends
+          had **never seen the company's accounts at all**. `CompanyDetail`
+          lives inside `MarketScreen` and is unreachable from here.
+
+          So the numbers come with the screen rather than behind a link. Closed
+          by default, because a child arriving from the market has just read
+          them and a second copy would be the "so much text he stopped reading
+          it" failure again; open on one tap, because a child arriving from the
+          club has not read them at all.
+
+          Derived, not passed in: the same `metricsFor` and the same
+          `strengthsAndRisks` the compare screen uses, at the price on this
+          screen and the week being replayed. One source, so a child cannot be
+          shown 25c here and 24c there.
+        */}
+        <details className="group mt-4 rounded-2xl border-[3px] border-white/25 bg-night-panel">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-2.5">
+            <span aria-hidden className="text-sm">
+              📄
+            </span>
+            <span className="flex-1 font-body text-[12px] font-extrabold text-lemon-light">
+              Its numbers, before you say why
+            </span>
+            <span aria-hidden className="font-body text-sm font-extrabold text-white/85 transition-transform group-open:rotate-90">
+              ›
+            </span>
+          </summary>
+          <div className="border-t-2 border-white/15 px-4 py-3">
+            <div className="font-body text-[12px] font-bold leading-snug text-white/85">
+              {company.whatTheySell}
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+              <Fact label="Sells a year" value={formatMillions(metrics.year.revenueM)} />
+              <Fact
+                label="Keeps per $1"
+                value={`${Math.round(metrics.netMargin * 100)}c`}
+              />
+              <Fact
+                label="You pay"
+                value={
+                  metrics.pe === null
+                    ? 'no profit to price'
+                    : `${plural(Math.round(metrics.pe), 'year')} of profit`
+                }
+              />
+              <Fact label="Jumps about" value={`${Math.round(company.volatility * 100)}%/wk`} />
+            </div>
+            <p className="mt-2 font-body text-[11px] font-bold leading-snug text-white/85">
+              {company.story}
+            </p>
+            {(['strengths', 'risks'] as const).map((which) => (
+              <div key={which} className="mt-2">
+                <div
+                  className={`font-body text-[10px] font-extrabold uppercase tracking-[0.12em] ${
+                    which === 'strengths' ? 'text-mint' : 'text-berry-light'
+                  }`}
+                >
+                  {which === 'strengths' ? 'Going for it' : 'Could go wrong'}
+                </div>
+                {research[which].map((quality) => (
+                  <div key={quality.id} className="mt-0.5">
+                    <span className="font-body text-[12px] font-extrabold text-white">
+                      {quality.says}
+                    </span>
+                    <span className="block font-body text-[10px] font-bold leading-snug text-white/85">
+                      {quality.because}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+            <p className="mt-2 font-body text-[10px] font-bold text-white/85">
+              Figures from {company.name}&rsquo;s own filing for {metrics.year.fiscalYear}.
+            </p>
+          </div>
+        </details>
 
         {/* How much */}
         <div className="mt-5 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
@@ -297,5 +383,17 @@ export function ThesisScreen({
         </button>
       </PinnedBar>
     </Sky>
+  );
+}
+
+/** One figure from the filing, labelled. */
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="font-body text-[9px] font-extrabold uppercase tracking-wide text-white/85">
+        {label}
+      </div>
+      <div className="font-ledger text-[13px] font-bold tabular-nums text-lemon-light">{value}</div>
+    </div>
   );
 }

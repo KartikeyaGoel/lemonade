@@ -17,6 +17,9 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClubScreen } from '@/components/meta/ClubScreen';
+import { ThesisScreen } from '@/components/meta/ThesisScreen';
+import { SNAPSHOT, SNAPSHOT_AS_OF, formatMillions, metricsFor } from '@/lib/companies';
+import { strengthsAndRisks } from '@/lib/qualities';
 import {
   MIN_MEMBERS_TO_PROPOSE,
   createClub,
@@ -173,5 +176,90 @@ describe('deciding together', () => {
     const { onChange } = club();
     await press(/Move the week on/i);
     expect(onChange).toHaveBeenCalled();
+  });
+});
+
+/*
+ * The pilot: "In the investment club - propose buy, a link to research card
+ * would be great. The kids won't remember the details."
+ *
+ * Worse than they realised. The club's route in is `PickView → ThesisScreen`,
+ * so a child proposing a buy to their friends had never seen the company's
+ * accounts at all — `CompanyDetail` lives inside `MarketScreen` and is
+ * unreachable from the club.
+ */
+describe('the research card, where the reason gets written', () => {
+  afterEach(cleanup);
+
+  const company = SNAPSHOT[0];
+
+  function renderThesis() {
+    render(
+      <ThesisScreen
+        company={company}
+        price={company.price}
+        asOf={SNAPSHOT_AS_OF}
+        maxDollars={200}
+        actionLabel="Propose to the club"
+        onCancel={() => {}}
+        onConfirm={() => {}}
+      />,
+    );
+  }
+
+  it('carries the company’s numbers on the screen where the reason is written', () => {
+    renderThesis();
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/Its numbers, before you say why/i);
+    // The four figures a child needs to defend a claim to their friends.
+    expect(text).toMatch(/Sells a year/i);
+    expect(text).toMatch(/Keeps per \$1/i);
+    expect(text).toMatch(/You pay/i);
+    expect(text).toMatch(/Jumps about/i);
+  });
+
+  it('shows both sides, so a proposal is never an advert', () => {
+    /*
+     * The same rule as the compare screen. A child arguing for a buy in front
+     * of their friends must be looking at what could go wrong with it, or the
+     * club is a machine for talking each other into things.
+     */
+    renderThesis();
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/Going for it/i);
+    expect(text).toMatch(/Could go wrong/i);
+    const { strengths, risks } = strengthsAndRisks(company, company.price, SNAPSHOT_AS_OF);
+    expect(text).toContain(strengths[0].says);
+    expect(text).toContain(risks[0].says);
+  });
+
+  it('agrees with the compare screen to the cent', () => {
+    /*
+     * §4, across two screens. Both read `metricsFor` at the price on screen, so
+     * a child cannot be told 25c here and 24c there — which is exactly the sort
+     * of thing that makes a nine-year-old stop believing the numbers.
+     */
+    renderThesis();
+    const metrics = metricsFor(company, company.price, SNAPSHOT_AS_OF);
+    expect(document.body.textContent).toContain(`${Math.round(metrics.netMargin * 100)}c`);
+    expect(document.body.textContent).toContain(formatMillions(metrics.year.revenueM));
+  });
+
+  it('starts closed, because a child arriving from the market has just read it', () => {
+    /*
+     * §26 and the "so much text he stopped reading it" finding. A second copy
+     * of the accounts, open, under a child who read them one tap ago is the
+     * thing this product keeps having to learn not to do. One tap opens it.
+     */
+    renderThesis();
+    const card = document.querySelector('details');
+    expect(card, 'the research card is not a disclosure').toBeTruthy();
+    expect((card as HTMLDetailsElement).open, 'it arrived already open').toBe(false);
+  });
+
+  it('names the filing the figures came from', () => {
+    renderThesis();
+    const metrics = metricsFor(company, company.price, SNAPSHOT_AS_OF);
+    expect(document.body.textContent).toContain(metrics.year.fiscalYear);
   });
 });
