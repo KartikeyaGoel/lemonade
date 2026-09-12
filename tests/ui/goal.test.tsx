@@ -20,6 +20,7 @@ import { ShopScreen } from '@/components/ShopScreen';
 import { MorningScreen } from '@/components/MorningScreen';
 import { CloseScreen } from '@/components/CloseScreen';
 import { nextStop } from '@/lib/journey';
+import { cheapestUpgrade } from '@/lib/business';
 import { act1Progress, createGame } from '@/lib/progress';
 import { money } from '@/components/ui';
 import {
@@ -428,5 +429,105 @@ describe('the close screen says where this is going', () => {
   it('renders without it, because most screens in the tests pass nothing', () => {
     render(<CloseScreen outcome={dayOne()} insights={[]} onNext={() => {}} />);
     expect(document.body.textContent).toContain('Profit and loss');
+  });
+});
+
+describe('the close screen only asks about the child’s own day', () => {
+  afterEach(cleanup);
+
+  function twoDays() {
+    const fresh = createGame(7).stand;
+    const one = runDay(fresh, { ...batchPlan(fresh, 28).order, price: 1.0 }, {
+      ...DEFAULT_DAY_PARAMS,
+      lastDay: null,
+    });
+    const two = runDay(one.nextState, { ...batchPlan(one.nextState, 44).order, price: 2.2 }, {
+      ...DEFAULT_DAY_PARAMS,
+      lastDay: null,
+    });
+    return two;
+  }
+
+  it('asks on an ordinary day', () => {
+    render(<CloseScreen outcome={twoDays()} insights={[]} onNext={() => {}} />);
+    expect(document.body.textContent).toMatch(/What made today different/i);
+  });
+
+  it('says nothing when the day is not comparable', () => {
+    /*
+     * Two real cases, one flag. A manager-run day was asking a child to
+     * attribute dials the manager moved; the Saturday stand was holding a
+     * folding table against the shop the child sold forty days ago — "you made
+     * 84 cups yesterday and 24 today". Both found by opening the path.
+     */
+    render(
+      <CloseScreen outcome={twoDays()} insights={[]} comparable={false} onNext={() => {}} />,
+    );
+    expect(document.body.textContent).not.toMatch(/What made today different/i);
+    expect(document.body.textContent).not.toMatch(/Yesterday vs today/i);
+    // And the rest of the screen is untouched.
+    expect(document.body.textContent).toMatch(/Profit and loss/i);
+  });
+});
+
+describe('what the money in stage one is for', () => {
+  afterEach(cleanup);
+
+  function aDay() {
+    const fresh = createGame(7).stand;
+    return runDay(fresh, { ...batchPlan(fresh, 28).order, price: 1.5 }, {
+      ...DEFAULT_DAY_PARAMS,
+      lastDay: null,
+    });
+  }
+
+  it('names the cash and the first thing it buys', () => {
+    /*
+     * §68's cause B, measured: cash goes from $20 to about $195 across stage
+     * one and never changes what a child can do, which makes it a score rather
+     * than a currency. It carries into stage two untouched and buys the first
+     * thing in the yard; the game never said so.
+     */
+    const outcome = aDay();
+    const buys = cheapestUpgrade();
+    render(
+      <CloseScreen
+        outcome={outcome}
+        insights={[]}
+        whatsNext={{
+          stop: nextStop(createGame(7)),
+          buys: { ...buys, cash: outcome.nextState.cash },
+        }}
+        onNext={() => {}}
+      />,
+    );
+    const text = document.body.textContent ?? '';
+    expect(text).toContain(money(outcome.nextState.cash));
+    expect(text).toContain(buys.name);
+    expect(text).toContain(money(buys.cost));
+  });
+
+  it('quotes a price a child can actually reach in stage one', () => {
+    /*
+     * The promise has to be keepable. A cheapest upgrade dearer than a decent
+     * week would make the padlock a tease, so this pins the relationship
+     * rather than the figure: whatever the yard's cheapest thing costs, a
+     * child clearing the stage's own profit target twice can afford it.
+     */
+    const buys = cheapestUpgrade();
+    expect(buys.cost).toBeLessThanOrEqual(ECON.ACT1_PROFIT_TARGET * ECON.ACT1_TARGET_HITS);
+  });
+
+  it('says nothing about it once the yard is open', () => {
+    /* From stage two on, every dollar already has a use. */
+    render(
+      <CloseScreen
+        outcome={aDay()}
+        insights={[]}
+        whatsNext={{ stop: nextStop(createGame(7)) }}
+        onNext={() => {}}
+      />,
+    );
+    expect(document.body.textContent).not.toContain(cheapestUpgrade().name);
   });
 });

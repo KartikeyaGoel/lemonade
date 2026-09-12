@@ -27,6 +27,7 @@ import {
   applyWeeklyChoice,
   buyUpgrade,
   closeStand as closeStandAt,
+  cheapestUpgrade,
   deriveAct2Insights,
   deriveAct3Insights,
   deriveDayParams,
@@ -2692,7 +2693,16 @@ export default function Page() {
            * complaint was "lemonade stand is 40 days ... just next next next",
            * and stages two and three are where most of those forty days are.
            */
-          midday={middayCall(outcome)}
+          /*
+           * Nobody is asked to price an afternoon they are not working.
+           *
+           * A manager-run day exists so a child can step away — it is what
+           * earns the hands-off streak and the `delegation` word — and this
+           * screen was stopping halfway to ask them to move the sign. Found by
+           * checking the path rather than by a test: `letManagerRun` routes
+           * through the same `openStand`, so the beat came along for the ride.
+           */
+          midday={dayPlan?.ranByManager ? null : middayCall(outcome)}
           onMidday={changeMiddayPrice}
           onDone={() => {
             /*
@@ -2722,7 +2732,25 @@ export default function Page() {
            * the planning screen and the yard read, so there is no second
            * opinion about what is being aimed at.
            */
-          whatsNext={{ goal: stage?.goal, stop: nextStop(game) }}
+          whatsNext={{
+            goal: stage?.goal,
+            stop: nextStop(game),
+            /*
+             * Only in the first stage, which is the only place the money has
+             * nowhere to go. From stage two onwards the yard is open and every
+             * dollar already has a use, so saying this would be telling a child
+             * something they can see.
+             */
+            buys:
+              game.act === 1
+                ? { ...cheapestUpgrade(), cash: outcome.nextState.cash }
+                : undefined,
+          }}
+          /*
+           * The close screen's question needs today and yesterday to be the
+           * same business, run by the same person. See `comparable`.
+           */
+          comparable={!dayPlan?.ranByManager && !game.weekend}
           /* Only when there is more than one counter to split the day across.
              The Saturday stand is a folding table again, so it does not get
              the business it was sold out of. */

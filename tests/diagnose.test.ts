@@ -37,6 +37,8 @@ import {
   wordOfMouth,
   type Cause,
 } from '../src/lib/diagnose';
+import { demoGame } from '../src/lib/demo';
+import { beginWeekend } from '../src/lib/progress';
 
 const ONGOING = { ...DEFAULT_DAY_PARAMS, lastDay: null };
 
@@ -281,5 +283,64 @@ describe('word of mouth, made visible at last', () => {
     }
     expect(said, 'the recipe never showed its effect').toBeGreaterThan(50);
     expect(said).toBeGreaterThan(wasTheAnswer * 2);
+  });
+});
+
+/*
+ * The two kinds of day where the question is about nothing.
+ *
+ * Both found by opening paths I had not opened rather than by a test failing,
+ * which is why they are pinned here now. Neither is exotic: one is the reward
+ * for hiring a manager and the other is every Saturday in the market.
+ */
+describe('days that must not be compared', () => {
+  it('would say something absurd about the Saturday stand, so nothing asks', () => {
+    /*
+     * The Saturday stand is a folding table out of an investment account, and
+     * `beginWeekend` keeps the stand's history — so "yesterday" is the last day
+     * of the shop the child *sold*. Probed: 84 cups yesterday against 24
+     * today, and the question attributed sixty cups to the jug.
+     *
+     * The suppression lives at the call site because only the caller knows
+     * which kind of day it is; this test's job is to show why, by proving the
+     * comparison really is nonsense when it happens.
+     */
+    const game = demoGame(5);
+    const weekend = beginWeekend(game);
+    const last = weekend.stand.history[weekend.stand.history.length - 1];
+    expect(last, 'the market save had no stand history to trip over').toBeTruthy();
+
+    const outcome = runDay(
+      weekend.stand,
+      { ...orderForTargetCups(weekend.stand, 24), price: 1.5 },
+      { ...DEFAULT_DAY_PARAMS, lastDay: null, cashFloor: null },
+    );
+
+    // The shop day it is being held against really is a different business.
+    expect(last!.cupsMade ?? last!.cupsSold).toBeGreaterThan(outcome.cupsMakeable * 2);
+
+    // So the raw comparison blames the jug for the sale of a company.
+    const found = diagnose(outcome, weekend.stand.history);
+    expect(found?.cause).toBe('batch');
+    expect(found!.because).toMatch(/fewer to sell/);
+  });
+
+  it('is silent on a day the child did not price', () => {
+    /*
+     * A manager-run day. There is no `diagnose` flag for it — the screen is
+     * told not to ask — so what this holds is the *reason*: the dials that
+     * moved were not the child's, and `changesSince` would still happily
+     * attribute them.
+     */
+    const state = createInitialState(11);
+    const first = play(state, 1.2, 28);
+    const managerPriced = play(first.outcome.nextState, 2.2, 44);
+    const moved = changesSince(
+      managerPriced.outcome,
+      managerPriced.before[managerPriced.before.length - 1],
+    );
+    // Both of the child's levers appear to have moved, and neither did.
+    expect(Math.abs(moved.price)).toBeGreaterThan(WORTH_ASKING_CUPS);
+    expect(Math.abs(moved.batch)).toBeGreaterThan(WORTH_ASKING_CUPS);
   });
 });

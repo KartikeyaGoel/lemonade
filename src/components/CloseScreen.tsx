@@ -52,6 +52,7 @@ export function CloseScreen({
   business,
   managerAvailable,
   onManagerRuns,
+  comparable = true,
   nextUp,
   whatsNext,
   onNext,
@@ -77,6 +78,25 @@ export function CloseScreen({
    * against. Passed in rather than built here, because it needs the career
    * record and this screen only knows about today.
    */
+  /**
+   * Is today comparable to yesterday at all?
+   *
+   * False on the two kinds of day where "what made today different" is a
+   * question about nothing:
+   *
+   *  - **A manager-run day.** The manager picked the price and the batch, so
+   *    asking a child to attribute a change they did not make is worse than
+   *    silence — and the whole point of the day is that they stepped away.
+   *  - **The Saturday stand out of the market.** It is a folding table again,
+   *    and yesterday is the *shop they sold forty days ago*. Found by probing
+   *    the path: a real child would have been told "you made 84 cups yesterday
+   *    and 24 today — 60 fewer to sell", which is true, meaningless, and
+   *    attributed to a decision nobody made.
+   *
+   * Defaults true because most days are ordinary ones and every test that
+   * renders this screen predates the question.
+   */
+  comparable?: boolean;
   nextUp?: ReactNode;
   /**
    * Where they are, and the padlock in front of them.
@@ -93,7 +113,22 @@ export function CloseScreen({
    * this is where that something is named. See PRODUCT.md §70 for why it is
    * this rather than a shop in stage one.
    */
-  whatsNext?: { goal?: string; stop: Stop | null };
+  whatsNext?: {
+    goal?: string;
+    stop: Stop | null;
+    /**
+     * What the money piling up is actually for.
+     *
+     * Only sent in the first stage, and it is the last piece of §68's cause B.
+     * Cash goes from $20 to about $195 across Stage 1 — measured — and changes
+     * nothing a child can do, which makes it a score. It carries into Stage 2
+     * untouched and buys the first thing in the yard, and until now the game
+     * never said so. Naming it turns the pile into something they are saving
+     * for without putting a shop in a stage the specification deliberately
+     * keeps free of one.
+     */
+    buys?: { name: string; cost: number; cash: number };
+  };
   onNext: () => void;
 }) {
   const sites = business ? sellingPoints(business) : [];
@@ -169,7 +204,7 @@ export function CloseScreen({
    * thing `deriveInsights` is handed.
    */
   const before = history.slice(0, -1);
-  const question = diagnose(outcome, before);
+  const question = comparable ? diagnose(outcome, before) : null;
   const mouth = wordOfMouth(outcome, before);
   const [answered, setAnswered] = useState<Cause | null>(null);
 
@@ -662,6 +697,12 @@ export function CloseScreen({
                   <div className="font-body text-[12px] font-bold leading-snug text-ink/70">
                     {whatsNext.stop.what}
                   </div>
+                  {whatsNext.buys && (
+                    <div className="mt-1 font-body text-[12px] font-extrabold leading-snug text-wood-deep">
+                      {money(whatsNext.buys.cash)} comes with you. {whatsNext.buys.name} costs{' '}
+                      {money(whatsNext.buys.cost)}.
+                    </div>
+                  )}
                 </div>
               </div>
             )}

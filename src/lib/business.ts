@@ -1059,6 +1059,31 @@ const MANAGER_SIZING: Record<Forecast, number> = {
   'probably-cold': 0.55,
 };
 
+/**
+ * The cheapest thing in the yard, so Stage 1 can name what its money is for.
+ *
+ * PRODUCT.md §68's cause B: cash in the first stage grows tenfold — $20 to
+ * about $195 over seven days, measured — and never once changes what a child
+ * can do. That makes it a score, and a score stops being interesting on about
+ * the third repetition, which is exactly where the pilot stopped.
+ *
+ * The tempting fix is a shop in Stage 1, and §70 refuses it because FRAMEWORK
+ * §1's ladder puts reinvestment in Stage 2 on purpose. The fix that does not
+ * move the boundary is to say what the pile is *for*: the money carries into
+ * Stage 2 untouched (`beginAct2` keeps `stand.cash`) and this is the first
+ * thing it buys. Anticipation in Stage 1, the purchase in Stage 2 — which is
+ * what a padlock is for.
+ *
+ * Derived rather than named, so a price change or a cheaper upgrade cannot
+ * leave Stage 1 quoting a figure that no longer exists. §62.
+ */
+export function cheapestUpgrade(): { name: string; cost: number } {
+  const all = Object.values(UPGRADES);
+  const cheapest = all.reduce((best, one) => (one.cost < best.cost ? one : best), all[0]);
+  return { name: cheapest.name, cost: cheapest.cost };
+}
+
+
 /* ------------------------------------------------------------------ *
  * Act 2 vocabulary
  *
