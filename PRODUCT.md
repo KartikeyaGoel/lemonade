@@ -5121,3 +5121,99 @@ Everything §71 said. The lunchtime decision is measured as consequential,
 situational and un-farmable; whether a nine-year-old *reads the card* is the one
 question only a child can answer, and it is the thing to watch in the next
 pilot. Nothing in §72 or §73 has been in front of a child either.
+
+## 74. Sending out for more cups, and the over-claim that found it
+
+§73 said every point in the pilot document was addressed. Asked to be sure, the
+honest move was to stop trusting my own map and re-extract the feedback from the
+PDF. The map was complete. The **claim** was not.
+
+Point 3 names three levers:
+
+> All kids who played the game and went to open the lemonade stand, used the
+> speed it up and let them come option. So it seems like a not useful
+> visualization, perhaps something more interactive that can affect the outcome
+> will be better suited. ... Perhaps the external variables can help them revisit
+> their choices of **#of cups, price, location** etc.
+
+§69 built the price one. The number of cups was **deferred**, with a note saying
+so sitting in `midday.ts` the whole time — and the point was still reported as
+addressed. That is the kind of error a summary makes and a re-reading catches.
+
+Location is a different case and is out of scope rather than skipped:
+FRAMEWORK §1 says Stage 1's demand is "driven only by price + quality at this
+stage. No weather, competition, location, etc." A location lever belongs to
+Stage 2's pitches, where it exists.
+
+### Why a fourth option rather than a slider
+
+On a day that is running short, the lunchtime card now offers
+**"Buy 12 more cups — $5.40"** beside the three price answers. Only on that
+lean: offering to make *more* on a day nobody is buying would be the screen
+suggesting something absurd, and a child who trusted it would be punished for
+trusting the screen.
+
+A fixed dozen, and **not** sized to the number turned away. Sizing it to the
+queue would hand over the answer and turn a bet into arithmetic. A dozen is
+sometimes too many and sometimes not enough, which is the same kind of bet the
+morning batch is, made with better information.
+
+### The property that made it worth building
+
+"Sell more cups" sounds like something a child should always say yes to, and if
+it were, this would be a tax on attention rather than a decision. Two things
+stop it:
+
+- A ready-made cup is **45c** against about 20c for one made from the morning's
+  shopping. Buying late is more than twice the price of planning ahead, which is
+  the other half of Lever 1's "bulk **vs day-by-day** purchasing".
+- Cups bought and not sold are simply gone.
+
+So `tests/midday.test.ts` asserts that across the sweep there exist days where
+topping up **loses** money *and* days where it clearly wins. At a dollar a cup
+the marginal cup is obviously worth making; at 50c it is barely worth it.
+Marginal cost against marginal revenue, decided by the child's own sign.
+
+### The simplification, stated plainly
+
+The cups arrive **ready to pour** rather than as lemons. That is why they never
+touch the pantry, the FIFO lots or spoilage, and it is what made this two extra
+terms in the day's arithmetic instead of a rewrite of cost of goods sold:
+
+```
+grossProfit        = revenue - ingredients.total - topUpCost
+profitBeforeEquity = revenue - ingredients.total - topUpCost - fixedCost - spoilageCost
+rawCash            = cash - cost.total - topUpCost - fixedCost + revenue - investorCut
+```
+
+Every identity in `pnl.test.ts` and the three-thousand-day fuzz still holds
+untouched, and a new sweep checks all three of the above at four prices against
+four top-up sizes. It gets its own line in the profit and loss rather than
+folding into ingredients, because a ready-made cup consumed nothing from the
+pantry — folding it in would break the `≈ a cup` figure printed beside it, and
+leaving it out would leave gross profit short by exactly the cost of the cups.
+
+### The defect it produced, found by reading the result
+
+The first browser run after it shipped:
+
+> **40 of 28 cups sold**
+
+and, from Pip, *"you sold every cup, 45 people wanted one and you had 28"* — on
+a day with forty. Nothing failed, because `cupsMakeable` is a correct name for
+what the morning's shopping poured, and every test asserted against it.
+
+It has to stay that: mid-day the jar on the screen fills against the morning
+batch and the sell-out warning is about it. So `cupsAvailable` is the new figure,
+and it is what every sentence meaning *"how many you had"* now reads —
+`closingLine`, the ledger header, and the unsold-cups line.
+
+Two notes on the test that pins it. It **searches** for a seed that oversells
+rather than hard-coding one, because which seeds do that depends on the weather
+roll and a hand-picked fixture is how a test ends up passing on drift. And it
+asserts the invariant directly — *never more sold than there were to sell* —
+across the whole sweep, top-up or not, which is the statement that was actually
+false rather than the symptom that was visible.
+
+Found, fixed, tested and browser-verified before the commit; there was never a
+pushed build with it in.
