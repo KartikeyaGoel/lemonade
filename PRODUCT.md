@@ -5016,3 +5016,108 @@ is the fix that does not move FRAMEWORK §1's stage boundary. If the next pilot
 still stalls on day three with the lunchtime question answered and the padlock
 read, that boundary is the next thing to argue about, and it should be argued
 about with the customer rather than decided in a commit.
+
+## 73. The re-audit, and two defects that passing tests could not see
+
+§72 closed the last of the pilot's twenty-three points. Before handing the build
+to children again, the customer asked the right question — *have we addressed
+every root cause we could and should have, and can I honestly be confident?* —
+so this is what came out of going back and looking.
+
+### Two defects, both mine, both from this pass, both with passing tests
+
+The method that found them was not a test and not a review. It was **opening the
+paths this pass had touched and never played.**
+
+**A manager-run day was asking the child to price the afternoon.**
+`letManagerRun` routes through the same `openStand` as an ordinary day, so the
+lunchtime decision came along for the ride. That is the inverse of what the day
+is for: it exists so a child can step away, and it is the streak that earns
+`delegation` and the hands-off badge. A child making the pricing call has not
+stepped away — so the grown-up report would have been claiming hands-off days a
+child spent working, which is the one thing §16 exists to prevent.
+
+**The Saturday stand was comparing itself to the shop the child sold.**
+`beginWeekend` keeps the stand's history, so "yesterday" is the last day of a
+business that no longer exists. Probed on a real act-5 save: 84 cups against 24,
+and the close screen said **"You made 84 cups yesterday and 24 today — 60 fewer
+to sell."** True, meaningless, and attributed to a decision nobody made.
+
+One concept fixes both, and it is worth naming because it is the kind of rule
+that generalises: **a comparison needs today and yesterday to be the same
+business, run by the same person.**
+
+Why no test caught either: every test of the lunchtime beat and the close-screen
+question drives an *ordinary* day, because that is the day the feature is for.
+Neither the manager handover nor the Saturday stand is exotic — one is the
+reward for hiring somebody and the other is every weekend in the market — but
+both are *branches around* the feature rather than uses of it. A test written
+alongside a feature covers the feature's path. Nothing was watching the paths
+that merely pass through it.
+
+### Cause B, closed — by measuring the thing I had refused to cost
+
+§70 refused moving a Stage 2 upgrade into Stage 1 on the grounds that it moves
+the boundary FRAMEWORK §1's ladder draws. The customer's correction was the
+right one: **the ladder is a *means*. The goals — engaging, and teaching — are
+what may not change.** So the change got costed instead of refused, and the
+measurement made the argument moot:
+
+- The specification's own Stage 1 money sink is the bulk discount, whose second
+  half is "requires more spending upfront". It **cannot** be made to bite. Cash
+  runs $20 → $53 → $195 across seven days while the largest order anybody can
+  *sell* costs about $34, so the top tier is cleared on day one and the upfront
+  constraint is inert for ever. A bigger tier would need an order of 300 cups.
+- Which means the problem was never that Stage 1 lacks a shop. The pile of cash
+  **already buys something** — it carries into Stage 2 untouched and the cheapest
+  item in the yard is $25, which a child clearing the stage's own target twice
+  can always afford. The game had simply never said so.
+
+So the close screen now says it, under the padlock and above the button:
+*"$37.40 comes with you. Big painted sign costs $25.00."* Anticipation in Stage
+1, the purchase in Stage 2 — which is what a padlock is for. No boundary moved,
+and the refusal in §70 turns out to have been right for the wrong reason.
+
+`cheapestUpgrade` derives both the name and the price from `UPGRADES`, and the
+test pins the *promise* rather than the figure: whatever the yard's cheapest
+thing costs, a child hitting the stage's profit target twice can afford it.
+
+### What the first four days now offer
+
+Counted rather than asserted, at a sensible price across forty seeds:
+
+| Day | Decisions before | Decisions now | New that day |
+|---|---|---|---|
+| 1 | 3 | 2 | — |
+| 2 | 3 | **4** | the lunchtime decision, the closing question |
+| 3 | 3 | 4 | the profit goal |
+| 4 | 3 | **5** | the recipe |
+
+Before this pass it was flat at three, with nothing new after day one. The
+lunchtime question fires on 76% of days and the closing question on 48% — the
+closing one is silent when nothing actually changed, which is correct and does
+mean a child who holds every dial gets nothing to answer.
+
+### A correction to the record
+
+Three times in earlier sessions this project recorded that "every `*.vercel.app`
+URL returns Login – Vercel", and concluded that nothing had ever been verified
+against production. That was wrong, and the distinction matters to anybody
+sending a link to a tester:
+
+- **Deployment-specific** URLs (`lemonade-<hash>-<org>.vercel.app`) are behind
+  Vercel's deployment protection and do show a login.
+- **The production alias — `lemonade-trading.vercel.app` — is public**, returns
+  the app, and was verified to be serving this pass's code by fetching the
+  built bundle and grepping it for eight distinct strings from eight different
+  commits.
+
+The practical rule: testers get the alias. A deployment URL will lose them
+before they see the game.
+
+### What is still unknown, unchanged
+
+Everything §71 said. The lunchtime decision is measured as consequential,
+situational and un-farmable; whether a nine-year-old *reads the card* is the one
+question only a child can answer, and it is the thing to watch in the next
+pilot. Nothing in §72 or §73 has been in front of a child either.
