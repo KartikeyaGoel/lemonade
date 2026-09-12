@@ -93,7 +93,7 @@ export function RunDayScreen({
    * price and hands back a fresh `outcome`; this component keeps its place in
    * the crowd, because the morning half of the new outcome is identical.
    */
-  onMidday?: (price: number) => void;
+  onMidday?: (answer: { price: number; topUp: number }) => void;
 }) {
   // Pace the day so it always resolves in roughly twelve seconds regardless of
   // how big the crowd is, then let an impatient kid speed it up.
@@ -447,7 +447,7 @@ export function RunDayScreen({
               </p>
             ))}
             <div className="mt-2 flex flex-col gap-1">
-              {middayOptions(midday.price).map((option) => (
+              {middayOptions(midday.price, midday.lean).map((option) => (
                 <ChunkyButton
                   key={option.id}
                   variant={option.id === 'hold' ? 'ghost' : 'mint'}
@@ -455,9 +455,11 @@ export function RunDayScreen({
                   className="!py-2 !text-base"
                   onClick={() => {
                     setAnswered(true);
-                    /* Nothing to re-run when the sign does not move — the
-                       outcome in hand is already that day. */
-                    if (option.id !== 'hold') onMidday(option.price);
+                    /* Nothing to re-run when neither the sign nor the jug
+                       moves — the outcome in hand is already that day. */
+                    if (option.id !== 'hold') {
+                      onMidday({ price: option.price, topUp: option.topUp });
+                    }
                   }}
                 >
                   {option.label}

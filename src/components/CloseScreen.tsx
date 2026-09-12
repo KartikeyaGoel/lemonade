@@ -323,7 +323,7 @@ export function CloseScreen({
               Profit and loss
             </span>
             <span className="font-body text-xs font-bold text-ink/40">
-              {outcome.cupsSold} of {plural(outcome.cupsMakeable, 'cup')} sold
+              {outcome.cupsSold} of {plural(outcome.cupsAvailable, 'cup')} sold
             </span>
           </div>
 
@@ -415,6 +415,26 @@ export function CloseScreen({
               <span>🥤 {money(outcome.ingredients.cups)}</span>
               <span className="text-ink/35">≈ {money(outcome.ingredients.perCup)} a cup</span>
             </div>
+          )}
+
+          {/*
+            Cups bought ready-made at lunchtime.
+            
+            Its own line because it is neither the ingredients — which are what
+            the morning's shopping poured — nor the rent. A ready-made cup
+            consumed nothing from the pantry, so folding it into ingredients
+            would break the `≈ a cup` figure beside it; leaving it out entirely
+            would leave the gross profit failing to reconcile by exactly this
+            amount. §4.
+          */}
+          {outcome.afternoonTopUp > 0 && (
+            <Line
+              label="Cups bought at lunchtime"
+              detail={`${plural(outcome.afternoonTopUp, 'cup')} × ${money(
+                outcome.topUpCost / outcome.afternoonTopUp,
+              )} — ready made, so dearer than the morning's`}
+              amount={-outcome.topUpCost}
+            />
           )}
 
           <Subtotal label="Gross profit" amount={outcome.grossProfit} />
@@ -809,7 +829,7 @@ function Compare({
  * fix — the kid works out the fix themselves on the next day's dials.
  */
 function describeGap(outcome: DayOutcome, planned: DayProjection): string {
-  const unsold = outcome.cupsMakeable - outcome.cupsSold;
+  const unsold = outcome.cupsAvailable - outcome.cupsSold;
 
   if (outcome.turnedAwaySoldOut > 0) {
     return `You sold every cup and ${outcome.turnedAwaySoldOut} more people still wanted one. You could have made more.`;
@@ -818,7 +838,7 @@ function describeGap(outcome: DayOutcome, planned: DayProjection): string {
     return `${plural(unsold, 'cup')} went unsold and most people walked past without stopping. More people said no than yes.`;
   }
   if (unsold > 0) {
-    return `You made ${plural(outcome.cupsMakeable, 'cup')} and sold ${outcome.cupsSold}. The ${unsold} you did not sell were already paid for.`;
+    return `You made ${plural(outcome.cupsAvailable, 'cup')} and sold ${outcome.cupsSold}. The ${unsold} you did not sell were already paid for.`;
   }
   if (outcome.cupsSold === planned.cupsMakeable) {
     return 'Everything you made, you sold. Exactly the good case.';

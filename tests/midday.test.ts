@@ -17,6 +17,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  ECON,
   MORNING_SHARE,
   createInitialState,
   orderForTargetCups,
@@ -32,6 +33,8 @@ import {
   middayOptions,
   middayResult,
 } from '../src/lib/midday';
+import { money } from '../src/lib/copy';
+import { closingLine } from '../src/lib/guide';
 
 function day(
   seed: number,
@@ -404,6 +407,219 @@ describe('no sentence claims arithmetic that does not close', () => {
             insight.evidence,
             `${insight.id} pinned the day on one of two prices`,
           ).not.toMatch(/kept walking|paid it|all the money/i);
+        }
+      }
+    }
+  });
+});
+
+/**
+ * Sending out for more cups — the half of the pilot's note the first pass
+ * missed.
+ *
+ * > perhaps the external variables can help them revisit their choices of
+ * > **#of cups**, price, location etc.
+ *
+ * Price was revisitable at lunchtime; the number of cups was not, and
+ * `midday.ts` carried a note saying so. The question this file has to answer is
+ * whether it is a *decision* or free money, because "sell more cups" sounds
+ * like something a child should always say yes to.
+ */
+describe('buying more cups at lunchtime', () => {
+  it('is offered only on a day that is running short', () => {
+    /*
+     * On a day nobody is buying, offering to make *more* would be the screen
+     * suggesting something absurd — and a child who trusted it would be
+     * punished for trusting the screen.
+     */
+    expect(middayOptions(1.5, 'running-out').some((o) => o.id === 'more')).toBe(true);
+    expect(middayOptions(1.5, 'not-selling').some((o) => o.id === 'more')).toBe(false);
+    expect(middayOptions(1.5).some((o) => o.id === 'more')).toBe(false);
+  });
+
+  it('keeps the three price answers where they were', () => {
+    /* A child who has learned where "keep" sits must not find it moved. */
+    const ids = middayOptions(1.5, 'running-out').map((o) => o.id);
+    expect(ids).toEqual(['down', 'hold', 'up', 'more']);
+  });
+
+  it('adds cups the afternoon can actually sell, and charges for them', () => {
+    const stand = createInitialState(3);
+    const order = orderForTargetCups(stand, 16);
+    const plain = runDay(stand, { ...order, price: 1.0 });
+    const topped = runDay(stand, { ...order, price: 1.0, afternoonTopUp: 12 });
+
+    expect(topped.afternoonTopUp).toBe(12);
+    expect(topped.topUpCost).toBeCloseTo(12 * ECON.TOPUP_COST_PER_CUP, 2);
+    // A day that was turning people away sells more of them.
+    expect(plain.turnedAwaySoldOut).toBeGreaterThan(0);
+    expect(topped.cupsSold).toBeGreaterThan(plain.cupsSold);
+    // And the morning is untouched, as with a price change.
+    expect(topped.morningCups).toBe(
+      plain.customers.filter(
+        (c, i) =>
+          c.kind === 'passerby' &&
+          c.outcome === 'bought' &&
+          i < Math.floor(plain.customers.length * MORNING_SHARE),
+      ).length,
+    );
+  });
+
+  it('still adds up, at every price and in both directions', () => {
+    /*
+     * §4, swept. A top-up is a cost of goods that consumed nothing from the
+     * pantry, so it sits above gross profit beside the ingredients and in the
+     * cash line — two extra terms, and if either were missed the day would be
+     * out by exactly the cost of the cups.
+     */
+    let checked = 0;
+    for (const seed of [1, 5, 13, 29, 77]) {
+      for (const price of [0.5, 1.0, 1.6, 2.4]) {
+        for (const topUp of [0, 6, 12, 24]) {
+          const stand = createInitialState(seed);
+          const order = orderForTargetCups(stand, 20);
+          const o = runDay(stand, { ...order, price, afternoonTopUp: topUp });
+          const where = `seed ${seed} @ ${price} +${topUp}`;
+
+          expect(o.grossProfit, where).toBeCloseTo(
+            round2(o.revenue - o.ingredients.total - o.topUpCost),
+            2,
+          );
+          expect(o.profit, where).toBeCloseTo(
+            round2(
+              o.revenue -
+                o.ingredients.total -
+                o.topUpCost -
+                o.standFee -
+                o.spoilageCost -
+                o.investorCut,
+            ),
+            2,
+          );
+          expect(o.cashAfter, where).toBeCloseTo(
+            round2(
+              o.cashBefore -
+                o.purchases.cost.total -
+                o.topUpCost +
+                o.revenue -
+                o.standFee -
+                o.investorCut +
+                o.cashTopUp,
+            ),
+            2,
+          );
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(60);
+  });
+
+  it('is never charged for more than the cash box holds', () => {
+    /*
+     * The same rule `clampPurchaseToCash` applies to the morning. A negative
+     * cash balance is a bug a nine-year-old reads as the game breaking.
+     */
+    const stand = { ...createInitialState(4), cash: 1 };
+    const o = runDay(stand, { ...orderForTargetCups(stand, 8), price: 1.0, afternoonTopUp: 40 });
+    expect(o.topUpCost).toBeLessThanOrEqual(1);
+    expect(o.afternoonTopUp).toBeLessThanOrEqual(Math.floor(1 / ECON.TOPUP_COST_PER_CUP));
+  });
+
+  it('is a decision rather than free money', () => {
+    /*
+     * The property that makes it worth building. "Sell more cups" sounds like
+     * something to always say yes to, and if it were, it would be a tax on
+     * attention rather than a choice.
+     *
+     * It is not, for two reasons the arithmetic guarantees: a ready-made cup
+     * costs more than twice a planned one, and cups bought and not sold are
+     * gone. So there must exist days where topping up *loses* money — and days
+     * where it clearly wins, or nobody would ever take it.
+     */
+    let better = 0;
+    let worse = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      for (const price of [0.5, 0.75, 1.0, 1.5, 2.0]) {
+        for (const cups of [12, 20, 32]) {
+          const stand = createInitialState(seed);
+          const order = orderForTargetCups(stand, cups);
+          const plain = runDay(stand, { ...order, price });
+          if (!middayCall(plain) || middayCall(plain)!.lean !== 'running-out') continue;
+          const topped = runDay(stand, { ...order, price, afternoonTopUp: ECON.TOPUP_CUPS });
+          if (topped.profit > plain.profit + 0.005) better++;
+          else if (topped.profit < plain.profit - 0.005) worse++;
+        }
+      }
+    }
+    expect(better, 'topping up never once paid').toBeGreaterThan(10);
+    expect(worse, 'topping up always paid, so it is not a decision').toBeGreaterThan(10);
+  });
+
+  it('says what it cost, against what the morning cost', () => {
+    const stand = createInitialState(3);
+    const o = runDay(stand, {
+      ...orderForTargetCups(stand, 16),
+      price: 1.0,
+      afternoonTopUp: 12,
+    });
+    const said = middayResult(o)!;
+    expect(said).toMatch(/12 more cups/);
+    expect(said).toContain(money(o.topUpCost));
+    // The comparison is the lesson: late is dearer than planned.
+    expect(said).toContain(money(round2(ECON.TOPUP_COST_PER_CUP)));
+  });
+});
+
+describe('a top-up day never claims to have sold more cups than it had', () => {
+  it('counts the lunchtime cups in "how many you had"', () => {
+    /*
+     * Found on the first browser run after the top-up shipped: the ledger read
+     * **"40 of 28 cups sold"**, and Pip said "you had 28" about a day with
+     * forty. `cupsMakeable` is what the morning's shopping poured and has to
+     * stay that — mid-day the jar fills against it and the sell-out warning is
+     * about it — so every sentence meaning "how many you had" needs
+     * `cupsAvailable` instead.
+     */
+    /*
+     * Searched for rather than hard-coded: the defect only shows on a day whose
+     * afternoon actually eats into the cups bought at lunchtime, and which
+     * seeds do that depends on the weather roll. Picking one by hand is how a
+     * test ends up passing because the fixture drifted rather than because the
+     * code is right.
+     */
+    const oversold = (() => {
+      for (let seed = 1; seed <= 80; seed++) {
+        const stand = createInitialState(seed);
+        const order = orderForTargetCups(stand, 28);
+        const day = runDay(stand, { ...order, price: 0.75, afternoonTopUp: 12 });
+        if (day.cupsSold > day.cupsMakeable) return day;
+      }
+      return null;
+    })();
+    expect(oversold, 'no seed in eighty sold past the morning batch').not.toBeNull();
+    const o = oversold!;
+
+    expect(o.cupsAvailable).toBe(o.cupsMakeable + o.afternoonTopUp);
+    // The invariant that was broken: never more sold than there were to sell.
+    expect(o.cupsSold).toBeLessThanOrEqual(o.cupsAvailable);
+    expect(closingLine(o)).not.toContain(`you had ${o.cupsMakeable}.`);
+    expect(closingLine(o)).toContain(`you had ${o.cupsAvailable}.`);
+  });
+
+  it('holds that invariant across the sweep, top-up or not', () => {
+    for (const seed of [1, 9, 23, 55, 91]) {
+      for (const topUp of [0, 12, 24]) {
+        for (const price of [0.5, 1.0, 1.8]) {
+          const stand = createInitialState(seed);
+          const o = runDay(stand, {
+            ...orderForTargetCups(stand, 20),
+            price,
+            afternoonTopUp: topUp,
+          });
+          expect(o.cupsSold, `seed ${seed} @${price} +${topUp}`).toBeLessThanOrEqual(
+            o.cupsAvailable,
+          );
         }
       }
     }

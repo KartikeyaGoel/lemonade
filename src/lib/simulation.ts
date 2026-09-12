@@ -38,6 +38,41 @@ export const ECON = {
   LEMON_SHELF_LIFE_DAYS: 3,
 
   /**
+   * What a ready-made cup costs from the corner shop at lunchtime.
+   *
+   * The other half of FRAMEWORK.md §1's Lever 1 — "bulk **vs day-by-day**
+   * purchasing" — and the answer to the part of the pilot's note this build
+   * had not addressed: *"perhaps the external variables can help them revisit
+   * their choices of #of cups, price, location"*. Price was revisitable at
+   * lunchtime; the number of cups was not.
+   *
+   * Deliberately dear. A cup made from the morning's shopping costs about 20c;
+   * this is 45c, so buying late is more than twice the price of planning
+   * ahead. That gap is the lesson, and it is what makes the decision real
+   * rather than free money: at a dollar a cup the marginal cup is clearly
+   * worth making, at 50c it is barely worth it, and cups bought and not sold
+   * are simply gone. Marginal cost against marginal revenue, decided by the
+   * child's own sign.
+   *
+   * These arrive ready to pour rather than as lemons, which is why they never
+   * touch the pantry, the FIFO lots or spoilage — a deliberate simplification
+   * that keeps the day's arithmetic to two extra terms instead of rewriting
+   * cost of goods sold.
+   */
+  TOPUP_COST_PER_CUP: 0.45,
+
+  /**
+   * How many the corner shop sells in one go.
+   *
+   * A dozen, fixed, and *not* sized to the crowd that was turned away — that
+   * would hand a child the answer and turn a bet into free money. Sometimes a
+   * dozen is too many and the spare cups are wasted; sometimes the queue eats
+   * them and more would have sold. It is the same kind of bet the morning
+   * batch is, made with better information.
+   */
+  TOPUP_CUPS: 12,
+
+  /**
    * What kind of lemon, and what it does.
    *
    * FRAMEWORK.md §1's Stage 1 table asks for "2-3 simple choices such as
@@ -332,6 +367,8 @@ export interface DayRecord {
    * morning figure — see the note where this is written.
    */
   afternoonPrice?: number;
+  /** Ready-made cups sent for at lunchtime. Absent on every ordinary day. */
+  afternoonTopUp?: number;
   /** Everything owed today whether or not anyone bought. */
   fixedCost?: number;
   /** Lemons bought and thrown away. Money spent on nothing. */
@@ -376,6 +413,13 @@ export interface Decisions {
    * a lemon cost and sold before this decision existed.
    */
   grade?: LemonGrade;
+  /**
+   * Ready-made cups bought at lunchtime, if the child sent out for more.
+   *
+   * Clamped to what the cash box and the stand can actually take. Zero or
+   * absent and the day is exactly the day it was. See `ECON.TOPUP_COST_PER_CUP`.
+   */
+  afternoonTopUp?: number;
   /**
    * What the sign says after lunch, if the child changed it.
    *
@@ -614,6 +658,26 @@ export interface DayOutcome {
    * price beside one revenue would be showing arithmetic that does not close.
    */
   afternoonPrice: number;
+  /**
+   * Ready-made cups bought at lunchtime, and what they cost.
+   *
+   * Reported because the close screen has to show them: a day with a top-up
+   * carries a cost that is neither in the ingredients nor in the rent, and §4's
+   * rule is that the figures on a screen add up. Zero on every other day.
+   */
+  afternoonTopUp: number;
+  topUpCost: number;
+  /**
+   * Cups there were to sell today, counting any bought at lunchtime.
+   *
+   * `cupsMakeable` is what the morning's shopping poured and stays that, because
+   * mid-day the jar on the screen is filling against the morning batch and the
+   * sell-out warning is about it. But every sentence that means *"how many you
+   * had"* has to use this one, or a day with a top-up says things like "40 of 28
+   * cups sold" — which is what it did say, on the first browser run after the
+   * top-up shipped. §4.
+   */
+  cupsAvailable: number;
   morningCups: number;
   afternoonCups: number;
   morningRevenue: number;
@@ -750,6 +814,16 @@ function buildCustomers(
    * function takes the original path exactly — see `changed` below.
    */
   afternoonPrice: number = price,
+  /**
+   * Ready-made cups that arrived at lunchtime, so the afternoon has more to
+   * sell than the morning did.
+   *
+   * Applied as a lift on the ceiling rather than on the batch, and only from
+   * `afternoonFrom` — a customer who was turned away at eleven o'clock was
+   * turned away before the cups existed, and retro-serving them would be the
+   * day rewriting its own morning.
+   */
+  afternoonTopUp = 0,
 ) {
   /*
    * How many people walk past, which is not how many want a cup.
@@ -832,7 +906,12 @@ function buildCustomers(
       ? round2(price + rng.next() * Math.max(0, ECON.MAX_RESERVATION_PRICE - price))
       : round2(rng.next() * price);
 
-    const afternoon = changed && i >= afternoonFrom;
+    /*
+     * Two things can make the afternoon different: the sign and the jug. A day
+     * where only cups arrived still has an afternoon, so this no longer hangs
+     * on `changed` alone.
+     */
+    const afternoon = (changed || afternoonTopUp > 0) && i >= afternoonFrom;
     const facing = afternoon ? afternoonPrice : price;
     /*
      * The flag, not the comparison, whenever the price did not move.
@@ -848,7 +927,7 @@ function buildCustomers(
     if (!wants) {
       outcome = 'too-expensive';
       walkedAwayOnPrice++;
-    } else if (walkupSold < walkupCapacity) {
+    } else if (walkupSold < walkupCapacity + (afternoon ? afternoonTopUp : 0)) {
       outcome = 'bought';
       walkupSold++;
       if (afternoon) afternoonSold++;
@@ -1128,6 +1207,28 @@ export function runDay(
   const afternoonPrice =
     decisions.afternoonPrice === undefined ? price : clampPrice(decisions.afternoonPrice);
 
+  /*
+   * Ready-made cups sent for at lunchtime, clamped by both real limits.
+   *
+   * By the cash box, because a child must never be charged for cups they
+   * cannot pay for — the same rule `clampPurchaseToCash` applies to the
+   * morning's shopping, and for the same reason: a clamp here is honest and a
+   * negative cash balance is a bug a nine-year-old would read as the game
+   * breaking.
+   *
+   * And by the stand, because `serviceCapacity` is how fast a counter can pour
+   * however much lemonade exists. Buying twelve cups a shop cannot serve would
+   * charge for them and sell none.
+   */
+  const cashAfterShopping = round2(state.cash - cost.total);
+  const affordableTopUp = Math.floor(Math.max(0, cashAfterShopping) / ECON.TOPUP_COST_PER_CUP);
+  const servableTopUp = Math.max(0, Math.floor(params.serviceCapacity) - cupsMakeable);
+  const afternoonTopUp = Math.max(
+    0,
+    Math.min(whole(decisions.afternoonTopUp ?? 0), affordableTopUp, servableTopUp),
+  );
+  const topUpCost = round2(afternoonTopUp * ECON.TOPUP_COST_PER_CUP);
+
   const crowd = buildCustomers(
     rng,
     price,
@@ -1137,6 +1238,7 @@ export function runDay(
     cupsWanted,
     subscriberCups,
     afternoonPrice,
+    afternoonTopUp,
   );
   const cupsSold = crowd.sold;
 
@@ -1175,7 +1277,13 @@ export function runDay(
   ];
   const aged = consumeAndAge(lotsWithPurchase, lemonsNeededFor(cupsSold), state.day);
   const ingredients = ingredientCostOf(cupsSold, aged.lemonSpend);
-  const grossProfit = round2(revenue - ingredients.total);
+  /*
+   * The lunchtime top-up is a cost of goods, so it sits above gross profit
+   * alongside the ingredients rather than with the rent. A ready-made cup is a
+   * cup sold; the fact it was bought late is what makes it dear, not what
+   * makes it a different kind of cost.
+   */
+  const grossProfit = round2(revenue - ingredients.total - topUpCost);
   // Derived from the rounded per-cup cost, for the same reason: the close
   // screen shows both, and they must reconcile on paper. With punch cards in
   // play the two prices blend, so we use what was actually taken per cup
@@ -1187,7 +1295,9 @@ export function runDay(
   // Leftovers age and may be thrown out, costed at what they were bought for.
   const spoilageCost = aged.spoilageSpend;
 
-  const profitBeforeEquity = round2(revenue - ingredients.total - fixedCost - spoilageCost);
+  const profitBeforeEquity = round2(
+    revenue - ingredients.total - topUpCost - fixedCost - spoilageCost,
+  );
   // An outside owner is paid out of profit, and only when there is profit.
   const investorCut =
     params.equityShare > 0 && profitBeforeEquity > 0
@@ -1196,7 +1306,9 @@ export function runDay(
   const profit = round2(profitBeforeEquity - investorCut);
 
   // Cash is a cash story: money out for shopping and wages, money in from sales.
-  const rawCash = round2(state.cash - cost.total - fixedCost + revenue - investorCut);
+  const rawCash = round2(
+    state.cash - cost.total - topUpCost - fixedCost + revenue - investorCut,
+  );
   const cashAfter = params.cashFloor === null ? rawCash : Math.max(rawCash, params.cashFloor);
   const cashFloored = cashAfter > rawCash;
   const cashTopUp = round2(cashAfter - rawCash);
@@ -1280,6 +1392,9 @@ export function runDay(
     subscriberRevenue,
     walkupRevenue,
     afternoonPrice,
+    afternoonTopUp,
+    topUpCost,
+    cupsAvailable: cupsMakeable + afternoonTopUp,
     morningCups: crowd.morningSold,
     afternoonCups: crowd.afternoonSold,
     morningRevenue,

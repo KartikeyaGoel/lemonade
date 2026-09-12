@@ -989,12 +989,12 @@ export default function Page() {
    * See PRODUCT.md §68 for why the day needed a decision in it at all.
    */
   const changeMiddayPrice = useCallback(
-    (afternoonPrice: number) => {
+    ({ price, topUp }: { price: number; topUp: number }) => {
       if (!dayPlan) return;
       setOutcome(
         runDay(
           dayPlan.state,
-          { ...dayPlan.decisions, afternoonPrice },
+          { ...dayPlan.decisions, afternoonPrice: price, afternoonTopUp: topUp },
           dayPlan.params,
         ),
       );

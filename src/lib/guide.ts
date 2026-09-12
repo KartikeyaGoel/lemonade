@@ -309,8 +309,10 @@ export function closingLine(outcome: DayOutcome): string {
   const dollars = (amount: number) => `$${amount.toFixed(2)}`;
 
   // Sold out with people still wanting one: capacity decided the day.
-  if (outcome.cupsWanted > outcome.cupsMakeable && outcome.cupsSold >= outcome.cupsMakeable) {
-    return `You sold every cup. ${plural(Math.round(outcome.cupsWanted), 'person', 'people')} wanted one and you had ${outcome.cupsMakeable}.`;
+  /* `cupsAvailable`, not `cupsMakeable`: on a day the child sent out for more
+     at lunchtime, "you had 28" is wrong by the twelve they bought. */
+  if (outcome.cupsWanted > outcome.cupsAvailable && outcome.cupsSold >= outcome.cupsAvailable) {
+    return `You sold every cup. ${plural(Math.round(outcome.cupsWanted), 'person', 'people')} wanted one and you had ${outcome.cupsAvailable}.`;
   }
 
   // Nobody bought anything. "Each cup sold for $3.00" is false when no cup

@@ -49,7 +49,14 @@
  * Pure module. No React, no I/O.
  */
 
-import { MORNING_SHARE, WEATHER_COPY, type Customer, type DayOutcome } from './simulation';
+import {
+  ECON,
+  MORNING_SHARE,
+  WEATHER_COPY,
+  round2,
+  type Customer,
+  type DayOutcome,
+} from './simulation';
 import { money, plural } from './copy';
 
 /**
@@ -197,26 +204,70 @@ export function middayCall(outcome: DayOutcome): MiddayCall | null {
  * about exactly that steadiness, so it gets equal billing.
  */
 export interface MiddayOption {
-  id: 'down' | 'hold' | 'up';
+  id: 'down' | 'hold' | 'up' | 'more';
+  /** The afternoon sign. Unchanged from the morning for `hold` and `more`. */
   price: number;
+  /** Ready-made cups to send for. Zero on every option but `more`. */
+  topUp: number;
   label: string;
 }
 
-export function middayOptions(price: number): MiddayOption[] {
+export function middayOptions(price: number, lean?: Lean): MiddayOption[] {
   /* In cents throughout, because a price is a decimal quantity and
      `price - 0.25` on a $1.45 sign is not $1.20. See `centsApart`. */
   const cents = Math.round(price * 100);
   const down = Math.max(0, cents - MIDDAY_STEP_CENTS) / 100;
   const up = (cents + MIDDAY_STEP_CENTS) / 100;
-  return [
-    { id: 'down', price: down, label: `Drop to ${money(down)}` },
-    { id: 'hold', price, label: `Keep ${money(price)}` },
-    { id: 'up', price: up, label: `Raise to ${money(up)}` },
-  ].map((option) => ({ ...option, price: Math.round(option.price * 100) / 100 })) as MiddayOption[];
+  const options: MiddayOption[] = [
+    { id: 'down', price: down, topUp: 0, label: `Drop to ${money(down)}` },
+    { id: 'hold', price, topUp: 0, label: `Keep ${money(price)}` },
+    { id: 'up', price: up, topUp: 0, label: `Raise to ${money(up)}` },
+  ];
+
+  /*
+   * Sending out for more cups, but only on a day that is running short.
+   *
+   * This is the half of the pilot's note the first build missed — *"help them
+   * revisit their choices of #of cups, price, location"* — and it belongs only
+   * on the running-out lean. On a day where nobody is buying, offering to make
+   * *more* would be the screen suggesting something absurd, and a child who
+   * takes it would be punished for trusting the option.
+   *
+   * Last rather than first, so the three price answers keep the order they
+   * have had since the beat existed and a child who has learned where "keep"
+   * sits does not find it moved.
+   */
+  if (lean === 'running-out') {
+    options.push({
+      id: 'more',
+      price,
+      topUp: ECON.TOPUP_CUPS,
+      label: `Buy ${plural(ECON.TOPUP_CUPS, 'more cup')} — ${money(
+        round2(ECON.TOPUP_CUPS * ECON.TOPUP_COST_PER_CUP),
+      )}`,
+    });
+  }
+
+  return options.map((option) => ({
+    ...option,
+    price: Math.round(option.price * 100) / 100,
+  }));
 }
 
 /** The line that names what the change did, for the close screen. */
 export function middayResult(outcome: DayOutcome): string | null {
+  if (outcome.afternoonTopUp > 0) {
+    const sign =
+      outcome.afternoonPrice === outcome.price
+        ? ''
+        : ` You also moved the sign to ${money(outcome.afternoonPrice)}.`;
+    return (
+      `You sent out for ${plural(outcome.afternoonTopUp, 'more cup')} at lunchtime, ` +
+      `which cost ${money(outcome.topUpCost)} — about ${money(
+        round2(ECON.TOPUP_COST_PER_CUP),
+      )} a cup against the ${money(round2(outcome.ingredients.perCup))} the morning's cost.${sign}`
+    );
+  }
   if (outcome.afternoonPrice === outcome.price) return null;
   const up = outcome.afternoonPrice > outcome.price;
   return (

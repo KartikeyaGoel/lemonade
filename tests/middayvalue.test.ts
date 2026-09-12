@@ -90,7 +90,16 @@ function trial(seed: number, price: number, cups: number): Trial | null {
   if (!call) return null;
 
   const profit = {} as Record<Answer, number>;
+  /*
+   * The three price answers only.
+   *
+   * `middayOptions` gained a fourth on a running-out day — sending out for
+   * more cups — and this file is about whether the *price* decision is a
+   * decision. Mixing a capacity choice into the same backtest would measure
+   * two mechanics as one and tell us nothing about either.
+   */
   for (const option of middayOptions(price)) {
+    if (option.id === 'more') continue;
     profit[option.id] = runDay(stand, {
       ...order,
       price,
