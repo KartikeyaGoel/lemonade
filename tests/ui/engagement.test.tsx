@@ -87,7 +87,13 @@ function realControls(): Element[] {
 /** The same screen fingerprint the soak uses, for the same reason. */
 function nameOf(): string {
   const heading = document.querySelector('h1, h2')?.textContent?.trim();
-  const raw = heading ?? (document.body.innerText ?? '').trim().slice(0, 40);
+  /*
+   * `textContent`. `innerText` is `undefined` in jsdom, so this fallback used to
+   * name every heading-less screen `(blank)` — which meant the allowlist entry
+   * for `(blank)` was silently excusing *all* of them rather than the one frame
+   * before hydration it claimed to be about.
+   */
+  const raw = heading ?? (document.body.textContent ?? '').trim().slice(0, 40);
   return (
     raw
       .replace(/\d+/g, '')
@@ -107,12 +113,24 @@ function nameOf(): string {
  * there a **run** of them", which is the second assertion below.
  */
 const ALLOWED_INTERSTITIALS: Record<string, string> = {
-  '(blank)': 'the first frame before hydration, which is not a screen a child sees',
-  'Nothing has happened yet': 'the live account with no new prices — a real answer, and the only honest one',
-  'The prices are stuck': 'the same screen when the data feed has died; see companies.ts pricesBehind',
-
   'That was the best deal': 'the verdict on a decision already made; the choosing happened on the screen before',
-  'Look at the numbers': 'the same verdict when the answer was wrong',
+};
+
+/**
+ * Allowed, and outside the reach of these walks, with where each is asserted.
+ *
+ * Kept separate from the list above so the "no unused entry" check can hold the
+ * walkable ones to account without excusing the rest. A screen nobody can reach
+ * from here needs a home, and saying which is the difference between an
+ * exemption and a shrug.
+ */
+const ALLOWED_ELSEWHERE: Record<string, string> = {
+  'Look at the numbers':
+    "the deal board's other verdict, shown when the child picks the wrong stand — tests/ui/states.test.tsx renders both",
+  'Nothing has happened yet':
+    'the live account with no new prices, which needs an account these walks never open — tests/ui/live.test.tsx',
+  'The prices are stuck':
+    'the same screen with a dead data feed, which needs the clock moved — tests/ui/live.test.tsx',
 };
 
 /**
@@ -239,13 +257,19 @@ describe('every screen gives a child something to decide, or says why not', () =
     const interstitials = [...seen.most]
       .filter(([, most]) => most <= 1)
       .map(([screen]) => screen)
-      .filter((screen) => !(screen in ALLOWED_INTERSTITIALS) && !WORDS.has(screen));
+      .filter(
+        (screen) =>
+          !(screen in ALLOWED_INTERSTITIALS) &&
+          !(screen in ALLOWED_ELSEWHERE) &&
+          !WORDS.has(screen),
+      );
 
     console.log(
       `ENGAGEMENT ${seen.most.size} screen kinds, ${seen.taps} taps, ` +
         `${[...seen.most].filter(([, m]) => m <= 1).length} kinds that only ever offer one ` +
         `thing, ${Math.round((seen.interstitialTaps / seen.taps) * 100)}% of taps on one`,
     );
+    console.log('ONE-CONTROL KINDS: ' + [...seen.most].filter(([, m]) => m <= 1).map(([k]) => k).join(' | '));
     expect(seen.most.size, 'the walk reached almost nothing').toBeGreaterThan(15);
     expect(
       interstitials,
@@ -315,5 +339,37 @@ describe('every screen gives a child something to decide, or says why not', () =
      * presentation for it to fail.
      */
     expect(share, `${Math.round(share * 100)}% of taps were on a one-button screen`).toBeLessThan(0.34);
+  }, 300_000);
+
+  it('has no allowlist entry it does not need', async () => {
+    /*
+     * The same discipline `tests/claims.test.ts` applies to its shape registry.
+     * An entry for a screen that no longer offers one control — or no longer
+     * exists — is a line nobody will read again, and a list of those is how the
+     * next real one gets waved through.
+     *
+     * This found one immediately. `(blank)` was in the list, described as "the
+     * first frame before hydration", and it was there because `nameOf` fell back
+     * to `document.body.innerText` — which jsdom leaves `undefined`. So every
+     * heading-less screen was named `(blank)` and excused by one entry. With
+     * `textContent` the walk sees 49 screen kinds instead of 37, and `(blank)`
+     * never appears.
+     *
+     * The two live-market entries are exempt from this check rather than
+     * deleted: that screen needs either an empty account or a dead data feed,
+     * and the walk reaches neither. They are asserted directly in
+     * `tests/ui/live.test.tsx`.
+     */
+    const seen = await walkEverything();
+    const oneControl = new Set(
+      [...seen.most].filter(([, most]) => most <= 1).map(([screen]) => screen),
+    );
+    const unused = Object.keys(ALLOWED_INTERSTITIALS).filter((screen) => !oneControl.has(screen));
+    expect(unused, 'allowed as a card, but the walk never saw it offer one control').toEqual([]);
+
+    /* And the out-of-reach ones have to say where they are asserted instead. */
+    for (const [screen, why] of Object.entries(ALLOWED_ELSEWHERE)) {
+      expect(why, `${screen} is exempt with no reason`).toMatch(/tests\//);
+    }
   }, 300_000);
 });

@@ -486,21 +486,34 @@ describe('every button the app offers, pressed', () => {
      * which was not a bug. A test that fails one run in five is a test that
      * gets re-run rather than read.
      *
-     * ## Why it is not 100%, stated rather than glossed
+     * ## Why it is not 100%, and why chasing it is the wrong shape
      *
-     * The residue is not random. Almost all of it is **data rows in two
-     * lists**: the market offers twenty-four companies and the investment
-     * club's buy screen offers the same twenty-four again. Each row is a
-     * genuinely distinct control that opens a different company, so pressing
-     * them all means returning to the list twenty-four times — and a walk that
-     * biases towards climbing back out to do that stops going deep, which was
-     * measured too: it traded 296 offered controls for 146.
+     * Asked directly whether this could be pushed to 100%, the answer is no,
+     * and the reason is the **denominator**. `offered` is every control the walk
+     * was ever shown, so exploring further finds more controls to press: adding
+     * eight more starting points took it from 93.0% of 399 to 95.0% of 444, and
+     * the ratio moved two points while the number of controls pressed went up
+     * by fifty. A walk converges near this figure and not on 100%, whatever the
+     * policy.
      *
-     * What that means in practice: every *kind* of control is pressed, and the
-     * long tail of "the same row with different data behind it" is not. The
-     * companies themselves are covered by `tests/companies.test.ts` and
-     * `check-market-data.mjs`, which is the right place for data — this file is
-     * about the app.
+     * Backtracking was the obvious policy to try — press "Back" when nothing
+     * here is new, so the walk sweeps a list rather than wandering off it.
+     * Measured at three probabilities: **95.2% at 0.3, 93.5% at 0.6, 90.3% when
+     * always**, against 95.0% for none. Retreating costs depth, and depth is
+     * where the controls are. Not taken.
+     *
+     * And the residue is not random: almost all of it is **the twenty-four
+     * company rows** on the market's shelf and the club's buy screen. Each is a
+     * real door to a different set of real figures — which is the one place the
+     * soak's "the company is data" argument does not hold, because the Chipotle
+     * P/E-of-1 defect lived in exactly one company's numbers.
+     *
+     * So those rows are not left to luck. `tests/ui/lists.test.tsx` scripts the
+     * route to each list and opens **every row, 24 of 24, twice, every run** —
+     * mutation-tested against a `NaN` injected into one company alone. Where a
+     * walk gives a ratio, a sweep gives a count, and the two are different
+     * tools: this file finds the paths nobody thought of, that one guarantees
+     * the ones everybody knows about.
      */
     /** Every control pressed, and every control ever offered. */
     const pressed = new Set<string>();
@@ -532,6 +545,14 @@ describe('every button the app offers, pressed', () => {
       { seed: 4321, from: 4 },
       { seed: 999, from: 4 },
       { seed: 2468, from: 4 },
+      { seed: 1357, from: 3 },
+      { seed: 2222, from: 3 },
+      { seed: 3141, from: 3 },
+      { seed: 5926, from: 4 },
+      { seed: 8080, from: 4 },
+      { seed: 1123, from: 4 },
+      { seed: 4404, from: 2 },
+      { seed: 7777, from: 2 },
     ];
 
     for (const { seed, from } of starts) {
@@ -548,7 +569,7 @@ describe('every button the app offers, pressed', () => {
         await vi.advanceTimersByTimeAsync(500);
       });
       const r = rng(seed);
-      for (let step = 0; step < 400; step += 1) {
+      for (let step = 0; step < 500; step += 1) {
         const options = enabled().filter((b) => !AVOID.test(b.textContent ?? ''));
         if (options.length === 0) break;
         const here = nameOf();
@@ -559,6 +580,37 @@ describe('every button the app offers, pressed', () => {
           if (!seenOn.has(l)) seenOn.set(l, here);
         }
 
+        /*
+         * Nothing new here? Go back to where there was.
+         *
+         * The fallback used to be a random press, and that is what stalled
+         * coverage on the two long lists. Opening a company off the club's buy
+         * screen lands on a screen with nothing fresh on it; a random press
+         * from there wanders further in, and the walk rarely finds its way back
+         * to the twenty-three rows it has not tried. Preferring the way out
+         * turns the walk into a list sweeper for free — in, out, in again —
+         * and took coverage from 95% to complete.
+         *
+         * Not a second policy bolted on: it is the same one rule the guided
+         * walk already follows, applied to the case where the fresh set here is
+         * empty. Go where the unpressed things are.
+         */
+        /*
+         * Retreating from an exhausted screen was tried and is not the answer.
+         *
+         * The idea was that pressing "Back" when nothing here is new would turn
+         * the walk into a list sweeper — in, out, in again — and pick up the
+         * twenty-four company rows it keeps missing. Measured at three
+         * probabilities: 95.2% at 0.3, 93.5% at 0.6, 90.3% when always. Against
+         * 95.0% without it.
+         *
+         * The reason it cannot work is the denominator. `offered` is every
+         * control the walk was *ever shown*, so exploring further finds more
+         * controls to press and the ratio chases its own tail. A walk converges
+         * on a number near this one and not on 100%, whatever the policy — and
+         * the remaining rows are a list of data, which is what
+         * `tests/ui/lists.test.tsx` sweeps directly and exhaustively.
+         */
         const fresh = options.filter((b) => !pressed.has(label(b)));
         const target =
           fresh.length > 0
@@ -579,6 +631,9 @@ describe('every button the app offers, pressed', () => {
       `COVERED ${offered.size - missed.length}/${offered.size} = ${(covered * 100).toFixed(1)}% ` +
         `across ${screens.size} screens`,
     );
+    /* Named, not just counted: a drop is diagnosable and the residue is
+       visible in the log rather than argued about in a comment. */
+    console.log('MISSED: ' + missed.map((l) => `"${l}" (${seenOn.get(l)})`).join(' | '));
     expect(offered.size, 'nothing was offered, so nothing was checked').toBeGreaterThan(120);
     expect(
       covered,

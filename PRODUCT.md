@@ -6430,3 +6430,132 @@ What is still not guaranteed:
   measurable neighbours now exist — repetition, and whether it is a game or a
   slideshow — and both would pass on something dull in a way nobody has thought
   of yet.
+
+## 82. Can it be 100%? Once yes, once no, and the difference matters
+
+Two questions, asked together:
+
+> can we push the coverage to 100 percent? is there a combinatorial
+> optimization we can do to cover every state combo?
+
+The answers turn out to be opposite, and the reason is worth more than either.
+
+### Every state combination: yes, and the optimisation was arithmetic
+
+`tests/ui/combos.test.tsx` had spent two sessions arguing about t-way strength —
+pairwise, then a measured table justifying four-way over three and five. All of
+it was answering the wrong question. Counting the space:
+
+| | count |
+|---|---|
+| label combinations | 7,776 |
+| the game cannot produce | 4,320 |
+| reachable | 3,456 |
+| **distinct states** | **1,188** |
+
+**Two-thirds of the reachable combinations are the same save reached twice.** A
+mutator that finds its work already done is the identity: "buy a cooler" on a
+going-public save, which already owns every upgrade, changes nothing. So nine
+dimensions label 7,776 combinations and describe 1,188 actual saves — and
+enumerating all of them **subsumes t-way coverage at every t**, because every
+four-way combination is realised by some reachable whole combination and every
+reachable whole combination collapses into one of these.
+
+Measured cost: **1,188 boots at twenty taps each, 28 seconds.** The per-case cost
+decomposes as 6.2ms to boot plus 1.19ms a tap, so depth is the expensive half.
+Against the four-way array's 197 cases in 8 seconds, twenty extra seconds bought
+the entire argument away. Re-verified against the defect the file exists for: the
+duplicate React key still goes red, at tap 7, from a state the enumeration
+produced.
+
+That is the combinatorial optimisation, and it is not a cleverer array. It is
+noticing the space was six and a half times smaller than its own labelling
+suggested — which was true the whole time.
+
+### Every control: no, and the number was never going to say otherwise
+
+`tests/ui/soak.test.tsx` reports the share of controls it pressed. Adding eight
+starting points took it from 93.0% of 399 controls to 95.0% of 444 — the
+percentage moved two points while fifty more controls got pressed, **because the
+denominator moves with the walk.** `offered` is every control the walk was ever
+shown, so exploring further finds more to press. A walk converges near this
+figure and not on 100%.
+
+Backtracking was the obvious policy: press "Back" when nothing here is new, so
+the walk sweeps a list rather than wandering off it. Measured at three
+probabilities — **95.2% at 0.3, 93.5% at 0.6, 90.3% when always**, against 95.0%
+for none. Retreating costs depth, and depth is where the controls are. Rejected,
+with the numbers written into the file so nobody tries it again.
+
+### So the residue got enumerated instead
+
+The missed controls were never varied: **the twenty-four company rows** on the
+market's shelf and the club's buy screen, each behind several taps, each leading
+somewhere that offers nothing new.
+
+The soak argues elsewhere that a company is *data* — "pressing *It keeps a big
+slice of every dollar* on Apple and on Nike is pressing one control" — and for
+the buttons inside a company screen that is right. For the rows themselves it is
+wrong, and PRODUCT.md says why:
+
+> Chipotle split 50:1 in June 2024, so a 2023 week showed a price-to-earnings
+> ratio of 1. The game told a kid that Chipotle earned back its whole share
+> price in a single year.
+
+That defect lived in **one company's** numbers and rendered perfectly for the
+other twenty-three.
+
+`tests/ui/lists.test.tsx` scripts the route to each list and opens every row:
+**24 of 24, on both, every run.** Mutation-tested by making `metricsFor` return
+a `NaN` multiple for Crocs alone — both sweeps go red and name the row. Nothing
+else in the suite noticed.
+
+A weaker mutation is worth recording because it says something about the code
+rather than the test: setting a company's share count to zero changed nothing,
+because `metricsFor` already guards every division. **The first attempt at a
+mutation test found correct code**, which is the good outcome and not a failed
+experiment.
+
+The division of labour is now explicit. A walk finds the paths nobody thought of
+and reports a ratio; a sweep guarantees the paths everybody knows about and
+reports a count. Asking either to do the other's job is what produced two
+sessions of arguing about percentages.
+
+### And a third instrument bug, in a file from the session before
+
+`tests/ui/lists.test.tsx` read `document.body.innerText` and found nothing at
+all, because **jsdom does not implement `innerText`** — it is `undefined`, not
+empty. Which meant checking the file that shipped an hour earlier:
+`tests/ui/engagement.test.tsx` used it too, in `nameOf`'s fallback. So every
+screen without a heading was named `(blank)`, and the single allowlist entry for
+`(blank)` — described as "the first frame before hydration" — was silently
+excusing **all of them**.
+
+Fixed, and the gate that would have caught it added: an allowlist entry for a
+screen the walk never sees one control on is now a failure, the same discipline
+`tests/claims.test.ts` applies to its shape registry. With `textContent` the walk
+sees **52 screen kinds instead of 37**, and four that only ever offer one thing.
+
+Three instrument bugs in one session — fake timers faking `Date.now` and
+`process.hrtime`, and now `innerText` — all of the same shape: **a measurement
+that silently measured nothing and reported a clean number.** CLAUDE.md §8 has
+the list.
+
+### The state of it
+
+Fourteen gated classes. The state space is complete rather than sampled; control
+coverage is 96.7% with the residue enumerated separately and named in the log.
+The suite runs in 38 seconds.
+
+What is still not guaranteed:
+
+- **A dimension nobody thought to name.** Nine describe the state space. This is
+  now the only gap of its kind in that file: it began as "somebody has to think
+  of the state", became "somebody has to think of five choices lining up", and
+  is now just the dimension.
+- **Depth.** Twenty taps from 1,188 starts, 500 from twenty. A defect
+  twenty-five taps downstream of one particular state gets through both.
+- **State crossed with weather.** `combos` varies state on one seed; `fuzz` and
+  `arclength` vary weather across thousands of days. A defect needing a
+  particular state *and* a particular sky is in neither.
+- **Whether a child enjoys it.** Unchanged.

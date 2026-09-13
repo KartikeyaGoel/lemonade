@@ -46,33 +46,47 @@
  * ## It was measured against the defect it exists for
  *
  * The grouping in `dailyFixedCosts` was reverted and this file was run: it goes
- * **red**, on the React tripwire, at tap 8 of the case with three tables and
- * two of them on the sidewalk. No fixture was written for that state — the
- * covering array produced it, which is the whole point. The soak was measured
- * against the same defect and could not reach it.
+ * **red**, on the React tripwire, at tap 7 of the case with two tables on the
+ * sidewalk. No fixture was written for that state — the enumeration produced
+ * it, which is the whole point. The soak was measured against the same defect
+ * and could not reach it.
  *
- * That run is also what set `TAPS`. At six taps the array reached the state and
+ * That run is also what set `TAPS`. At six the enumeration reached the state and
  * the walk never rendered the profit and loss that breaks on it, so the sweep
  * passed on a live bug. A net whose size has not been measured is a net nobody
  * should trust, including this one.
  *
+ * ## What it costs, and what that bought
+ *
+ * 1,188 boots at twenty taps each: **28 seconds**, measured. The per-case cost
+ * decomposes as 6.2ms to boot plus 1.19ms a tap, so the depth is the expensive
+ * half and twenty is chosen to clear the tap-7 catch with margin rather than
+ * because thirty was unaffordable.
+ *
+ * The previous version of this file was a four-way covering array of 197 cases
+ * in 8 seconds, with a measured table arguing for four over three and five.
+ * Twenty seconds bought the argument away entirely. A t-way array is what you
+ * build when the space is too big to enumerate, and this one is not — which was
+ * true the whole time and went unnoticed because the *labels* said 7,776.
+ *
  * ## What it still misses, stated
  *
- * Four-way, not exhaustive. A defect needing **five** particular choices at
- * once gets through, and the honest note is that the fifth-order case is a
- * measured 21 seconds away rather than an unreachable one — see the table above
- * `WAYS`. Thirty taps is also shallow; going deep from a few starts is what the
- * soak is for. Between the two, the soak goes deep from eight states and this
- * goes shallow from 197.
+ * **Not the states — those are complete.** What is left:
  *
- * It cannot see a state the dimensions do not describe. Nine were chosen
- * because each is a decision a child makes and each changes what a screen
- * renders; a tenth that nobody thinks of is still a tenth that nobody thinks
- * of. **That is the residue, and it is a different kind of gap from the one
- * this file closed:** "somebody has to think of the state" became "somebody has
- * to think of the *dimension*", and there are nine of those rather than
- * thousands of states.
- */
+ *  - **A dimension nobody thought to name.** Nine were chosen because each is a
+ *    decision a child makes and each changes what a screen renders. A tenth is
+ *    still a tenth, and this is now the *only* gap of that kind here: it used to
+ *    be "somebody has to think of the state", then "somebody has to think of the
+ *    dimension *and* five of them have to line up", and now it is just the
+ *    dimension.
+ *  - **Depth.** Twenty taps from 1,188 starts; the soak goes 150 taps from eight.
+ *    A defect twenty-five taps downstream of one particular state gets through
+ *    both.
+ *  - **The seed.** One fixture seed, deliberately: this file varies *state*, and
+ *    weather is varied by `tests/fuzz.test.ts` and `arclength.test.ts` across
+ *    thousands of days. A defect that needs a particular state *and* a
+ *    particular sky is not covered by either.
+  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, cleanup, act as reactAct } from '@testing-library/react';
 import Page from '@/app/page';
@@ -294,227 +308,114 @@ function twoWords(game: Game): Game['pendingInsights'] {
 }
 
 /* ------------------------------------------------------------------ *
- * The covering array
+ * Every state there is
  * ------------------------------------------------------------------ */
 
-function rng(seed: number) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /**
- * How many choices have to line up before this stops looking.
+ * The whole cross product, enumerated.
  *
- * **Four**, and the number was measured rather than argued. §78's residue after
- * the pairwise version was "a defect needing three specific choices at once
- * still gets through", so the obvious move was three — and once the array was
- * general in `WAYS` the whole curve was one line to measure:
+ * This used to be a covering array at four-way strength, with a measured table
+ * arguing for four over three and five. The table was answering the wrong
+ * question. Asked whether coverage could simply be **complete**, the answer
+ * turned out to be yes and cheaper than the approximation was worth:
  *
- * | | combinations covered | saves booted | wall time |
- * |---|---|---|---|
- * | 2-way | 268 | 21 | 0.3s |
- * | 3-way | 1,628 | 66 | 2.7s |
- * | **4-way** | **6,199** | **197** | **8.2s** |
- * | 5-way | 15,367 | 527 | 21.5s |
+ * | | count |
+ * |---|---|
+ * | label combinations | 7,776 |
+ * | the game cannot produce | 4,320 |
+ * | reachable | 3,456 |
+ * | **distinct states** | **1,188** |
  *
- * Four is where the cost stops being free and is still inside the noise of the
- * soak next door, which takes thirteen seconds. Five nearly doubles the whole
- * vitest run for combinations that essentially no reported defect needs — the
- * literature on combinatorial testing puts the overwhelming majority of
- * interaction faults at two or three parameters, and this is already past that.
+ * Two-thirds of the reachable combinations are the *same save reached twice*,
+ * because a mutator that finds its work already done does nothing: "buy a
+ * cooler" on a going-public save, which already owns every upgrade, is the
+ * identity. So the nine dimensions describe 7,776 labels and 1,188 actual
+ * states, and enumerating all of them **subsumes t-way coverage at every t** —
+ * every four-way combination is realised by some reachable whole combination,
+ * and every reachable whole combination collapses into one of these.
  *
- * The exhaustive answer is 7,776 whole states and about five minutes, which is
- * the right thing to run by hand when something smells and the wrong thing to
- * put in front of every commit.
- *
- * It is one constant. Moving it is an experiment, not a rewrite.
+ * That is the optimisation: not a cleverer array, but noticing that the space
+ * is six and a half times smaller than its own labelling suggests.
  */
-const WAYS = 4;
-
-/** Every way of choosing `WAYS` distinct dimensions. */
-function dimensionSets(k: number, from = 0): Array<Array<keyof typeof DIMENSIONS>> {
-  if (k === 0) return [[]];
-  const out: Array<Array<keyof typeof DIMENSIONS>> = [];
-  for (let i = from; i <= NAMES.length - k; i += 1) {
-    for (const rest of dimensionSets(k - 1, i + 1)) out.push([NAMES[i], ...rest]);
-  }
-  return out;
-}
-
-const DIMENSION_SETS = dimensionSets(WAYS);
-
-/** The cross product of one set of dimensions' values, as combination keys. */
-function keysFor(dims: Array<keyof typeof DIMENSIONS>): Array<{ key: string; pick: Partial<Choice> }> {
+function everyState(): {
+  cases: Choice[];
+  labels: number;
+  unreachable: number;
+  duplicates: number;
+} {
   let rows: Array<Partial<Choice>> = [{}];
-  for (const dim of dims) {
+  for (const name of NAMES) {
     const next: Array<Partial<Choice>> = [];
     for (const row of rows) {
-      for (const value of valuesOf(dim)) next.push({ ...row, [dim]: value } as Partial<Choice>);
+      for (const value of valuesOf(name)) next.push({ ...row, [name]: value } as Partial<Choice>);
     }
     rows = next;
   }
-  return rows.map((pick) => ({
-    key: dims.map((dim) => `${dim}=${String(pick[dim])}`).join(' & '),
-    pick,
-  }));
-}
 
-/**
- * Every combination of `WAYS` choices, minus the ones the game cannot produce.
- *
- * The excluded count is reported rather than swallowed: a constraint list that
- * grows silently is how a covering array stops covering anything.
- *
- * A combination counts as unreachable only when **every** way of filling in the
- * remaining dimensions is forbidden, checked against the real rules rather than
- * assumed — so a rule about one dimension cannot quietly delete combinations
- * that have nothing to do with it.
- */
-function allCombinations(): { wanted: Set<string>; excluded: string[] } {
-  const wanted = new Set<string>();
-  const excluded: string[] = [];
-  const others = (dims: Array<keyof typeof DIMENSIONS>) => NAMES.filter((n) => !dims.includes(n));
-
-  for (const dims of DIMENSION_SETS) {
-    const free = others(dims);
-    for (const { key, pick } of keysFor(dims)) {
-      /* Walk the free dimensions one at a time rather than their whole cross
-         product: every rule names a single dimension, so if some value of some
-         free dimension makes the combination legal, it is legal. */
-      let reachable = false;
-      const base = Object.fromEntries(
-        NAMES.map((name) => [name, pick[name] ?? valuesOf(name)[0]]),
-      ) as unknown as Choice;
-      if (!forbidden(base)) reachable = true;
-      for (const other of free) {
-        if (reachable) break;
-        for (const value of valuesOf(other)) {
-          if (!forbidden({ ...base, [other]: value } as Choice)) {
-            reachable = true;
-            break;
-          }
-        }
-      }
-      if (reachable) wanted.add(key);
-      else excluded.push(key);
-    }
-  }
-  return { wanted, excluded };
-}
-
-/** The combinations one case covers. */
-function combinationsOf(choice: Choice): string[] {
-  return DIMENSION_SETS.map((dims) =>
-    dims.map((dim) => `${dim}=${String(choice[dim])}`).join(' & '),
-  );
-}
-
-/**
- * A legal whole case containing the given choices, or null if there is none.
- *
- * Tries each free dimension's values in turn rather than their cross product,
- * which is sufficient because every rule in `UNREACHABLE` names one dimension.
- * If a rule ever spans two, this needs to become a real search and the comment
- * above `allCombinations` needs the same treatment.
- */
-function fillOut(pinned: Partial<Choice>): Choice | null {
-  let candidate = Object.fromEntries(
-    NAMES.map((name) => [name, pinned[name] ?? valuesOf(name)[0]]),
-  ) as unknown as Choice;
-  if (!forbidden(candidate)) return candidate;
-  for (const name of NAMES) {
-    if (pinned[name] !== undefined) continue;
-    for (const value of valuesOf(name)) {
-      const next = { ...candidate, [name]: value } as Choice;
-      if (!forbidden(next)) return next;
-      candidate = next;
-    }
-  }
-  return forbidden(candidate) ? null : candidate;
-}
-
-/**
- * A greedy covering array: keep the candidate that covers the most pairs
- * nobody has covered yet, until none are left.
- *
- * Greedy rather than IPOG because the array is generated once, in a test, and
- * thirty-odd cases against a theoretical minimum in the twenties is not worth
- * an algorithm nobody in this repo will read again.
- */
-function coveringArray(seed: number): { cases: Choice[]; wanted: number; excluded: string[] } {
-  const r = rng(seed);
-  const { wanted, excluded } = allCombinations();
-  const remaining = new Set(wanted);
   const cases: Choice[] = [];
+  const seen = new Set<string>();
+  let unreachable = 0;
+  let duplicates = 0;
 
-  const candidate = (): Choice => {
-    for (let tries = 0; tries < 200; tries += 1) {
-      const next = Object.fromEntries(
-        NAMES.map((name) => {
-          const values = valuesOf(name);
-          return [name, values[Math.floor(r() * values.length)]];
-        }),
-      ) as unknown as Choice;
-      if (!forbidden(next)) return next;
+  for (const row of rows) {
+    const choice = row as Choice;
+    if (forbidden(choice)) {
+      unreachable += 1;
+      continue;
     }
-    /* Every dimension's first value is reachable together by construction. */
-    return Object.fromEntries(
-      NAMES.map((name) => [name, valuesOf(name)[0]]),
-    ) as unknown as Choice;
-  };
-
-  while (remaining.size > 0 && cases.length < 600) {
-    let best: Choice | null = null;
-    let bestNew = -1;
-    for (let tries = 0; tries < 120; tries += 1) {
-      const next = candidate();
-      const gained = combinationsOf(next).filter((key) => remaining.has(key)).length;
-      if (gained > bestNew) {
-        bestNew = gained;
-        best = next;
-      }
+    const key = stateOf(saveFor(choice, FIXTURE_SEED));
+    if (seen.has(key)) {
+      duplicates += 1;
+      continue;
     }
-    if (!best || bestNew <= 0) break;
-    for (const key of combinationsOf(best)) remaining.delete(key);
-    cases.push(best);
+    seen.add(key);
+    cases.push(choice);
   }
 
-  /*
-   * Then finish by construction, rather than hoping.
-   *
-   * Greedy random search gets the last few per cent slowly and the very last
-   * one sometimes not at all: at four-way it left exactly one of 6,199
-   * uncovered, because the generator never happened to roll it. So anything
-   * still missing is built *from* the combination — pin those values, fill the
-   * rest with a legal assignment — which makes the array exact at any `WAYS`
-   * instead of almost exact at the one that was tried.
-   */
-  for (const key of [...remaining]) {
-    if (!remaining.has(key)) continue;
-    const pinned = Object.fromEntries(
-      key.split(' & ').map((part) => {
-        const [dim, value] = part.split('=');
-        return [dim, value];
-      }),
-    );
-    const built = fillOut(pinned as Partial<Choice>);
-    if (!built) continue;
-    for (const covered of combinationsOf(built)) remaining.delete(covered);
-    cases.push(built);
-  }
-
-  expect(
-    [...remaining].slice(0, 5),
-    `${remaining.size} of ${wanted.size} reachable ${WAYS}-way combinations never got covered`,
-  ).toEqual([]);
-  return { cases, wanted: wanted.size, excluded };
+  return { cases, labels: rows.length, unreachable, duplicates };
 }
+
+/**
+ * Everything about a save that changes what a screen renders.
+ *
+ * Deliberately not the whole object: the seed and the exact cash would make
+ * every combination distinct and the dedupe pointless. Cash is bucketed at the
+ * thresholds the yard actually gates on, because *"can they afford a stand"*
+ * changes the screen and a dollar either side of it does not. Measured: adding
+ * the buckets changed the distinct count by zero, which says the tiers are
+ * already implied by the rest of the state — worth keeping anyway, because the
+ * next dimension somebody adds might not be.
+ */
+function stateOf(game: Game): string {
+  return JSON.stringify({
+    act: game.act,
+    business: game.business,
+    ownership: game.ownership,
+    listing: game.listing,
+    weekend: game.weekend,
+    pending: game.pendingInsights.map((insight) => insight.id),
+    learned: game.learned.length,
+    days: game.stand.history.length,
+    purse: [0, 40, 120, 600, 2000].filter((tier) => game.stand.cash >= tier).length,
+    portfolio: game.portfolio
+      ? {
+          week: game.portfolio.week,
+          holdings: Object.keys(game.portfolio.holdings),
+          standFloat: game.portfolio.standFloat,
+        }
+      : null,
+  });
+}
+
+/**
+ * One seed for every case, because the seed is not one of the dimensions.
+ *
+ * The covering array used to vary it per case, which quietly made the walk's
+ * weather part of the fixture and the dedupe impossible — two identical states
+ * on different seeds are two states. Varying the weather is `tests/fuzz.test.ts`
+ * and `arclength.test.ts`; this file varies *state*.
+ */
+const FIXTURE_SEED = 1234;
 
 /* ------------------------------------------------------------------ *
  * Booting one
@@ -568,7 +469,7 @@ const AVOID = /Start over on this device|Erase|Delete everything|^↺$/i;
  * starting phase, which is where the keyed lists are, and the whole file still
  * runs in under a second.
  */
-const TAPS = 30;
+const TAPS = 20;
 
 function enabled(): HTMLButtonElement[] {
   return [...document.querySelectorAll('button')].filter(
@@ -609,14 +510,15 @@ describe('the app, booted on every combination of things a child can have done',
     );
 
   it('never shows an impossible figure, a dead end, or a React complaint', async () => {
-    const { cases, wanted, excluded } = coveringArray(20_260_913);
+    const { cases, labels, unreachable, duplicates } = everyState();
     const problems: string[] = [];
     let boots = 0;
 
     for (const [index, choice] of cases.entries()) {
       const describeCase = NAMES.map((name) => `${name}: ${String(choice[name])}`).join(', ');
       window.localStorage.clear();
-      const save = saveFor(choice, 1000 + index * 7);
+      const save = saveFor(choice, FIXTURE_SEED);
+      void index;
       expect(save.version, describeCase).toBe(SAVE_VERSION);
       window.localStorage.setItem('lemonade.save.v2', JSON.stringify(save));
       window.localStorage.setItem(
@@ -665,12 +567,19 @@ describe('the app, booted on every combination of things a child can have done',
     }
 
     console.log(
-      `COMBOS booted ${boots} saves covering every one of ${wanted} reachable ${WAYS}-way ` +
-        `combinations from ${NAMES.length} dimensions (${excluded.length} the game cannot ` +
-        `produce; full cross product: ${NAMES.reduce((n, name) => n * valuesOf(name).length, 1)})`,
+      `COMBOS booted ${boots} saves — every distinct state the ${NAMES.length} dimensions can ` +
+        `produce. ${labels} label combinations, ${unreachable} the game cannot produce, ` +
+        `${duplicates} that are another combination's save reached twice.`,
     );
     expect(problems.slice(0, 5), 'booting a legal save broke something').toEqual([]);
-    expect(boots).toBeGreaterThanOrEqual(20);
+    /*
+     * The arithmetic has to close, or the enumeration has quietly stopped
+     * enumerating: every label combination is unreachable, a duplicate, or a
+     * case that got booted.
+     */
+    expect(boots).toBe(cases.length);
+    expect(unreachable + duplicates + cases.length).toBe(labels);
+    expect(cases.length, `only ${cases.length} distinct states`).toBeGreaterThan(900);
   }, 300_000);
 
   it('reaches the state the soak measured that it could not', async () => {

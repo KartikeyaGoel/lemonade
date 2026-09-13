@@ -117,7 +117,32 @@ instrument first. And make every generated fixture **assert that it actually
 took** — a mutator that quietly does nothing is worse than no fixture, because
 it reports coverage.
 
-## 9. The world is not in the repo
+Three specific traps, all hit in one session:
+
+- **`vi.useFakeTimers()` fakes `Date.now` and `process.hrtime`.** Timings taken
+  inside a test with fake timers are the virtual clock. Get wall time from
+  vitest's own reported duration instead.
+- **jsdom has no `innerText`** — it is `undefined`, not `''`. Use `textContent`.
+  A check reading `innerText` passes on nothing, silently.
+- **A gate whose input has gone empty reports a pass.** Print how much every
+  gate looked at, so a collapse to nearly nothing is visible in the log.
+
+## 9. Count the space before approximating it
+
+A t-way covering array is what you build when the state space is too big to
+enumerate. Check whether it is. `tests/ui/combos.test.tsx` spent two sessions
+arguing pairwise vs three-way vs four-way over a space whose **labels** said
+7,776 and whose distinct states numbered 1,188 — because most combinations are
+the same save reached twice, a mutator finding its work already done. Exhaustive
+turned out to cost 28 seconds and to subsume every t.
+
+And a ratio with a moving denominator never reaches 100%. The soak's control
+coverage rises *and* its denominator rises as it explores, so it converges near
+95% whatever the policy. When something has to be complete, enumerate it
+(`tests/ui/lists.test.tsx`); when it cannot be, report the ratio and name the
+residue.
+
+## 10. The world is not in the repo
 
 Every other gate checks the code. The refresh workflow failed silently on every
 weekday for a fortnight while `npm run check` stayed green, because nothing read
@@ -129,7 +154,7 @@ marking holdings against dead prices. §79.
 - A deployed bundle ages after the gate has passed. `dataAge` puts that on the
   screen, because a check in CI cannot reach a phone.
 
-## 10. Conventions
+## 11. Conventions
 
 - **"Push" means commit and push to `main`.** No PRs, no branches.
 - **Write it up.** A decision or a defect worth remembering goes in PRODUCT.md as
