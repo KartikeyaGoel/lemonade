@@ -88,6 +88,20 @@ if (ageDays > MAX_AGE_DAYS) {
  * full list every day means the filings endpoint has been unreachable for as
  * long as `fundamentalsFetchedAt` says, and nobody has noticed.
  */
+/*
+ * Required, not defaulted.
+ *
+ * This read `data.fundamentalsFetchedAt ?? data.fetchedAt`, and the writer had
+ * a bug that never emitted the field — so the check quietly measured the wrong
+ * date and reported OK. A fallback that papers over a missing field is how a
+ * gate stops being one.
+ */
+if (!data.fundamentalsFetchedAt || !Array.isArray(data.fundamentalsCarried)) {
+  problems.push(
+    'fundamentalsFetchedAt / fundamentalsCarried are missing; the writer is not emitting them, ' +
+      'so how long the filings have been carried forward cannot be known',
+  );
+}
 const carried = data.fundamentalsCarried ?? [];
 const fundamentalsAt = data.fundamentalsFetchedAt ?? data.fetchedAt;
 const fundamentalsAge = Math.floor((Date.now() - Date.parse(fundamentalsAt)) / 86_400_000);

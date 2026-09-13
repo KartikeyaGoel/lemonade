@@ -5776,3 +5776,102 @@ honesty:
 So: not bulletproof. **Five classes gated, each with its hole measured and
 written down, and one class — is this worth a child's afternoon — that only a
 child can answer.** That is the most I can say without making something up.
+
+## 79. The endless part had quietly ended
+
+Asked whether we had done as much as possible, the honest answer was no, and the
+top of the list was that `MARKET_WEEKS = 12` had never been measured — a bare
+constant, agreed with by every test, in the stage the pilot reaches next. Which
+is the shape of `ACT2_DAYS = 16` exactly.
+
+The customer corrected the framing, and the correction is the important part:
+
+> well the market is infinite no, thats the engagement part where the user
+> should play the market forever and keep inviting friends, kinda like clash
+> royale?
+
+Right, and `live.ts` says so in more detail than §78 did:
+
+> A market a kid has already finished gives them no reason to open the app on
+> Tuesday ... So: the same market, anchored to now. The account never closes.
+> There is no finale and no reckoning.
+
+So the twelve weeks are the **on-ramp** — a story that finishes in a sitting on
+a random stretch of real history — and then the live account runs on the real
+calendar for ever, with the club and the duel codes beside it. Asking whether
+twelve weeks is repetitive was aiming at the tutorial. The question worth asking
+about an endless part is not *how long* but **whether it is still alive.**
+
+It was not.
+
+### Eight silent failures
+
+`gh run list --workflow=refresh-market-data.yml`: **failure on every weekday
+since 2026-09-02.** Eight runs. Every one of them `403 Forbidden` from SEC
+EDGAR, for all twenty-four companies. The data file had last changed on
+2026-09-01, twelve days earlier.
+
+The same request, with the same `User-Agent`, returns `200 OK` from a laptop. So
+it is not the header the SEC asks for — it is the address: they are refusing
+GitHub Actions' Azure ranges. Nothing in the repo can fix that, and a header
+change would have looked like a fix and shipped nothing.
+
+Meanwhile the live market — the entire engagement thesis, the part that is
+supposed to never end — was marking holdings against closes that had stopped
+moving a fortnight ago.
+
+### Two defects, and the second is why the first lasted
+
+**One blocked source killed the whole refresh.** The fetch loop asks the SEC
+first and `continue`s on any error, and prices are fetched *after* that. So a
+403 meant no company was processed, no price was fetched, and the script
+refused to write anything at all. Total failure from a partial outage.
+
+The asymmetry is the fix, and it is not a workaround: **prices change weekly and
+*are* the live market; fundamentals come from a 10-K and change once a
+quarter.** A blocked filings endpoint now carries the previous fundamentals
+forward and still writes fresh closes — and records that it did, in
+`fundamentalsFetchedAt` and `fundamentalsCarried`, because a carried figure
+presented as fresh is §4's defect in data instead of in copy. Volatility is
+recomputed from the new closes rather than carried, since it is a property of
+the prices and not of the filing.
+
+**Nothing checked the output.** `check-market-data.mjs` has had a fourteen-day
+staleness limit the whole time and was never in `npm test` — only in a separate
+`npm run data:check` that nobody runs. Eight failed workflow runs, a fortnight
+of dead prices, and `npm run check` stayed green throughout.
+
+That is the defect that matters, and it is the same one as §75's: **the failure
+was invisible.** A workflow that fails is only a signal if something reads its
+output. The staleness check is in `npm test` now, so a stale file fails the
+build the way a broken test does — with two separate limits, because the two
+sources fail independently. Prices at fourteen days, filings at a hundred. One
+limit against both would have to be the loose one, and then a fortnight of dead
+prices passes.
+
+### And the fix had a bug, caught by its own gate being made stricter
+
+`fundamentalsFetchedAt` was set on the working object and the payload is
+assembled fresh, so the field never reached the file. The check did not notice,
+because it read `data.fundamentalsFetchedAt ?? data.fetchedAt` — **a tolerant
+fallback hiding an absent field**, which is the same defect as a tolerant test
+hiding a broken one. It is required now, and requiring it is what surfaced the
+writer bug.
+
+Verified rather than asserted: the workflow was dispatched and went green,
+prices moved from 2026-09-01 to 2026-09-11, and — worth noting — the SEC
+answered that run, so 0 of 24 were carried. The 403 is per-runner rather than
+permanent, which makes the graceful path the right shape rather than a
+resignation: most runs will get the filings, and the ones that do not will still
+keep the market alive.
+
+### What this says about the question
+
+"Have we done as much as possible" was answered by looking, and looking found a
+live, shipped, two-week-old defect in the part of the product the customer had
+just described as the whole point. It was not in any of the five gated classes.
+It was not in the app at all — it was in the pipeline feeding it.
+
+The lesson is narrow and worth keeping: **every gate in this project checks the
+code. This one checks that the world still reaches it.** Those are different
+questions, and until now only one of them was being asked.

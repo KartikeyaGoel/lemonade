@@ -893,6 +893,23 @@ async function main() {
       ? 'Alpha Vantage TIME_SERIES_WEEKLY_ADJUSTED'
       : 'Yahoo Finance chart endpoint (unofficial)',
     fetchedAt: new Date().toISOString().slice(0, 10),
+    /**
+     * When the *filings* were last actually fetched, and for whom they were
+     * carried.
+     *
+     * Separate from `fetchedAt` because the two sources fail independently:
+     * the SEC blocks some runner addresses, so a run can write fresh prices
+     * with fundamentals from the previous file. Conflating the two dates is how
+     * "the data is a day old" becomes a claim nobody can check.
+     *
+     * These were set on `out` and the payload is assembled fresh, so they never
+     * reached the file — and `check-market-data.mjs` did not notice, because it
+     * fell back to `fetchedAt` when the field was missing. A tolerant fallback
+     * hiding an absent field is the same defect as a tolerant test hiding a
+     * broken one, so the check now requires it.
+     */
+    fundamentalsFetchedAt: out.fundamentalsFetchedAt,
+    fundamentalsCarried: out.fundamentalsCarried,
     /** Shared weekly date axis, oldest first. */
     weeks,
     companies,
