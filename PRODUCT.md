@@ -6559,3 +6559,126 @@ What is still not guaranteed:
   `arclength` vary weather across thousands of days. A defect needing a
   particular state *and* a particular sky is in neither.
 - **Whether a child enjoys it.** Unchanged.
+
+## 83. Playing the whole thing, after a fortnight of building gates
+
+The instruction was plain:
+
+> you should do a full browser playthrough of the game to ensure everything
+> works after all of these changes. If anything breaks, fix it. Don't wait for
+> me to tell you to fix it.
+
+So: a fresh save, every stage, to the end of a season and into the next one —
+the stand, the business, the deal board, the flotation, twelve weeks of market,
+the reckoning, a new season, the live account, the trophy case, the check-in,
+the credits, the grown-up screen, the Friends desk, the duel, the Saturday
+stand and the club.
+
+**Ten defects.** Fourteen gated classes had passed on all of them, which is the
+part worth sitting with. None was exotic; several were on day one.
+
+### The copy ones, all on the first two screens
+
+- **"The 1 you did not sell were already paid for."** `plural` had fixed every
+  noun in the game and nothing had ever looked at a verb.
+- **"You sold every cup and 1 more people still wanted one."** The agreement
+  check matched a number immediately followed by a noun, so "1 people" was
+  caught and "1 more people" was not — one word in between and it went blind.
+  Widening it found the same defect a second time in `simulation.ts`.
+- **"Still in the pantry for tomorrow: 0 lemons, 5 honey, 5 cups."** A line
+  about what you have that opened by naming what you have not.
+
+Two gaps sat behind them. The claim sweep read `src/lib` and the first two came
+from `CloseScreen.tsx`; the four component-local copy producers are swept now.
+And the fuzz used a fixed grid of batch sizes, so it never played a day that
+sold out one cup short — the exact boundary where singular meets plural. It
+computes that batch from the day's own demand now.
+
+### Two day numbers on one screen
+
+Day eight of the business stage read **"Day 8 / 12"** in the header and **"Day
+12"** underneath. Both were right: the header counts the stage's clock against
+its cap, and `page.tsx` was handing the heading the lifetime day. Together, one
+word with two meanings and 12 appearing as a cap and as a day in one glance.
+
+Act 1 hid it — with no stage offset the two numbers are equal — so it appears
+from the business stage on, which is where a walk spends least of its time and a
+child spends most.
+
+### A share price of nothing, presented as a price
+
+Answering the deal board after a losing week opened the flotation screen on a
+company worth $0.00:
+
+    Made in a week   -$36.54
+    × 10 weeks of it   $0.00
+    ÷ 1000 pieces      $0.00 each
+    That is a share price, and it is yours.
+
+§75's class. `afterDay` asked `worthAnything` first; the deal board's handler
+and the act intro's begin button each decided for themselves and asked nothing.
+Three homes for one decision — and the two without the check are the ones a
+child hits, because `afterDay` only runs at the end of a day and this is reached
+by pressing a button. `nextInFlotation` is the one home now.
+
+### And then I broke it, in the fix
+
+The old shape was `if (!listed) { return worthAnything ? 'listing' : 'plan'; }`,
+which **always returned** — so week-marking was unreachable until a company was
+public. Folding that into the helper collapsed two different `'plan'` answers
+into one: *nothing to price yet, carry on* and *public, and not a marking day*.
+The first then fell through to the second's clause, and a company that had never
+floated got a `weeks` entry and a share price of **-$0.07**.
+
+Found by playing on through it half an hour later. My own test had skipped that
+case: it compared `afterDay` with the helper only when the answer was *not*
+`'plan'`, which is the one case that mattered. It checks `'plan'` hardest now
+and sweeps every `stageDay`, because the clause it fell into is `stageDay % 7`.
+
+Two more in the same screen, both pre-existing:
+
+- **A share price below nothing.** Floored at zero: a limited company's shares
+  cannot be worth less than nothing, and that is the one fact about shares not
+  to teach backwards.
+- **A loss reported as earnings.** `moveReason` had its own local `money` that
+  took `Math.abs`, so a week down $41.16 read "You made $41.16 where they
+  expected $0.00" — the sign dropped and the sentence claimed the opposite of
+  what happened. A second money formatter, three characters different from the
+  shared one and wrong. A fourth instance turned up a minute later in the test
+  written for the third: once the market expects a loss, "where they expected
+  -$30.00" put the minus sign back into the sentence.
+
+### And one about coming back
+
+Playing a season to the end and starting another, the **Friends desk was gone**
+from the title screen. `challenge` gated on the current run's days, so a child
+who had just played seven of them had to play two more. The seasons card
+promises the opposite in so many words — "keep everything you earned" — and the
+`club` case a few lines below already carried a clause for the same problem,
+which is the tell that the class was known and the instance was missed.
+
+### What the playthrough confirmed, which matters as much
+
+Everything else reconciled, and much of it to the cent. Day one's profit and
+loss, the weekly savings dial at four settings, the deal board's three payback
+periods and its 26-week verdict, the flotation's `432.74 × 14 = 6058.36 ÷ 1000 =
+$6.06`, the 30% float's four derived figures, the company cards' margins and
+multiples, the week reports, the Saturday stand's $20 out and $22.40 back, the
+duel's code round-trip and its dead-level comparison, the club's empty-state
+attribution. No impossible figure anywhere across several hundred screens.
+
+The live account opened exactly as designed: anchored to the newest close,
+holdings empty, cash carried from the twelve weeks, no way to advance a week,
+and Alpha Vantage named as the price source on every company card.
+
+### The lesson, which is not a new one
+
+Fourteen gated classes, 1,719 tests, a 1,188-state exhaustive sweep and a
+coverage-guided walk — and ten defects were sitting on the paths a child walks
+first. Every one of them was a *sentence* or a *route*, and the gates that
+cover those were the ones I had spent the fortnight widening. The widening was
+not wasted: six of the ten now have a gate that would have caught them, and
+three of those gates found *additional* instances the moment they existed.
+
+But the ordering is worth being honest about. **The gates found the second
+instance of every class. A person playing the game found the first.**

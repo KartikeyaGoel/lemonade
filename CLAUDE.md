@@ -87,6 +87,19 @@ the app covered.
 Never write "bulletproof". Write what is gated, what is not, and the measurement
 for each.
 
+**And then play it.** A fortnight of gate-building was followed by one
+playthrough that found ten defects on the paths a child walks first — see §83.
+The gates found the second instance of every class; a person playing found the
+first. Sentences and routes are what slip through, and they are exactly what a
+child meets in the opening minutes.
+
+Two practical notes from doing it: stop the dev server before `npm run build`,
+because the production build overwrites `.next` and the dev server then 404s its
+own chunks. And when reading a screen from the browser, use `textContent` and
+skip `<script>` — `innerText` is undefined in jsdom, and joining child nodes with
+a space invents whitespace the app never rendered. I reported both as product
+bugs before checking the instrument.
+
 ## 7. `??` is the wrong operator for an environment variable
 
 GitHub Actions substitutes an **empty string** for a secret that does not exist,
