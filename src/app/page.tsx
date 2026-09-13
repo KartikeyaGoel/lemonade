@@ -1,7 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { WEEKLY_EVERY, afterDay, paramsForDay, settleDay, type AfterDay } from '@/lib/day';
+import {
+  WEEKLY_EVERY,
+  afterDay,
+  nextInFlotation,
+  paramsForDay,
+  settleDay,
+  type AfterDay,
+} from '@/lib/day';
 import {
   DEFAULT_DAY_PARAMS,
   ECON,
@@ -1483,7 +1490,15 @@ export default function Page() {
       const rightNow = judgeDealChoice(choiceId).correct;
       const firstGo = dealRoundsTaken(game.ownership) === 0;
       if (game.act === 3 && !rightNow && firstGo) return;
-      setPhase(game.act === 4 ? 'gate' : 'listing');
+      /*
+       * Through `nextInFlotation`, not straight to the pricing screen.
+       *
+       * This sent every child who answered the board to `'listing'`, including
+       * one whose week lost money — and that screen then offered pieces of a
+       * company worth $0.00. The check existed in `afterDay` and not here. See
+       * `nextInFlotation` in `day.ts`.
+       */
+      setPhase(game.act === 4 ? 'gate' : nextInFlotation({ ...game, ownership: recordDealChoice(game.ownership, choiceId) }));
     },
     [game, queueWords, noteDeed],
   );
@@ -2499,9 +2514,8 @@ export default function Page() {
            */
           onBegin={() => {
             if (game.act === 2) setPhase('invest');
-            else if (game.act === 3) {
-              setPhase(game.ownership.comparisonAnswered ? 'listing' : 'deals');
-            } else setPhase('market');
+            else if (game.act === 3) setPhase(nextInFlotation(game));
+            else setPhase('market');
           }}
         />
       );

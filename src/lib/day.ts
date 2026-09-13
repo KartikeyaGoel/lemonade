@@ -383,6 +383,39 @@ export type AfterDay =
  * `forkTaken` is what stops it looping: the fork routes back through here, and
  * the second pass skips it and falls through to the act boundary.
  */
+/**
+ * Where a child in the flotation stage belongs right now.
+ *
+ * **One home for a decision that had three.** `afterDay` checked
+ * `worthAnything` before sending anybody to the pricing screen; the deal
+ * board's handler and the act intro's begin button each decided for themselves
+ * and checked nothing. So answering the deal board after a losing week opened
+ * the flotation screen on a company worth nothing, and it read:
+ *
+ *     Made in a week  -$36.54
+ *     × 10 weeks of it  $0.00
+ *     ÷ 1000 pieces     $0.00 each
+ *     That is a share price, and it is yours.
+ *
+ * A share price of nothing, presented as a price, with a multiplication that
+ * does not close — the value is clamped at zero and the weekly profit is not.
+ * Found by playing to it; the stage's own goal strip was saying "nobody buys a
+ * business that loses money" on the screen behind it.
+ *
+ * This is §75's class exactly: the same decision made in more than one place,
+ * the copies disagreeing, and the one *without* the check being the one a child
+ * hits. `page.tsx` reads this now, and so does `afterDay`.
+ */
+export function nextInFlotation(game: Game): 'deals' | 'listing' | 'plan' {
+  if (!game.ownership.comparisonAnswered) return 'deals';
+  if (game.listing.listed) return 'plan';
+  /*
+   * Nothing to price yet. The goal strip says why, and the day loop carries on
+   * — one decent week is all it takes.
+   */
+  return listingOffer(game.stand.history, game.ownership).worthAnything ? 'listing' : 'plan';
+}
+
 export function afterDay(
   game: Game,
   stageDay: number,
@@ -424,12 +457,8 @@ export function afterDay(
    * while you do.
    */
   if (game.act === 3) {
-    if (!game.ownership.comparisonAnswered) return 'deals';
-    if (!game.listing.listed) {
-      // Nothing to price yet. The goal strip says why, and the day loop
-      // carries on — one decent week is all it takes.
-      return listingOffer(game.stand.history, game.ownership).worthAnything ? 'listing' : 'plan';
-    }
+    const next = nextInFlotation(game);
+    if (next !== 'plan') return next;
     if (stageDay % WEEKLY_EVERY === 0) return 'mark-week';
   }
 

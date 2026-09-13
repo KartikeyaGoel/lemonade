@@ -21,6 +21,7 @@ import {
   settleDay,
   wordsForToday,
   type AfterDay,
+  nextInFlotation,
 } from '../src/lib/day';
 import {
   ACT2_DAYS,
@@ -34,9 +35,16 @@ import {
   type UpgradeId,
 } from '../src/lib/business';
 import { beginAct2, createGame, type Game } from '../src/lib/progress';
-import { DEFAULT_DAY_PARAMS, ECON, batchPlan, runDay } from '../src/lib/simulation';
+import {
+  DEFAULT_DAY_PARAMS,
+  ECON,
+  batchPlan,
+  runDay,
+  type DayRecord,
+} from '../src/lib/simulation';
 import { batchForCapacity, sensiblePrice, throughActOne } from '../src/lib/demo';
 import { SHOP, loanQuote } from '../src/lib/retail';
+import { bestDeal, recordDealChoice } from '../src/lib/ownership';
 
 const SEEDS = [2026, 4242, 7, 555, 90210, 31337, 1, 12345, 8080, 999];
 
@@ -342,6 +350,99 @@ describe('the business stage completes for play that answers the rival', () => {
       /* Six to nine days for the four rungs, measured. See `ACT2_DAYS`. */
       expect(days, `seed ${seed} took ${days} days`).toBeLessThanOrEqual(9);
       expect(game.business.shop.open, `seed ${seed} finished without a door`).toBe(true);
+    }
+  });
+});
+
+/**
+ * The flotation stage's routing, which had three homes and one check.
+ *
+ * `afterDay` asked `worthAnything` before sending a child to the pricing
+ * screen. The deal board's handler and the act intro's begin button in
+ * `page.tsx` each decided for themselves and asked nothing — so answering the
+ * board after a losing week opened the screen on a company worth nothing:
+ *
+ *     Made in a week  -$36.54
+ *     × 10 weeks of it  $0.00
+ *     ÷ 1000 pieces     $0.00 each
+ *     That is a share price, and it is yours.
+ *
+ * Found by playing to it in a browser. §75's class: one decision, three
+ * implementations, and the one a child hits is the one without the check.
+ */
+describe('where the flotation stage sends a child', () => {
+  /** A stage-3 game whose trailing week made the given profit each day. */
+  function withWeek(perDay: number): Game {
+    let game = { ...createGame(4242), act: 3 as const };
+    const history: DayRecord[] = [];
+    for (let day = 1; day <= 7; day += 1) {
+      history.push({
+        day,
+        weather: 'mild',
+        price: 1.5,
+        cupsSold: 20,
+        cupsMade: 20,
+        cupsWanted: 20,
+        revenue: 30,
+        profit: perDay,
+        cashAfter: 100,
+        subscriberCups: 0,
+        marketShare: 1,
+        fixedCost: 5,
+        spoiledLemons: 0,
+        grade: 'regular',
+        ingredientCost: 4,
+        forecast: 'probably-mild',
+        seedBefore: 1,
+      });
+    }
+    game = { ...game, stand: { ...game.stand, history } };
+    return game;
+  }
+
+  it('asks the deal board first, whatever the week did', () => {
+    for (const perDay of [-5, 5]) {
+      expect(nextInFlotation(withWeek(perDay))).toBe('deals');
+    }
+  });
+
+  it('will not price a company that loses money', () => {
+    const losing = withWeek(-5);
+    const answered = { ...losing, ownership: recordDealChoice(losing.ownership, bestDeal().id) };
+    expect(nextInFlotation(answered), 'offered to sell pieces of a loss').toBe('plan');
+  });
+
+  it('prices one that makes money', () => {
+    const winning = withWeek(8);
+    const answered = { ...winning, ownership: recordDealChoice(winning.ownership, bestDeal().id) };
+    expect(nextInFlotation(answered)).toBe('listing');
+  });
+
+  it('stops offering to price it once it is listed', () => {
+    const winning = withWeek(8);
+    const answered = { ...winning, ownership: recordDealChoice(winning.ownership, bestDeal().id) };
+    const listed = { ...answered, listing: { ...answered.listing, listed: true } };
+    expect(nextInFlotation(listed)).toBe('plan');
+  });
+
+  it('is the same decision the day loop makes', () => {
+    /*
+     * The point of the helper. If `afterDay` and this ever disagree, the bug is
+     * back — so the two are compared directly rather than trusted to stay in
+     * step because they happen to share a line today.
+     */
+    for (const perDay of [-5, 8]) {
+      for (const answeredBoard of [false, true]) {
+        const base = withWeek(perDay);
+        const game = answeredBoard
+          ? { ...base, ownership: recordDealChoice(base.ownership, bestDeal().id) }
+          : base;
+        const routed = afterDay(game, 3, { forkTaken: true });
+        const direct = nextInFlotation(game);
+        if (direct !== 'plan') {
+          expect(routed, `week ${perDay}, board ${answeredBoard}`).toBe(direct);
+        }
+      }
     }
   });
 });
