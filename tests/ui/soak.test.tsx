@@ -66,9 +66,14 @@
  *    **not caught**. The React tripwire works, but the walk never reaches the
  *    state: two stands on the *same* pitch needs a manager hired and then a
  *    sidewalk stand opened, and a random walk from a cleared save does not
- *    find that inside its steps. It is covered by a unit test in
- *    `tests/business.test.ts` instead, which is where a specific state
- *    combination belongs.
+ *    find that inside its steps.
+ *
+ *    That is the hole `tests/ui/combos.test.tsx` was written to close, and it
+ *    does: a pairwise covering array over nine dimensions of state *generates*
+ *    two tables on one pitch without anybody having thought of it, and the same
+ *    tripwire fires. The division of labour is now explicit — **this file goes
+ *    deep from eight states, that one goes shallow from twenty-one covering
+ *    every pair of choices.**
  *
  * So: this catches invariant breaches in the states it reaches, and reports
  * which controls it reached so the gap is visible rather than assumed. It
