@@ -2568,13 +2568,27 @@ export default function Page() {
               : dayParams
           }
           business={game.weekend ? undefined : game.business}
-          dayLabel={
-            game.weekend
-              ? 'Saturday'
-              : game.act === 1
-                ? undefined
-                : `Day ${game.stand.history.length + 1}`
-          }
+          /*
+           * A name for the day, only when the day has one.
+           *
+           * This used to pass `Day ${history.length + 1}` for every stage past
+           * the first — the *lifetime* day — while `stage.day` hands the header
+           * the **stage** day and `stage.total` its cap. So day eight of the
+           * business stage rendered "Day 8 / 12" at the top and "Day 12"
+           * directly underneath: one word, two meanings, and 12 appearing as a
+           * cap and as a day in the same glance. Both figures were right.
+           *
+           * Found by playing to the business stage in a browser. The comment on
+           * `HeaderBar`'s own `label` prop had already noticed the shape —
+           * "'Day 18' next to a heading that says Saturday reads as a bug" —
+           * and the fix then was to give the *weekend* a name. The number case
+           * was left disagreeing with itself.
+           *
+           * `PlanScreen` derives the number from `stage` now, so there is one
+           * source for it and this passes a label only for Saturday, which is
+           * a day with a name rather than a number. §4.
+           */
+          dayLabel={game.weekend ? 'Saturday' : undefined}
           /* The goal, on the screen the kid actually lives on.
              Act 1 derives its own; Acts 2 and 3 had none at all, which is why
              a real kid ground to day eighteen and quit three days short. Act

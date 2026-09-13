@@ -286,7 +286,26 @@ export function PlanScreen({
           fixed box with two hundred pixels of empty sky under it. */}
       <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-64px)] w-full max-w-md flex-col px-4 pt-2" style={clearsBar()}>
         <div className="flex items-center justify-between gap-3">
-          <SignHeading className="text-3xl">{dayLabel ?? `Day ${state.day}`}</SignHeading>
+          {/*
+            * The same day the header is counting.
+            *
+            * This read `state.day`, the lifetime day, while the header two
+            * lines up reads `stage.day` out of the stage's own clock — so on
+            * day eight of the business stage the screen said **"Day 8 / 12"**
+            * at the top and **"Day 12"** underneath it. Both figures were
+            * right and the pair was nonsense: one word, two meanings, and the
+            * number 12 appearing as a cap and as a day at once.
+            *
+            * The header's `label` prop already carries a note about exactly
+            * this — "'Day 18' next to a heading that says Saturday reads as a
+            * bug" — and the same reasoning applies to a heading that disagrees
+            * with the header about the number.
+            *
+            * §4: one fact, one home. On this screen the day is the stage's.
+            */}
+          <SignHeading className="text-3xl">
+            {dayLabel ?? `Day ${stage?.day ?? state.day}`}
+          </SignHeading>
           <span className="stat-chip !text-xs">{forecast.headline} · a guess</span>
         </div>
 
