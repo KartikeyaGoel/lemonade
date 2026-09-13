@@ -132,12 +132,19 @@ const label = (b: Element) =>
 /**
  * Buttons the walk must not press.
  *
- * Only the ones that make the walk *shallower* — wiping the save. They are
- * covered by `tests/ui/reset.test.tsx`, where the assertion is about what they
- * destroy. Everything else, including every destructive in-game choice a child
- * can make, is fair game.
+ * Only the ones that make the walk *shallower*. The reset buttons wipe the
+ * save; **the grown-up screen's demo jump replaces it**, handing the app a
+ * seven-day `demoGame` save in place of whatever the walk had played. Both are
+ * covered where the assertion is about what they replace — `tests/ui/reset.test.tsx`
+ * and `tests/demo.test.ts` — and both make every later step of a walk shallower
+ * than the step before it.
+ *
+ * Keeping the jump in was a flake rather than coverage: it only fired when the
+ * walk happened to reach that button, which is why CI found it and a laptop did
+ * not. Everything else, including every destructive in-game choice a child can
+ * make, is fair game.
  */
-const AVOID = /Start over on this device|Erase|Delete everything|^↺$/i;
+const AVOID = /Start over on this device|Erase|Delete everything|^↺$|^Start at /i;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function saved(): any {
@@ -307,8 +314,23 @@ describe('every button the app offers, pressed', () => {
          * The history only shrinks when the child has started a *different*
          * run. `runKey` is what identifies one: a duel, a Saturday stand and a
          * new season each legitimately replace the week.
+         *
+         * **The seed is part of the identity**, and leaving it out made this
+         * flaky rather than wrong. The grown-up screen's demo jump hands the
+         * app a save that starts part-way through — `demoGame(act)`, seeded
+         * 2026 — so a walk that had played fourteen days on seed 4242 and then
+         * pressed "Start at A real business" correctly had seven, and this
+         * called it a day that un-happened. It only failed when the walk
+         * happened to reach that button, which is why it failed in CI and not
+         * locally: a slower machine leaves a badge toast on screen a moment
+         * longer, the enabled set differs, and the guided walk goes somewhere
+         * else.
+         *
+         * A run is identified by the seed it was created from. That is what
+         * `Game.seed` is for — `stand.seed` is a live cursor and moves every
+         * day, which is exactly why the other one exists.
          */
-        const key = `${save.challenge ? 'duel' : ''}|${save.weekend ? 'sat' : ''}|${save.season}`;
+        const key = `${save.seed}|${save.challenge ? 'duel' : ''}|${save.weekend ? 'sat' : ''}|${save.season}`;
         const days = save.stand?.history?.length ?? 0;
         if (key !== runKey) {
           runKey = key;
@@ -443,10 +465,26 @@ describe('every button the app offers, pressed', () => {
      * The direct answer to *"shouldn't we drive every UI path the user can
      * take?"*, and the honest version of it.
      *
-     * Measured: **363 of 393 distinct controls, across 127 screens.** The bar
-     * is set below that so it catches a regression without flaking, and the
-     * failure message names every miss so a drop is diagnosable rather than
-     * just a smaller number.
+     * Measured: **368 to 371 of about 397 distinct controls, across 119 or 120
+     * screens — 92.9% to 93.2%.**
+     *
+     * A range rather than a figure, because the walk is not byte-stable: the
+     * clock is pumped with `advanceTimersByTimeAsync` and React's scheduling
+     * decides what has landed by the time the next tap happens, so a toast
+     * still on screen changes the enabled set and the guided walk goes
+     * somewhere slightly different. Three consecutive runs gave 93.2%, 92.9%
+     * and 92.9%.
+     *
+     * That variance is the reason the bar is at 90% rather than at the measured
+     * figure: three points of headroom is enough to survive the wobble and
+     * still fail on a real regression. The failure message names every miss, so
+     * a drop is diagnosable rather than just a smaller number.
+     *
+     * It is also why the demo jump is in `AVOID`. That button was reachable
+     * only on some runs, and on those runs it replaced the walk's save with a
+     * shorter one — which the history-shrink invariant correctly flagged and
+     * which was not a bug. A test that fails one run in five is a test that
+     * gets re-run rather than read.
      *
      * ## Why it is not 100%, stated rather than glossed
      *
@@ -537,6 +575,10 @@ describe('every button the app offers, pressed', () => {
 
     const missed = [...offered].filter((l) => !pressed.has(l));
     const covered = (offered.size - missed.length) / offered.size;
+    console.log(
+      `COVERED ${offered.size - missed.length}/${offered.size} = ${(covered * 100).toFixed(1)}% ` +
+        `across ${screens.size} screens`,
+    );
     expect(offered.size, 'nothing was offered, so nothing was checked').toBeGreaterThan(120);
     expect(
       covered,

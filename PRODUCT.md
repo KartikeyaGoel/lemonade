@@ -6335,6 +6335,31 @@ And counting only `<button>` made the lemon screen look like a card, because its
 batch is set with a slider; it was one commit from being written into the
 allowlist as one.
 
+### And CI found a flake the new files surfaced
+
+The push went red on the soak: *"history shrank 14 -> 7 on the same run, after
+'Start at A real business'"*. That button is the grown-up screen's demo jump. It
+hands the app a `demoGame` save that starts part-way through — seven days of
+history in place of the fourteen the walk had played — so the shrink was real and
+correct, and the invariant that flagged it did not know a jump had happened.
+
+It failed in CI and not on a laptop for a reason worth keeping: **the walk is not
+byte-stable.** The clock is pumped with `advanceTimersByTimeAsync`, React decides
+what has landed before the next tap, and a badge toast still on screen changes
+the enabled set — so the guided walk goes somewhere slightly different on a
+slower machine. Three consecutive local runs cover 93.2%, 92.9% and 92.9% of
+controls across 119 to 121 screens. The bar is at 90% precisely to survive that.
+
+Two fixes, because one was not enough. A run is now identified by its **seed** —
+`Game.seed` exists for exactly this, since `stand.seed` is a live cursor that
+moves every day — and the jump is in `AVOID` alongside the reset buttons, on the
+rationale that file already states: only buttons that make the walk *shallower*
+are excluded, and replacing a fourteen-day save with a seven-day one is the
+definition. It is covered where the assertion is about what it replaces, in
+`tests/demo.test.ts`, and the soak already *starts* from those saves.
+
+A test that fails one run in five is a test that gets re-run rather than read.
+
 ### The state of it
 
 Thirteen gated classes. Five defects in this pass, every one of them shipped:
