@@ -6014,6 +6014,22 @@ from the figures either side of them**, so they close by construction for every
 cost or price this day has or ever gains. Fixing instances is what let this reach
 six; this is the first gate that asks about the shapes nobody has thought of.
 
+And then the fix had a penny in it. Driving day one in a browser: *"You keep
+$0.81 on an average cup: it sold for $1.01 and cost $0.19 to make."* The
+derivation added the *raw* per-cup cost back to a margin computed against the
+*rounded* one, so a cup costing 0.195 rounded one way for one figure and the
+other way for the other. The sweep had passed, because its tolerance was
+`<= 0.011` — which sounds like a reasonable allowance for rounded figures and is
+exactly the width of the defect. Figures are compared **as printed** now, to two
+decimal places, because §4 is about what a child reads and not about what the
+floats were.
+
+That is the third time in three sessions that a fix of mine has had a defect in
+it that its own gate then caught once the gate was made stricter — the
+`?? data.fetchedAt` fallback in §79, the `offer.worthAnything` guard below, and
+this. The pattern is worth naming: **a tolerance is a place to hide a bug, and
+the honest default is exact.**
+
 ### The states nobody thought of, generated
 
 §78's second hole: *"a bug in a state the walk cannot reach ships. Depth beyond
