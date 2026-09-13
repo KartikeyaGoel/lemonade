@@ -60,6 +60,31 @@ const MAX_FUNDAMENTALS_AGE_DAYS = Number(envOr('MAX_FUNDAMENTALS_AGE_DAYS', '100
 const data = JSON.parse(await readFile(new URL('../src/lib/market-data.json', import.meta.url), 'utf8'));
 
 const problems = [];
+
+/**
+ * How big the bundled data may be.
+ *
+ * It is a client bundle on a child's phone, and nothing else in this project
+ * puts a number on that. Two and a half megabytes of JSON went out before
+ * anybody noticed, because `fetch-market-data.mjs` carried the raw provider
+ * series into the file alongside the aligned copy the app reads — every price,
+ * twice. Invisible while both sources returned five years; obvious the moment
+ * one of them returned twenty.
+ *
+ * One megabyte, against a measured 0.55 MB once the duplicate came out. A
+ * ceiling rather than a figure, because the file grows when a company is added.
+ */
+const MAX_BYTES = 1_000_000;
+
+const raw = await readFile(new URL('../src/lib/market-data.json', import.meta.url), 'utf8');
+if (raw.length > MAX_BYTES) {
+  problems.push(
+    `market-data.json is ${(raw.length / 1e6).toFixed(2)} MB, over the ${(MAX_BYTES / 1e6).toFixed(1)} MB ceiling. ` +
+      `It ships to a phone. Check nothing is being written twice — see the note on weeklyCloses ` +
+      `in fetch-market-data.mjs.`,
+  );
+}
+
 if (!Array.isArray(data.companies) || data.companies.length < 8) {
   problems.push(`expected 8 companies, found ${data.companies?.length ?? 0}`);
 }
@@ -75,6 +100,16 @@ for (const company of data.companies ?? []) {
   }
   if (!Number.isFinite(company.revenueM) || !Number.isFinite(company.sharesM) || company.sharesM <= 0) {
     problems.push(`${company.ticker}: fundamentals incomplete`);
+  }
+  /*
+   * The raw provider series, named rather than only bounded by the size
+   * ceiling — so the failure says what to do instead of just "too big".
+   */
+  if (company.weeklyCloses) {
+    problems.push(
+      `${company.ticker}: carries weeklyCloses, the raw provider series. Only \`closes\` is read ` +
+        `by the app; writing both ships every price twice`,
+    );
   }
 
   /*
@@ -225,14 +260,46 @@ if (!before) {
   if (before.asOf > data.asOf) {
     problems.push(`asOf went backwards: ${before.asOf} -> ${data.asOf}`);
   }
-  if (data.weeks.length < before.weeks.length - 2) {
+  /*
+   * Proportional, not a fixed slack of two.
+   *
+   * The window is five years of weeks and the two providers reach back slightly
+   * differently — 262 against 267 — so a fixed slack failed on a legitimate
+   * source switch. A tenth still catches the thing this is for, which is a
+   * collapse: 262 weeks becoming 24 is a broken fetch, and 262 becoming 257 is
+   * a Tuesday.
+   */
+  if (data.weeks.length < before.weeks.length * 0.9) {
     problems.push(
       `the price history shrank from ${before.weeks.length} weeks to ${data.weeks.length}; ` +
         `the window rolls, it does not collapse`,
     );
   }
 
-  const wasAt = new Map(before.weeks.map((date, index) => [date, index]));
+  /*
+   * Compared by **week**, not by date.
+   *
+   * This keyed on the exact date string, and the first run on the official
+   * feed walked straight through it: Alpha Vantage stamps the last trading day
+   * of the week and Yahoo stamps the first, so switching source moved every
+   * date by a few days and left **one** shared row out of 267. The gate
+   * cheerfully reported "24 weeks shared with the last commit, 0 rewritten"
+   * and passed — having checked almost nothing, on precisely the kind of
+   * change it exists to notice.
+   *
+   * A week is the unit the data is in, so a week is the unit to compare in.
+   * Both stamps collapse to the Monday of their week.
+   */
+  const mondayOf = (iso) => {
+    const at = Date.parse(`${iso}T00:00:00Z`);
+    if (Number.isNaN(at)) return iso;
+    const day = new Date(at).getUTCDay();
+    /* Sunday is 0, and belongs to the week that started six days earlier. */
+    const back = day === 0 ? 6 : day - 1;
+    return new Date(at - back * 86_400_000).toISOString().slice(0, 10);
+  };
+
+  const wasAt = new Map(before.weeks.map((date, index) => [mondayOf(date), index]));
   const wasClose = new Map(before.companies.map((company) => [company.ticker, company.closes]));
   for (const company of before.companies) {
     if (!data.companies.some((now) => now.ticker === company.ticker)) {
@@ -247,7 +314,7 @@ if (!before) {
     const was = wasClose.get(company.ticker);
     if (!was) continue;
     data.weeks.forEach((date, index) => {
-      const then = wasAt.get(date);
+      const then = wasAt.get(mondayOf(date));
       if (then === undefined) return;
       const a = was[then];
       const b = company.closes[index];

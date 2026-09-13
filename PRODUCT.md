@@ -6360,6 +6360,44 @@ definition. It is covered where the assertion is about what it replaces, in
 
 A test that fails one run in five is a test that gets re-run rather than read.
 
+### Then the official feed arrived and broke two things
+
+The refresh was dispatched to prove the secret worked. It did — `prices: Alpha
+Vantage (official), key from the environment`, all twenty-four companies — and it
+committed a diff of **ninety-eight thousand lines** on a file whose numbers had
+not changed.
+
+**The two sources disagree about which day a week is called.** Alpha Vantage
+stamps the last trading day, Yahoo the first. So every date moved by a few days,
+and — worse — the gate written two sections earlier to notice exactly this kind
+of change walked straight through it. It matches rows by date, one row of 267
+still matched, and it reported *"24 weeks shared with the last commit, 0
+rewritten"* and passed. **A gate that finds nothing to compare reports no
+problems.** That is the second time in this project a check has been technically
+correct and vacuous, and both times it looked like a pass.
+
+Fixed in two places, because either alone is a patch. The fetch **normalises
+every settled week to its Monday**, so the committed file no longer depends on
+which provider served it: 261 of 262 weeks now line up between the two, and the
+remainder is one window reaching a little further back. The newest row keeps its
+own date, deliberately — that row is the week in progress and `live.ts` reads
+elapsed days off it, so freezing it mid-week would tell a child who checked in
+yesterday that nothing had happened. And the check compares by week rather than
+by date, so an old file with either stamping is still properly compared.
+
+**And the bundle was shipping every price twice.** The payload assembly spread
+the whole company object, which carried `weeklyCloses` — the raw provider series,
+used only to work out the shared week axis and never read by the app — alongside
+`closes`, the aligned copy it does read. Invisible while both sources returned
+five years: an extra 262 rows a company is a big file rather than an absurd one.
+Alpha Vantage returns the *whole* history, twenty-odd years, and the file went
+from 0.68 MB to **2.2 MB**. It is a client bundle on a child's phone.
+
+It is 0.18 MB now — a **92% cut** — and `check-market-data.mjs` has a size
+ceiling, because nothing in this project had ever put a number on how big that
+file may be. The specific key is named in the failure too, so it says what to do
+rather than just "too big".
+
 ### The state of it
 
 Thirteen gated classes. Five defects in this pass, every one of them shipped:
@@ -6368,6 +6406,15 @@ had noticed, the stale "eight tickers", and the batch sentence that did not
 subtract. Plus a correction to §79's diagnosis.
 
 What is still not guaranteed:
+
+- **A gate that finds nothing to compare.** Fixed twice now and worth stating as
+  a class rather than as two incidents: a check whose *input* has quietly gone
+  empty reports a pass. The staleness check papering over a missing field with
+  `??` was one, and the shape check matching on dates that had all moved was the
+  other. Every gate in `npm test` now prints how much it looked at — "6,288
+  weeks shared", "1,628 combinations", "37 screen kinds" — so a collapse to
+  nearly nothing is visible in the log even when the verdict is OK. That is a
+  convention, not an assertion, and a new gate can still forget it.
 
 - **A defect needing five particular choices at once.** Four-way is covered;
   five is a measured 21 seconds away rather than an unreachable one, and the

@@ -556,13 +556,58 @@ async function fromYahoo(ticker) {
  */
 async function weeklyCloses(ticker) {
   const key = process.env.ALPHAVANTAGE_KEY;
-  if (!key) return { rows: await fromYahoo(ticker), source: 'yahoo' };
+  if (!key) return { rows: byWeek(await fromYahoo(ticker)), source: 'yahoo' };
   try {
-    return { rows: await fromAlphaVantage(ticker, key), source: 'alphavantage' };
+    return { rows: byWeek(await fromAlphaVantage(ticker, key)), source: 'alphavantage' };
   } catch (error) {
     process.stderr.write(`(AV: ${String(error.message).slice(0, 60)}… falling back to Yahoo) `);
-    return { rows: await fromYahoo(ticker), source: 'yahoo' };
+    return { rows: byWeek(await fromYahoo(ticker)), source: 'yahoo' };
   }
+}
+
+/**
+ * Stamps every settled week by its Monday, and leaves the newest row alone.
+ *
+ * **The two sources disagree about which day a week is called.** Alpha Vantage
+ * stamps the last trading day, Yahoo the first, so switching between them moved
+ * every date by a few days — one shared row out of 267 — and produced a
+ * hundred-thousand-line diff on a file whose numbers had not changed. It also
+ * walked straight through the gate that compares the file with the last commit,
+ * which matches on dates and so found almost nothing to compare.
+ *
+ * A week is the unit the data is in, and a week is identified by the week. With
+ * both sources normalised, **261 of 262 weeks line up** and the remainder is the
+ * window reaching a little further back on one of them.
+ *
+ * The newest row keeps the date it came with, deliberately. That row is the week
+ * *in progress*, and the live market reads elapsed days off it — "the newest row
+ * in the file is the week in progress, so its date moves as the week goes on"
+ * (`live.ts`). Monday-stamping it would freeze the clock mid-week and tell a
+ * child who checked in yesterday that nothing had happened.
+ */
+function byWeek(rows) {
+  const monday = (iso) => {
+    const at = Date.parse(`${iso}T00:00:00Z`);
+    if (Number.isNaN(at)) return iso;
+    const day = new Date(at).getUTCDay();
+    /* Sunday is 0 and belongs to the week that started six days earlier. */
+    return new Date(at - (day === 0 ? 6 : day - 1) * 86_400_000).toISOString().slice(0, 10);
+  };
+  const out = rows.map((row, index) =>
+    index === rows.length - 1 ? row : { ...row, date: monday(row.date) },
+  );
+  /*
+   * A provider that already Monday-stamps can put the in-progress week in twice
+   * — its own Monday row plus a partial one dated today. That is fine and the
+   * game handles it, but two rows with the *same* date would silently collide in
+   * the `byDate` map below, so only exact duplicates are dropped.
+   */
+  const seen = new Set();
+  return out.filter((row) => {
+    if (seen.has(row.date)) return false;
+    seen.add(row.date);
+    return true;
+  });
 }
 
 /**
@@ -989,7 +1034,23 @@ async function main() {
   const companies = out.companies.map((company) => {
     const byDate = new Map(company.weeklyCloses.map((row) => [row.date, row.close]));
     const closes = weeks.map((date) => byDate.get(date));
-    const { ...rest } = company;
+    /*
+     * `weeklyCloses` does not go in the file.
+     *
+     * It is the raw provider series, used here to work out the shared week axis
+     * and then finished with — `closes` is the aligned copy the app actually
+     * reads, and nothing outside this script has ever read the other one. The
+     * spread used to be `const { ...rest } = company`, which carried it
+     * through, so **the bundle shipped every price twice.**
+     *
+     * Invisible while both sources returned five years: an extra 262 rows a
+     * company is a big file rather than an absurd one. Switching to Alpha
+     * Vantage made it obvious, because that endpoint returns the *whole*
+     * history — twenty-odd years — and the file went from 0.7 MB to 2.2 MB. It
+     * is a client bundle on a child's phone. `check-market-data.mjs` has a size
+     * ceiling now.
+     */
+    const { weeklyCloses: _raw, ...rest } = company;
     return { ...rest, closes, price: closes[closes.length - 1] };
   });
 
