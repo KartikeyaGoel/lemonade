@@ -5466,3 +5466,180 @@ does now, and the answer is all four criteria, on every seed, at all three level
 of play. The two deal-board criteria are the ones a shorter stage could
 plausibly have cost, because they are read off a screen the listing stage has to
 reach — and it does.
+
+## 77. Closing the three holes the last gate left open
+
+§75 ended by naming what `scripts/check-one-day.mjs` could *not* see, and the
+customer read that back as the obvious question:
+
+> you just said that you're not gonna tell me it's bulletproof. The gate closes
+> one bug, but it's blind to three others, so can we fix that?
+
+Three holes, three fixes, and one of them found a live bug the moment it existed.
+
+### Hole 1: the gate was a blocklist
+
+It held ten primitive names and failed if any was called outside `day.ts`. A
+blocklist only knows the mistakes already made — the *next* per-day effect would
+be added to the app and sail straight past, which is exactly the failure the
+gate exists to end. Asked "is this fixed and it won't happen again", the honest
+answer was "this instance is".
+
+It is an **allowlist** now. Every exported function in `src/lib` whose return
+type is a piece of game state or a word owed to the child is a candidate —
+derived from the *shape*, not from a name anybody remembered — and each must be
+classified `day`, `choice`, `event`, `make`, `load`, `view` or `harness`. **81
+are classified, 11 of them `day`.** An unclassified one fails the build asking
+which it is. The table is documentation as much as configuration: it is the only
+place that says, of everything that can change state, which parts are a day
+passing and which are a child doing something.
+
+Two rules on top. A `day` primitive may only be called from `day.ts` — and for
+the one that cannot be, because it advances the *career* rather than the game,
+the rule is **exactly one call site**. That found something immediately:
+`recordDay` had two, one in `closeDay`'s Saturday branch and one on its main
+path. One per-day effect, two call sites, nothing keeping them in step — the
+same shape as the four copies, at a smaller scale.
+
+Mutation-checked three ways: a new unclassified reducer, a `day` primitive
+called from the app, and a second call site for the career's day. All three
+fail the build.
+
+### Hole 2: a mechanic wired to a screen that never shows it
+
+Several systems work in two halves — a library decides *what* to say, a screen
+opts in to the subset that belongs on it. Nothing kept the halves in agreement,
+and `tests/wired.test.ts` now reads the opt-in lists out of `page.tsx` and
+compares them against each library's inventory. It covers Pip's beats and the
+coach tours, in both directions: an orphaned beat, and a screen listing a beat
+that no longer exists.
+
+This is ugly — it parses JSX props out of source — and it is the only honest way
+to check a wiring that lives in props. `check-dead-code.mjs` catches the version
+where nothing *names* an export; this catches the version where something names
+it and no child ever sees it.
+
+### Hole 3: a fact with two homes in copy
+
+The hardest, and the one that cannot be closed in general — "these two numbers
+do not reconcile" is not decidable from source. What *is* decidable is the
+**claim shape**. A sentence of the form `A of B cups` asserts `A <= B`; one of
+the form `N cups x $P = $T` asserts a product. Neither needs to know anything
+about the day that produced it.
+
+So `tests/claims.test.ts` holds the shapes and sweeps **every copy producer** —
+`closingLine`, the ledger novelty line, the lunchtime card and its options, the
+diagnosis and its answers, word of mouth, all three insight derivers, and every
+goal line a stage can show — across a fuzz of seeds, prices, lunchtime answers
+and top-ups. Over 2,000 sentences a run. When the next shape of false claim
+turns up it goes in one function and the whole sweep gets it.
+
+It earned itself on the first run:
+
+> **"You made 28 cups and sold 30 of them."**
+
+`demand-bet`, the calibration insight, in `simulation.ts` — §74's defect exactly,
+in a module the §74 fix never touched. All three of its sentences read
+`cupsMakeable`, the morning's batch, while comparing against the whole day's
+sales. Fixed to `cupsAvailable`, which is also the right figure on the merits: a
+child who under-bought and topped up at lunchtime made the bet twice, the second
+time with better information, and scoring only the first half would call a
+correct correction a bad call.
+
+**This is the point worth keeping.** A targeted fix closes the instance in front
+of it; §74 fixed three sentences and left a fourth standing in another file for
+two commits. The sweep is what turns "we fixed that bug" into "that sentence
+shape cannot ship false".
+
+### And the number that was wrong in the world
+
+§75 named a fourth blind spot in passing and it is the one no gate can close: a
+number that is right everywhere in the code and wrong in reality. `ACT2_DAYS =
+16` was that.
+
+`tests/arclength.test.ts` is the defence, and it is a measurement rather than an
+assertion: it plays the whole arc to the market on ten seeds with a careful
+policy and holds the result. It immediately corrected a claim made in §76 four
+hours earlier.
+
+| | §76 said | measured |
+|---|---|---|
+| one stand | 7 | **4–7, mean 4.5** — it ends on two good days, not seven |
+| a real business | 6–9 | 7–11, mean 8.5 |
+| go public | 7 | **exactly 7**, every seed |
+| **to the market** | **23** | **18–22, mean 20** |
+
+§76's 23 was assembled from the stage *caps* rather than from a run — the same
+mistake as `ACT2_DAYS`, made in the section that was documenting it. A number
+about how long the game takes has to come from playing it.
+
+### What the arc is actually worth, without counting words
+
+Asked whether shortening it further would compromise the teaching, the customer
+put the right objection to the metric:
+
+> I think you're measuring the goal of being educational by words, right? The
+> more words, the more educational, but I feel like that's a very semantic take.
+
+Correct, and it is a bad metric: it counts *delivery of a card*, not
+understanding; several words overlap heavily (`revenue`/`profit`/`margin`,
+`capex-vs-opex`/`operating-leverage`); and a child can tap through a card having
+read none of it. The product already derives two better ones from behaviour, and
+neither mentions vocabulary.
+
+Measured at the end of a careful run, on every seed:
+
+| | |
+|---|---|
+| `readiness` — the gate on committing money in the market | **4 of 4** |
+| `mastery` — skills detected from sightings in their own history | **10–11 of 12** reachable, held |
+| words | 20, none owed |
+
+The one skill that stays unseen is `judges-on-a-run`, which needs two occasions
+of *not* swinging the price after a bad day — and a careful fixed-price policy
+does not produce the bad days to not swing after. That is a limitation of the
+harness, not of the arc.
+
+### Could it go to fifteen? Measured, then declined
+
+| | days, mean | readiness | skills held |
+|---|---|---|---|
+| as shipped — hands-off 3, shop 3 | **20.0** | 4/4 | 10–11 |
+| hands-off 2 | 18.4 | 4/4 | 10, and one seed loses one |
+| shop days 2 | 19.0 | 4/4 | 10–11 |
+| both 2 | 17.4 | 4/4 | 10, and one seed loses one |
+
+So the two proof streaks are worth about two and a half days between them, and
+cutting the hands-off one costs a skill. Dropping the shop streak to two looks
+free on both behaviour metrics and is **not** taken, for a reason the metrics
+cannot see: two consecutive profitable days can be a warm Tuesday and a warm
+Wednesday, and that rung exists to show the rent covered on a day that was not a
+gift.
+
+Getting to fifteen would mean cutting the listed week, which is the single
+biggest block in the arc — exactly seven days, on one line of routing. It is
+declined, and the reason is not pacing: the stage's stated lesson is that
+*living* a week as a public company is what teaches what a share price is, a week
+is a real unit, and marking it after three days while still calling it a week
+would be a lie on the screen. Twenty days with every behaviour metric intact is
+the better trade than fifteen with a false label.
+
+### What is still not guaranteed
+
+Being precise, because "bulletproof" was the wrong word and the customer was
+right to pick it up.
+
+- **Four bug classes now have gates**: two implementations of a day, an
+  unclassified state-advancing function, a mechanic no screen shows, and a false
+  arithmetic claim in a known shape.
+- **A false claim in an unknown shape still ships.** `badClaims` knows three
+  shapes. A fourth — a percentage that does not divide, a date, a count of
+  people against a count of cups — would pass. The mitigation is that adding a
+  shape is a four-line change and the sweep is already wired to every copy
+  producer.
+- **A number wrong in the world still needs a measurement, and a measurement
+  needs somebody to think of it.** `arclength.test.ts` covers the arc's length
+  and what a child can do at the end of it. It says nothing about whether a
+  nine-year-old enjoys it, and that still takes a child.
+- **No gate replaces opening the screen.** Every one of the three bugs the merge
+  introduced was found by asking what a change made reachable, not by a test.

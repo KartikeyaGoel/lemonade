@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import {
   GUIDE_NAME,
   LEDGER_OPEN_DAYS,
@@ -182,39 +181,6 @@ describe('the thread', () => {
     const seen = ['welcome', 'act2-open'];
     expect(nextBeat(context({ act: 2, act2Day: STALL_DAY - 1 }), seen)).toBeNull();
     expect(nextBeat(context({ act: 2, act2Day: 12, hasManager: true }), seen)).toBeNull();
-  });
-
-  it('has every beat opted into by some screen, or it is wired to nothing', () => {
-    /*
-     * The defect class, closed generally instead of one beat at a time.
-     *
-     * `nextBeat` chooses the one line worth saying; each screen then opts in to
-     * the beats that belong on it, via `guideOn(...)` in `page.tsx`. Those two
-     * lists have to agree, and nothing made them.
-     *
-     * They did not. `act2-rival` was written, tested, chosen by `nextBeat` —
-     * and never listed by any screen, so the most valuable thing Pip can say in
-     * the business stage was said to nobody. `act2-shop` then broke the same
-     * way in the other direction: it was listed on the act-intro screen, which
-     * was right while the shop was a stage of its own and wrong the moment it
-     * became a mid-stage rung.
-     *
-     * Worse than silent, in both cases: `nextBeat` returns *one* line, so a
-     * beat that is chosen and then dropped by the screen also swallows every
-     * beat behind it.
-     *
-     * This reads the opt-in lists straight out of the source, which is ugly and
-     * is the only way to check a wiring that lives in JSX. PRODUCT.md §40.
-     */
-    const page = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
-    const optedIn = new Set<string>();
-    for (const call of page.matchAll(/guideOn\(([^)]*)\)/g)) {
-      for (const id of call[1].matchAll(/'([^']+)'/g)) optedIn.add(id[1]);
-    }
-
-    expect(optedIn.size, 'no guideOn calls found — has the wiring moved?').toBeGreaterThan(3);
-    const orphaned = allBeats().filter((beat) => !optedIn.has(beat));
-    expect(orphaned, `beats no screen ever shows: ${orphaned.join(', ')}`).toEqual([]);
   });
 
   it('names the rival the day he starts costing money, not four days later', () => {

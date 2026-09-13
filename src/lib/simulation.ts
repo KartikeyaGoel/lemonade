@@ -1936,29 +1936,46 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
   // would be: they read a forecast, formed a view, and committed real money
   // to it before knowing the answer. That is structurally the same act as
   // buying a share, so it is worth naming and scoring honestly.
-  if (outcome.day >= 2 && outcome.cupsMakeable > 0) {
-    const soldShare = outcome.cupsSold / outcome.cupsMakeable;
+  /*
+   * Scored on `cupsAvailable`, not on the morning batch.
+   *
+   * Every sentence here used `cupsMakeable`, which is what the morning's
+   * shopping poured — and once a child could send out for more at lunchtime
+   * that stopped being how many cups the day had. The third branch read
+   * **"You made 28 cups and sold 30 of them"**, which is PRODUCT.md §74's
+   * defect again in a module the §74 fix did not touch. Found by
+   * `tests/claims.test.ts`, which sweeps every sentence the game can say about
+   * a day rather than the one module a bug was last seen in.
+   *
+   * `cupsAvailable` is also the right figure on the merits, not just for the
+   * arithmetic. The bet being scored is "how busy did you think today would
+   * be", and a child who under-bought in the morning and topped up at
+   * lunchtime made that bet twice, the second time with better information.
+   * Judging only the first half would call a correct correction a bad call.
+   */
+  if (outcome.day >= 2 && outcome.cupsAvailable > 0) {
+    const soldShare = outcome.cupsSold / outcome.cupsAvailable;
     const forecastCopy = FORECAST_COPY[outcome.forecast].headline.toLowerCase();
 
     if (outcome.turnedAwaySoldOut > 0) {
       found.push({
         id: 'demand-bet',
         term: 'Your call was too cautious',
-        evidence: `The forecast said ${forecastCopy}. You made ${plural(outcome.cupsMakeable, 'cup')} and could have sold ${outcome.cupsSold + outcome.turnedAwaySoldOut}.`,
+        evidence: `The forecast said ${forecastCopy}. You made ${plural(outcome.cupsAvailable, 'cup')} and could have sold ${outcome.cupsSold + outcome.turnedAwaySoldOut}.`,
         carriesForward: 'You had the right read and did not back it hard enough. Being right is only worth something if you acted on it.',
       });
     } else if (soldShare < 0.55) {
       found.push({
         id: 'demand-bet',
         term: 'Your call was too optimistic',
-        evidence: `The forecast said ${forecastCopy}, so you made ${plural(outcome.cupsMakeable, 'cup')}. You sold ${outcome.cupsSold}. The rest was money already spent.`,
+        evidence: `The forecast said ${forecastCopy}, so you made ${plural(outcome.cupsAvailable, 'cup')}. You sold ${outcome.cupsSold}. The rest was money already spent.`,
         carriesForward: 'A good story about the future is not the same as a good result. You committed real money to a guess, and the guess was rich.',
       });
     } else if (soldShare >= 0.8) {
       found.push({
         id: 'demand-bet',
         term: 'You judged the day well',
-        evidence: `You made ${plural(outcome.cupsMakeable, 'cup')} and sold ${outcome.cupsSold} of them.`,
+        evidence: `You made ${plural(outcome.cupsAvailable, 'cup')} and sold ${outcome.cupsSold} of them.`,
         carriesForward: 'You read a hint about the future, put money behind it, and got it about right. Do that repeatedly and it stops being luck.',
       });
     }

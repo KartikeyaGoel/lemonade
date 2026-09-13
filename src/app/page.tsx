@@ -1123,13 +1123,27 @@ export default function Page() {
   const closeDay = useCallback(() => {
     if (!game || !outcome) return;
 
+    /*
+     * What the day did to the *career*, once, before anything branches.
+     *
+     * This was two identical calls — one in the Saturday branch below and one
+     * on the main path — which is the same shape as the bug that
+     * `scripts/check-one-day.mjs` exists to catch, at a smaller scale: one
+     * per-day effect, two call sites, and nothing keeping them in step. The
+     * gate flags any `day`-classified function with more than one home, and
+     * this is why.
+     *
+     * Banked now rather than at the end of a season, because most runs are
+     * abandoned rather than finished and the parent view reads this number.
+     */
+    setCareer((current) => (current ? recordDay(current, outcome.profit) : current));
+    noteDeed('ran-a-day');
+    if (outcome.profit >= ECON.ACT1_PROFIT_TARGET) noteDeed('hit-the-goal');
+
     // Sunday. The float and the day's takings go back into the account, and the
     // kid lands back where the money is for.
     if (game.weekend) {
       setGame(endWeekend(game));
-      setCareer((current) => (current ? recordDay(current, outcome.profit) : current));
-      noteDeed('ran-a-day');
-      if (outcome.profit >= ECON.ACT1_PROFIT_TARGET) noteDeed('hit-the-goal');
       setOutcome(null);
       setPlanned(null);
       setNewInsights([]);
@@ -1137,11 +1151,6 @@ export default function Page() {
       return;
     }
 
-    // Banked now rather than at the end of a season, because most runs are
-    // abandoned rather than finished and the parent view reads this number.
-    setCareer((current) => (current ? recordDay(current, outcome.profit) : current));
-    noteDeed('ran-a-day');
-    if (outcome.profit >= ECON.ACT1_PROFIT_TARGET) noteDeed('hit-the-goal');
     /*
      * Keeping their nerve, judged by the function that already judges it.
      *
