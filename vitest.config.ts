@@ -20,6 +20,24 @@ export default defineConfig({
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     setupFiles: ['tests/ui/setup.ts'],
     /*
+     * Thirty seconds, not vitest's default five.
+     *
+     * The default is a limit on *correct* tests as much as on hung ones, and
+     * this suite has several that are deliberately large — sweeps that play
+     * thousands of days or boot the app a thousand times. The claim sweep took
+     * 2.2 seconds on a laptop, went over five on a CI runner, and failed a
+     * green build for being slow rather than for being wrong. Two other files
+     * were sitting at 2 seconds with no timeout of their own, one runner
+     * hiccup away from the same thing.
+     *
+     * The deliberate sweeps still carry their own, longer, limits — a number
+     * next to the test is documentation about how big that test is meant to
+     * be. This is the floor under everything else, and 30s is far above any
+     * honest test here while still failing a genuine hang inside a suite that
+     * finishes in forty seconds.
+     */
+    testTimeout: 30_000,
+    /*
      * A floor, not a target.
      *
      * Coverage went from 78% to 95% by writing the tests that were missing,
