@@ -27,6 +27,7 @@ import {
   orderForTargetCups,
   runDay,
   type DayOutcome,
+  type DayRecord,
   type GameState,
   type LemonGrade,
 } from '../src/lib/simulation';
@@ -497,5 +498,105 @@ describe('days that must not be compared', () => {
      * price is the one that survives on the arithmetic.
      */
     expect(Math.abs(moved.price)).toBeGreaterThan(WORTH_ASKING_CUPS);
+  });
+});
+
+/**
+ * The batch explanation carries two different quantities, and both have to be
+ * true of the same day.
+ *
+ * `changesSince().batch` is capped by today's demand on purpose — its own
+ * comment explains that a bare difference claims a day was decided by cups
+ * nobody was ever going to buy. So the attributed figure is not the change in
+ * the jug, and the sentence said otherwise: **"You made 28 cups yesterday and
+ * 72 today — 40 more to sell"**, when 72 less 28 is 44.
+ *
+ * The claim sweep found it once widened to tiny and enormous batches, which is
+ * where demand starts binding. It cannot check the relation between the two
+ * halves, because they are two sentences and it reads one at a time — so the
+ * relation lives here, where both numbers are in scope.
+ */
+describe('what the batch sentence claims', () => {
+  /** A day with a named batch against a named yesterday. */
+  function twoDays(made: number, madeYesterday: number, price = 0.75) {
+    const state = createInitialState(1);
+    const yesterday: DayRecord = {
+      day: 1,
+      weather: 'mild',
+      price,
+      cupsSold: madeYesterday,
+      cupsMade: madeYesterday,
+      cupsWanted: madeYesterday,
+      revenue: madeYesterday * price,
+      profit: 0,
+      cashAfter: 20,
+      subscriberCups: 0,
+      marketShare: 1,
+      fixedCost: 5,
+      spoiledLemons: 0,
+      grade: 'regular',
+      ingredientCost: 0,
+      forecast: 'probably-mild',
+      seedBefore: state.seed,
+    };
+    const outcome = runDay(state, { ...orderForTargetCups(state, made), price });
+    return { outcome, yesterday };
+  }
+
+  it('subtracts, on every batch from one cup to a hundred', () => {
+    /*
+     * The property, swept rather than sampled: whatever the two sentences say,
+     * the first three figures in the first one have to be a subtraction that
+     * closes. That is the part a child can check.
+     */
+    for (const made of [1, 2, 8, 24, 28, 44, 60, 72, 96]) {
+      for (const madeYesterday of [1, 12, 28, 44, 72]) {
+        const { outcome, yesterday } = twoDays(made, madeYesterday);
+        const found = diagnose(outcome, [yesterday]);
+        if (!found) continue;
+        const figures = (found.because.match(/\d+/g) ?? []).map(Number);
+        if (!/You made \d+ cups? yesterday and \d+ today/.test(found.because)) continue;
+        const [a, b, diff] = figures;
+        expect(
+          Math.abs(b - a),
+          `"${found.because}" — ${b} less ${a} is not ${diff}`,
+        ).toBe(diff);
+      }
+    }
+  });
+
+  it('never claims more cups found a buyer than the jug changed by', () => {
+    /*
+     * The relation between the two sentences. Of the extra cups poured, only
+     * some found a buyer — never more than all of them, and the second sentence
+     * exists precisely to say when it was fewer.
+     */
+    let sawTheCappedVersion = false;
+    for (const made of [1, 4, 28, 60, 72, 96]) {
+      for (const madeYesterday of [1, 12, 28, 72]) {
+        const { outcome, yesterday } = twoDays(made, madeYesterday);
+        const found = diagnose(outcome, [yesterday]);
+        if (!found || !/of those were cups somebody wanted/.test(found.because)) continue;
+        sawTheCappedVersion = true;
+        const figures = (found.because.match(/\d+/g) ?? []).map(Number);
+        const [, , jugChange, wanted] = figures;
+        expect(wanted, `"${found.because}"`).toBeLessThanOrEqual(jugChange);
+      }
+    }
+    /* And the capped version has to be reachable, or this asserts nothing. */
+    expect(sawTheCappedVersion, 'no day capped the jug, so this test proved nothing').toBe(true);
+  });
+
+  it('says it once when the cap did not bite', () => {
+    /* Two identical figures in two sentences would be the §62 defect: one fact,
+       two homes. The second sentence only appears when it adds something. */
+    const { outcome, yesterday } = twoDays(24, 12);
+    const found = diagnose(outcome, [yesterday]);
+    if (found && /You made \d+ cups? yesterday/.test(found.because)) {
+      const figures = (found.because.match(/\d+/g) ?? []).map(Number);
+      if (Math.abs(figures[1] - figures[0]) === figures[2] && figures.length === 3) {
+        expect(found.because).not.toMatch(/of those were cups somebody wanted/);
+      }
+    }
   });
 });

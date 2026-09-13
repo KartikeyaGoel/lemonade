@@ -58,17 +58,20 @@
  *
  * ## What it still misses, stated
  *
- * Pairwise, not exhaustive: a bug that needs *three* specific choices at once
- * can still get through — 268 pairs are covered out of a cross product of
- * 7,776 whole states. And thirty taps is shallow; going deep from a few starts
- * is what the soak is for. Between the two, the soak goes deep from few states
- * and this goes shallow from many.
+ * Four-way, not exhaustive. A defect needing **five** particular choices at
+ * once gets through, and the honest note is that the fifth-order case is a
+ * measured 21 seconds away rather than an unreachable one — see the table above
+ * `WAYS`. Thirty taps is also shallow; going deep from a few starts is what the
+ * soak is for. Between the two, the soak goes deep from eight states and this
+ * goes shallow from 197.
  *
- * It also cannot see a state the dimensions do not describe. Nine were chosen
+ * It cannot see a state the dimensions do not describe. Nine were chosen
  * because each is a decision a child makes and each changes what a screen
  * renders; a tenth that nobody thinks of is still a tenth that nobody thinks
- * of. That is a smaller hole than "a fixture needs somebody to think of the
- * state", and it is not no hole.
+ * of. **That is the residue, and it is a different kind of gap from the one
+ * this file closed:** "somebody has to think of the state" became "somebody has
+ * to think of the *dimension*", and there are nine of those rather than
+ * thousands of states.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, cleanup, act as reactAct } from '@testing-library/react';
@@ -306,54 +309,134 @@ function rng(seed: number) {
 }
 
 /**
- * Every pair of (dimension, value) with (other dimension, value), minus the
- * ones the game cannot produce.
+ * How many choices have to line up before this stops looking.
+ *
+ * **Four**, and the number was measured rather than argued. §78's residue after
+ * the pairwise version was "a defect needing three specific choices at once
+ * still gets through", so the obvious move was three — and once the array was
+ * general in `WAYS` the whole curve was one line to measure:
+ *
+ * | | combinations covered | saves booted | wall time |
+ * |---|---|---|---|
+ * | 2-way | 268 | 21 | 0.3s |
+ * | 3-way | 1,628 | 66 | 2.7s |
+ * | **4-way** | **6,199** | **197** | **8.2s** |
+ * | 5-way | 15,367 | 527 | 21.5s |
+ *
+ * Four is where the cost stops being free and is still inside the noise of the
+ * soak next door, which takes thirteen seconds. Five nearly doubles the whole
+ * vitest run for combinations that essentially no reported defect needs — the
+ * literature on combinatorial testing puts the overwhelming majority of
+ * interaction faults at two or three parameters, and this is already past that.
+ *
+ * The exhaustive answer is 7,776 whole states and about five minutes, which is
+ * the right thing to run by hand when something smells and the wrong thing to
+ * put in front of every commit.
+ *
+ * It is one constant. Moving it is an experiment, not a rewrite.
+ */
+const WAYS = 4;
+
+/** Every way of choosing `WAYS` distinct dimensions. */
+function dimensionSets(k: number, from = 0): Array<Array<keyof typeof DIMENSIONS>> {
+  if (k === 0) return [[]];
+  const out: Array<Array<keyof typeof DIMENSIONS>> = [];
+  for (let i = from; i <= NAMES.length - k; i += 1) {
+    for (const rest of dimensionSets(k - 1, i + 1)) out.push([NAMES[i], ...rest]);
+  }
+  return out;
+}
+
+const DIMENSION_SETS = dimensionSets(WAYS);
+
+/** The cross product of one set of dimensions' values, as combination keys. */
+function keysFor(dims: Array<keyof typeof DIMENSIONS>): Array<{ key: string; pick: Partial<Choice> }> {
+  let rows: Array<Partial<Choice>> = [{}];
+  for (const dim of dims) {
+    const next: Array<Partial<Choice>> = [];
+    for (const row of rows) {
+      for (const value of valuesOf(dim)) next.push({ ...row, [dim]: value } as Partial<Choice>);
+    }
+    rows = next;
+  }
+  return rows.map((pick) => ({
+    key: dims.map((dim) => `${dim}=${String(pick[dim])}`).join(' & '),
+    pick,
+  }));
+}
+
+/**
+ * Every combination of `WAYS` choices, minus the ones the game cannot produce.
  *
  * The excluded count is reported rather than swallowed: a constraint list that
  * grows silently is how a covering array stops covering anything.
+ *
+ * A combination counts as unreachable only when **every** way of filling in the
+ * remaining dimensions is forbidden, checked against the real rules rather than
+ * assumed — so a rule about one dimension cannot quietly delete combinations
+ * that have nothing to do with it.
  */
-function allPairs(): { wanted: Set<string>; excluded: string[] } {
+function allCombinations(): { wanted: Set<string>; excluded: string[] } {
   const wanted = new Set<string>();
   const excluded: string[] = [];
-  for (let i = 0; i < NAMES.length; i += 1) {
-    for (let j = i + 1; j < NAMES.length; j += 1) {
-      for (const a of valuesOf(NAMES[i])) {
-        for (const b of valuesOf(NAMES[j])) {
-          const pair = `${NAMES[i]}=${String(a)} & ${NAMES[j]}=${String(b)}`;
-          /* A pair is only unreachable if *every* way of filling in the other
-             dimensions is forbidden. Sampled exhaustively over the two rules
-             that exist, which both name a single other dimension. */
-          const impossible = NAMES.every((other) => {
-            if (other === NAMES[i] || other === NAMES[j]) return true;
-            return valuesOf(other).every((value) => {
-              const probe = Object.fromEntries(
-                NAMES.map((name) => [
-                  name,
-                  name === NAMES[i] ? a : name === NAMES[j] ? b : name === other ? value : valuesOf(name)[0],
-                ]),
-              ) as unknown as Choice;
-              return Boolean(forbidden(probe));
-            });
-          });
-          if (impossible) excluded.push(pair);
-          else wanted.add(pair);
+  const others = (dims: Array<keyof typeof DIMENSIONS>) => NAMES.filter((n) => !dims.includes(n));
+
+  for (const dims of DIMENSION_SETS) {
+    const free = others(dims);
+    for (const { key, pick } of keysFor(dims)) {
+      /* Walk the free dimensions one at a time rather than their whole cross
+         product: every rule names a single dimension, so if some value of some
+         free dimension makes the combination legal, it is legal. */
+      let reachable = false;
+      const base = Object.fromEntries(
+        NAMES.map((name) => [name, pick[name] ?? valuesOf(name)[0]]),
+      ) as unknown as Choice;
+      if (!forbidden(base)) reachable = true;
+      for (const other of free) {
+        if (reachable) break;
+        for (const value of valuesOf(other)) {
+          if (!forbidden({ ...base, [other]: value } as Choice)) {
+            reachable = true;
+            break;
+          }
         }
       }
+      if (reachable) wanted.add(key);
+      else excluded.push(key);
     }
   }
   return { wanted, excluded };
 }
 
-function pairsOf(choice: Choice): string[] {
-  const out: string[] = [];
-  for (let i = 0; i < NAMES.length; i += 1) {
-    for (let j = i + 1; j < NAMES.length; j += 1) {
-      out.push(
-        `${NAMES[i]}=${String(choice[NAMES[i]])} & ${NAMES[j]}=${String(choice[NAMES[j]])}`,
-      );
+/** The combinations one case covers. */
+function combinationsOf(choice: Choice): string[] {
+  return DIMENSION_SETS.map((dims) =>
+    dims.map((dim) => `${dim}=${String(choice[dim])}`).join(' & '),
+  );
+}
+
+/**
+ * A legal whole case containing the given choices, or null if there is none.
+ *
+ * Tries each free dimension's values in turn rather than their cross product,
+ * which is sufficient because every rule in `UNREACHABLE` names one dimension.
+ * If a rule ever spans two, this needs to become a real search and the comment
+ * above `allCombinations` needs the same treatment.
+ */
+function fillOut(pinned: Partial<Choice>): Choice | null {
+  let candidate = Object.fromEntries(
+    NAMES.map((name) => [name, pinned[name] ?? valuesOf(name)[0]]),
+  ) as unknown as Choice;
+  if (!forbidden(candidate)) return candidate;
+  for (const name of NAMES) {
+    if (pinned[name] !== undefined) continue;
+    for (const value of valuesOf(name)) {
+      const next = { ...candidate, [name]: value } as Choice;
+      if (!forbidden(next)) return next;
+      candidate = next;
     }
   }
-  return out;
+  return forbidden(candidate) ? null : candidate;
 }
 
 /**
@@ -364,9 +447,9 @@ function pairsOf(choice: Choice): string[] {
  * thirty-odd cases against a theoretical minimum in the twenties is not worth
  * an algorithm nobody in this repo will read again.
  */
-function coveringArray(seed: number): { cases: Choice[]; pairs: number; excluded: string[] } {
+function coveringArray(seed: number): { cases: Choice[]; wanted: number; excluded: string[] } {
   const r = rng(seed);
-  const { wanted, excluded } = allPairs();
+  const { wanted, excluded } = allCombinations();
   const remaining = new Set(wanted);
   const cases: Choice[] = [];
 
@@ -386,27 +469,51 @@ function coveringArray(seed: number): { cases: Choice[]; pairs: number; excluded
     ) as unknown as Choice;
   };
 
-  while (remaining.size > 0 && cases.length < 300) {
+  while (remaining.size > 0 && cases.length < 600) {
     let best: Choice | null = null;
     let bestNew = -1;
     for (let tries = 0; tries < 120; tries += 1) {
       const next = candidate();
-      const gained = pairsOf(next).filter((pair) => remaining.has(pair)).length;
+      const gained = combinationsOf(next).filter((key) => remaining.has(key)).length;
       if (gained > bestNew) {
         bestNew = gained;
         best = next;
       }
     }
     if (!best || bestNew <= 0) break;
-    for (const pair of pairsOf(best)) remaining.delete(pair);
+    for (const key of combinationsOf(best)) remaining.delete(key);
     cases.push(best);
   }
 
+  /*
+   * Then finish by construction, rather than hoping.
+   *
+   * Greedy random search gets the last few per cent slowly and the very last
+   * one sometimes not at all: at four-way it left exactly one of 6,199
+   * uncovered, because the generator never happened to roll it. So anything
+   * still missing is built *from* the combination — pin those values, fill the
+   * rest with a legal assignment — which makes the array exact at any `WAYS`
+   * instead of almost exact at the one that was tried.
+   */
+  for (const key of [...remaining]) {
+    if (!remaining.has(key)) continue;
+    const pinned = Object.fromEntries(
+      key.split(' & ').map((part) => {
+        const [dim, value] = part.split('=');
+        return [dim, value];
+      }),
+    );
+    const built = fillOut(pinned as Partial<Choice>);
+    if (!built) continue;
+    for (const covered of combinationsOf(built)) remaining.delete(covered);
+    cases.push(built);
+  }
+
   expect(
-    [...remaining],
-    `${remaining.size} of ${wanted.size} reachable pairs never got covered`,
+    [...remaining].slice(0, 5),
+    `${remaining.size} of ${wanted.size} reachable ${WAYS}-way combinations never got covered`,
   ).toEqual([]);
-  return { cases, pairs: wanted.size, excluded };
+  return { cases, wanted: wanted.size, excluded };
 }
 
 /* ------------------------------------------------------------------ *
@@ -469,7 +576,7 @@ function enabled(): HTMLButtonElement[] {
   ) as HTMLButtonElement[];
 }
 
-describe('the app, booted on every pair of things a child can have done', () => {
+describe('the app, booted on every combination of things a child can have done', () => {
   let warnings: string[] = [];
   let spyError: ReturnType<typeof vi.spyOn>;
   let spyWarn: ReturnType<typeof vi.spyOn>;
@@ -502,7 +609,7 @@ describe('the app, booted on every pair of things a child can have done', () => 
     );
 
   it('never shows an impossible figure, a dead end, or a React complaint', async () => {
-    const { cases, pairs, excluded } = coveringArray(20_260_913);
+    const { cases, wanted, excluded } = coveringArray(20_260_913);
     const problems: string[] = [];
     let boots = 0;
 
@@ -558,9 +665,9 @@ describe('the app, booted on every pair of things a child can have done', () => 
     }
 
     console.log(
-      `COMBOS booted ${boots} saves covering every one of ${pairs} reachable pairs ` +
-        `from ${NAMES.length} dimensions (${excluded.length} pairs the game cannot produce; ` +
-        `full cross product: ${NAMES.reduce((n, name) => n * valuesOf(name).length, 1)})`,
+      `COMBOS booted ${boots} saves covering every one of ${wanted} reachable ${WAYS}-way ` +
+        `combinations from ${NAMES.length} dimensions (${excluded.length} the game cannot ` +
+        `produce; full cross product: ${NAMES.reduce((n, name) => n * valuesOf(name).length, 1)})`,
     );
     expect(problems.slice(0, 5), 'booting a legal save broke something').toEqual([]);
     expect(boots).toBeGreaterThanOrEqual(20);

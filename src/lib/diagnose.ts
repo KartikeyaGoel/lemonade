@@ -283,6 +283,35 @@ export function diagnose(outcome: DayOutcome, history: readonly DayRecord[]): Di
     : ['price', 'batch', 'quality', 'weather'];
   const answers: Answer[] = offered.map((id) => ({ cause: id, label: wording[id] }));
 
+  /*
+   * The batch sentence has to carry two different quantities, and printing one
+   * of them as if it were the other is a subtraction a child can do.
+   *
+   * `moved.batch` is deliberately **capped by today's demand** — the comment on
+   * it explains why at length: a jug cut from 44 to 24 on a day sixteen people
+   * wanted a cup changed nothing, and a bare difference claimed it changed
+   * twenty. So the attributed figure is the cups the change actually cost or
+   * won, which is not the change in the jug.
+   *
+   * The sentence named both batch sizes and then that capped figure: **"You
+   * made 28 cups yesterday and 72 today — 40 more to sell"**, when 72 less 28
+   * is 44. Found by the claim sweep once it was widened to tiny and enormous
+   * batches, which is where demand starts binding.
+   *
+   * Both facts are worth having and neither replaces the other, so both are
+   * said: the jug changed by 44, and 40 of those were cups somebody wanted.
+   * The second half only appears when the cap actually bit, because otherwise
+   * it is the same number twice.
+   */
+  const madeYesterday = yesterday.cupsMade ?? yesterday.cupsSold;
+  const jugChange = outcome.cupsAvailable - madeYesterday;
+  const jugWord = jugChange > 0 ? 'more' : 'fewer';
+  const soldChange = Math.round(Math.abs(moved.batch));
+  const batchLine =
+    Math.abs(jugChange) === soldChange
+      ? `You made ${plural(madeYesterday, 'cup')} yesterday and ${outcome.cupsAvailable} today — ${Math.abs(jugChange)} ${jugWord} to sell.`
+      : `You made ${plural(madeYesterday, 'cup')} yesterday and ${outcome.cupsAvailable} today — ${Math.abs(jugChange)} ${jugWord} to sell. ${soldChange} of those were cups somebody wanted.`;
+
   const because: Record<Cause, string> = {
     price: `${money(yesterday.price)} yesterday, ${money(outcome.price)} today. That alone ${
       up ? 'brought' : 'cost you'
@@ -301,7 +330,7 @@ export function diagnose(outcome: DayOutcome, history: readonly DayRecord[]): Di
      * defect had already been fixed twice by hand in other modules. Fixing
      * instances is what let it reach three.
      */
-    batch: `You made ${plural(yesterday.cupsMade ?? yesterday.cupsSold, 'cup')} yesterday and ${outcome.cupsAvailable} today — ${cups} ${up ? 'more' : 'fewer'} to sell.`,
+    batch: batchLine,
     quality: `The lemons ${up ? 'brought' : 'cost you'} about ${plural(cups, 'customer')} against yesterday's. Yesterday's kind still counts today — that is word of mouth.`,
     weather: `${WEATHER_COPY[yesterday.weather]} yesterday. ${WEATHER_COPY[outcome.weather]} today. About ${plural(cups, 'person', 'people')} ${up ? 'more' : 'fewer'} wanted a cup, and you chose none of it.`,
     /*

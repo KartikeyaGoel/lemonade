@@ -25,6 +25,30 @@
  * So this file holds the claim shapes, and sweeps **every copy producer** over
  * a fuzz of days rather than the one module a bug was last found in.
  *
+ * ## And why one figure counts
+ *
+ * §78's residue after the first allowlist was *"a false claim in a sentence with
+ * one figure in it. 'You sold most of them' is unfalsifiable by arithmetic and
+ * always will be."* True of arithmetic, and not of everything: a single figure
+ * still has to **agree with its noun**. "1 people kept walking", "You sold 2
+ * cup", "1 days to go" are all false, all checkable from the text alone, and all
+ * outside the first version of this file.
+ *
+ * So the threshold is one figure, not two. That turned out to be twenty extra
+ * shapes against thirty existing ones — the *larger* half of the game's
+ * figure-carrying copy had been outside the allowlist entirely — and widening
+ * the fuzz to reach them (six prices, four batch sizes) found four more shapes
+ * still, two of which assert arithmetic nothing had checked. One of those was a
+ * live defect: see `diagnose.ts`'s batch line, which named two batch sizes and
+ * then a third figure that was not their difference.
+ *
+ * The agreement check also cost a false-alarm lesson worth keeping. Its first
+ * version flagged seventy-one sentences, every one of them correct English —
+ * "on a 10 cup day" is attributive and takes the singular. A check that fires
+ * seventy-one times on good copy is a check somebody switches off, so it now
+ * recognises the determiner in front of the number rather than guessing from
+ * the noun behind it.
+ *
  * ## And why the shapes are an allowlist
  *
  * The first version of this file knew three bad shapes and passed everything
@@ -133,6 +157,41 @@ export function badClaims(text: string): string[] {
   }
 
   /*
+   * Number and noun agreeing, on every sentence whatever its shape.
+   *
+   * The one thing a single figure *can* be checked against: "1 people", "2
+   * cup", "1 days". The codebase has `plural()` precisely for this and
+   * `tests/plural.test.ts` checks the helper; this checks the sentences that
+   * come out, which is where a hand-written `${n} cups` slips through.
+   *
+   * Attributive uses are correct English and are skipped — "a 10 cup day", "a 3
+   * day streak" take the singular. The first version of this check flagged
+   * seventy-one of them and would have been switched off inside a day.
+   */
+  for (const m of text.matchAll(
+    new RegExp(`(?<![$\\d.])\\b(\\d+)\\s+${COUNTABLE}\\b`, 'gi'),
+  )) {
+    const noun = m[2].toLowerCase();
+    const plural = noun.endsWith('s') || noun === 'people';
+    /*
+     * Attributive uses take the singular and are correct: "a 10 cup day", "a 3
+     * day streak". They are recognised by the determiner in front of the
+     * number rather than by the noun behind it, because the noun behind it can
+     * be anything — the first version looked for another countable noun and so
+     * passed "a 10 cup day" and flagged "a 3 day streak".
+     *
+     * Costs one case: `the 1 cups` is a determiner with a plural noun, and a
+     * genuine disagreement, and is skipped. Worth it — the alternative is
+     * seventy-one false alarms, which is a check nobody keeps.
+     */
+    const before = text.slice(0, m.index ?? 0);
+    if (!plural && /\b(a|an|the|this|that|every|per)\s+$/i.test(before)) continue;
+    if ((Number(m[1]) === 1) === plural) {
+      bad.push(`${m[0]} — ${Number(m[1]) === 1 ? 'one of those is singular' : 'more than one is plural'}`);
+    }
+  }
+
+  /*
    * And then every shape in the allowlist that carries a `checks`.
    *
    * The three regexes above stay as they are, because each of them is a
@@ -156,6 +215,10 @@ export function badClaims(text: string): string[] {
 
 /** Every figure a sentence can carry, in the forms the copy writes them. */
 const FIGURE = /\$-?\d+(?:\.\d+)?|-?\d+(?:\.\d+)?%|-?\d+(?:\.\d+)?/g;
+
+/** The nouns the game counts, for the number-agreement check. */
+const COUNTABLE =
+  '(cup|cups|day|days|days|person|people|week|weeks|customer|customers|lemon|lemons|stand|stands|share|shares|time|times|jar|jars|pack|packs)';
 
 /**
  * A sentence with its figures taken out, so one entry can stand for thousands.
@@ -181,11 +244,21 @@ function figuresIn(sentence: string): number[] {
   return (sentence.match(FIGURE) ?? []).map((raw) => Number(raw.replace(/[$%]/g, '')));
 }
 
-/** Sentences, split on terminators, that carry enough figures to make a claim. */
+/**
+ * Sentences, split on terminators, that carry a figure at all.
+ *
+ * **One, not two.** §78 called the one-figure sentence unfalsifiable — *"'You
+ * sold most of them' is unfalsifiable by arithmetic and always will be"* — and
+ * that is true of arithmetic and not of everything. A single figure still
+ * agrees or disagrees with its noun, and it still has to be a sentence somebody
+ * looked at. There turned out to be twenty such shapes across every producer in
+ * the game, against thirty with two or more, so the cost of classifying them
+ * was an afternoon and the benefit is that a *new* one cannot arrive unread.
+ */
 function claimingSentences(text: string): string[] {
   return text
     .split(/(?<=[.!?])\s+/)
-    .filter((sentence) => (sentence.match(FIGURE) ?? []).length >= 2);
+    .filter((sentence) => (sentence.match(FIGURE) ?? []).length >= 1);
 }
 
 /**
@@ -281,10 +354,20 @@ const KNOWN_SHAPES: Shape[] = [
   },
   {
     shape: 'You sent out for # more cups at lunchtime, which cost $# — about $# a cups, against $# a cups in the morning.',
-    checks: ([cups, cost, each, morning]) => {
-      if (!divides(cost, cups, each)) return `$${cost} for ${cups} cups is $${(cost / cups).toFixed(2)} a cup`;
-      return each > morning ? null : 'sending out at lunchtime is meant to cost more than the morning did';
-    },
+    /*
+     * Only the division, and the second half of this check was removed for a
+     * reason worth keeping.
+     *
+     * It also asserted `each > morning` — "sending out at lunchtime is meant to
+     * cost more than the morning did" — which is the lesson the line exists for
+     * and is **not always true**. On a one-cup batch a whole lemon gets cut for
+     * one cup, so the morning cup costs $0.57 against the top-up's $0.45, and
+     * the sentence correctly says so. The copy was right and my assertion was
+     * wrong; widening the fuzz to tiny batches is what surfaced it, and I came
+     * within one commit of "fixing" working copy to satisfy a false premise.
+     */
+    checks: ([cups, cost, each]) =>
+      divides(cost, cups, each) ? null : `$${cost} for ${cups} cups is $${(cost / cups).toFixed(2)} a cup`,
   },
   {
     shape: 'You made # cups yesterday and # today — # more to sell.',
@@ -315,6 +398,76 @@ const KNOWN_SHAPES: Shape[] = [
   },
 
   /* ---- two true figures, side by side, asserting nothing between them ---- */
+  /* ---- two figures, newly reachable once the fuzz widened ---- */
+  {
+    shape: 'You bought # lemons at once, so each one was $# instead of $#.',
+    /* The whole point of a bulk tier is that the bulk price is the lower one.
+       Never checked, and it is the sentence teaching what a discount is. */
+    checks: ([, bulk, list]) =>
+      bulk < list ? null : `$${bulk} is not less than $${list}, so that is not a discount`,
+  },
+  {
+    shape: 'You made # cups yesterday and # today — # fewer to sell.',
+    checks: ([yesterday, today, fewer]) =>
+      closes(yesterday - today, fewer) ? null : `${yesterday} less ${today} is ${yesterday - today}`,
+  },
+  {
+    shape: '# of those were cups somebody wanted.',
+    /*
+     * The second half of the batch explanation, on the days demand capped the
+     * jug. It is its own sentence and the splitter treats it as one, so the
+     * relation it asserts — that this figure cannot exceed the change in the
+     * jug named just before it — is not visible from here. Asserted in
+     * `tests/diagnose.test.ts`, where both numbers are in scope.
+     */
+    why: 'how many of the extra cups found a buyer; the sentence it qualifies is the one before it',
+  },
+
+  /* ---- one figure, which can still disagree with its noun ---- *
+   *
+   * §78 called these unfalsifiable, and they are unfalsifiable by *arithmetic*.
+   * They are classified anyway, for the reason the whole allowlist exists: a
+   * shape nobody has read is the risk, not a shape nobody can check. Every one
+   * of them is also swept by the number-agreement check in `badClaims`, which
+   * is the one thing a single figure does assert.
+   */
+  { shape: '# cups left, and the afternoon crowd is still coming.', why: 'a count of the cups still in the jug, with nothing to check it against' },
+  { shape: '# more good days run by your manager.', why: 'days still owed on a proof streak, read straight off the counter' },
+  { shape: '# more good days with the rent paid.', why: 'the same, counted against the shop rent rather than the manager' },
+  { shape: '# more to go.', why: 'how much of the day\'s money target is still to make' },
+  { shape: '# paid it.', why: 'a headcount of the people who bought one' },
+  { shape: '# people kept walking today.', why: 'a headcount of the people who did not buy one' },
+  {
+    shape: 'About # people fewer wanted a cups, and you chose none of it.',
+    why: 'the weather\'s share of a change in demand, which nothing else in the sentence bounds',
+  },
+  { shape: 'About # people more wanted a cups, and you chose none of it.', why: 'as above' },
+  { shape: 'Drop to $#', why: 'a button, carrying the price tapping it would set' },
+  { shape: 'Keep $#', why: 'the same button, in the other direction' },
+  { shape: 'Raise to $#', why: 'as above' },
+  { shape: 'It turned out cool — and # cups already gone.', why: 'the weather it turned out to be, and how much of the jug had gone' },
+  { shape: 'It turned out hot — and # cups already gone.', why: 'as above' },
+  { shape: 'It turned out mild — and # cups already gone.', why: 'as above' },
+  { shape: 'Make $# again.', why: 'yesterday\'s takings, offered again as today\'s target' },
+  { shape: 'Make $# in one days.', why: 'a target and a period, neither derived from the other' },
+  {
+    shape: 'Making them cost $#.',
+    why: 'the ingredient cost, checked against the receipt in tests/pnl.test.ts rather than here',
+  },
+  { shape: 'Nobody bought a cups at $#.', why: 'the price that was on the sign on a day nothing sold' },
+  { shape: 'So each cups cost about $# to make.', why: 'the unit cost; the division it came from is in tests/pnl.test.ts' },
+  { shape: 'That alone brought about # customers.', why: 'one cause\'s share of a change in demand' },
+  { shape: 'That alone cost you about # customers.', why: 'as above' },
+  { shape: 'The fit-out is $#.', why: 'the fit-out price, a constant in `retail.ts` rather than a computation' },
+  { shape: 'The forecast said probably cool, so you made # cups.', why: 'the forecast, and the batch that followed it' },
+  { shape: 'The forecast said probably hot, so you made # cups.', why: 'as above' },
+  { shape: 'The forecast said probably mild, so you made # cups.', why: 'as above' },
+  { shape: 'The shop owes $# before it opens.', why: 'the rent and wages a shop owes before a single cup is poured' },
+  { shape: 'The stand still cost you $#.', why: 'the pitch fee, which is owed whether anything sold or not' },
+  { shape: 'You also moved the sign to $#.', why: 'the price the sign was moved to at lunchtime' },
+  { shape: 'You sold #.', why: 'a count of the cups that sold, with nothing to divide it by' },
+  { shape: 'Your goal starts on days #.', why: 'the day the target begins, which is ACT1_EXPLORE_DAYS + 1' },
+
   {
     shape: 'Practice # of #: pick any price and watch.',
     checks: ([day, of]) => (day <= of ? null : `practice day ${day} of ${of}`),
@@ -335,19 +488,19 @@ const KNOWN_SHAPES: Shape[] = [
     shape: 'You asked $#, then $#, and # paid one or the other.',
     why: 'two prices and a headcount, with nothing claimed between them',
   },
-  { shape: '$# yesterday, $# today.', why: 'two figures from two days' },
-  { shape: '# people read $# and kept walking.', why: 'a headcount and the price they read' },
-  { shape: '# people looked at $# and kept walking.', why: 'as above' },
+  { shape: '$# yesterday, $# today.', why: 'yesterday\'s figure and today\'s, with nothing claimed between them' },
+  { shape: '# people read $# and kept walking.', why: 'a headcount and the price they read, which are not a ratio' },
+  { shape: '# people looked at $# and kept walking.', why: 'the same, on a day with one price rather than two' },
   {
     shape: 'You changed the sign at lunchtime: $# in the morning, $# after.',
     why: 'the two prices, which is the whole content',
   },
-  { shape: 'Buy # more cups — $#', why: 'a button: a count and what it costs' },
+  { shape: 'Buy # more cups — $#', why: 'a button: how many cups, and what sending for them costs' },
   {
     shape: '# more people wanted a cups, which is about $# of profit you could not collect.',
     why: 'the margin that connects them is not in the sentence',
   },
-  { shape: '# people wanted one and you had #.', why: 'demand against supply, and either may be larger' },
+  { shape: '# people wanted one and you had #.', why: 'demand against supply, and either one may be the larger' },
   {
     shape: 'Today you put $# into the stand and got $# back.',
     why: 'money out and money in; the difference is said in the next sentence and checked there',
@@ -368,6 +521,12 @@ const KNOWN_SHAPES: Shape[] = [
 
 const BY_SHAPE = new Map(KNOWN_SHAPES.map((entry) => [entry.shape, entry]));
 
+/** Batch sizes, cycled through the fuzz: sold out, nearly empty, plenty. */
+const TARGETS = [1, 4, 28, 60];
+
+/** Which shapes the sweep actually produced, so dead entries can be found. */
+const produced = new Set<string>();
+
 /**
  * Sentences carrying figures in a shape nobody has classified.
  *
@@ -378,6 +537,7 @@ export function unclassifiedClaims(text: string): string[] {
   const out: string[] = [];
   for (const sentence of claimingSentences(text)) {
     const shape = shapeOf(sentence);
+    produced.add(shape);
     if (!BY_SHAPE.has(shape)) out.push(`${shape}\n    (from: "${sentence}")`);
   }
   return out;
@@ -448,6 +608,38 @@ describe('the claim shapes catch the claims that shipped', () => {
     expect(badClaims('You made 28 cups and sold 40')).toHaveLength(1);
   });
 
+  it('catches a number that disagrees with its noun', () => {
+    /*
+     * The one thing a *single* figure asserts, and the answer to §78's "a
+     * false claim in a one-figure sentence ships". Not arithmetic — grammar.
+     */
+    expect(badClaims('1 people kept walking today.')).toHaveLength(1);
+    expect(badClaims('You sold 2 cup.')).toHaveLength(1);
+    expect(badClaims('1 days to go.')).toHaveLength(1);
+
+    expect(badClaims('1 person kept walking today.')).toEqual([]);
+    expect(badClaims('You sold 2 cups.')).toEqual([]);
+    expect(badClaims('7 days to go.')).toEqual([]);
+
+    /*
+     * And not on attributive uses, which take the singular in correct English.
+     * The first version of this check flagged seventy-one of them across the
+     * sweep and would have been switched off inside a day.
+     */
+    expect(badClaims('On a 10 cup day it would be $0.50 a cup.')).toEqual([]);
+    expect(badClaims('A 3 day streak.')).toEqual([]);
+  });
+
+  it('fails on a bulk discount that is not one', () => {
+    /* Reachable only once the fuzz played tiny and enormous batches. */
+    expect(
+      badClaims('You bought 24 lemons at once, so each one was $0.60 instead of $0.50.'),
+    ).toHaveLength(1);
+    expect(
+      badClaims('You bought 24 lemons at once, so each one was $0.40 instead of $0.50.'),
+    ).toEqual([]);
+  });
+
   it('fails on the three the allowlist found, which had never been checked', () => {
     /*
      * Each of these is a sentence the game produces, in a shape nothing looked
@@ -489,10 +681,19 @@ describe('no sentence about a day claims arithmetic that does not close', () => 
       let state = createInitialState(seed);
       for (let d = 1; d <= ECON.TOTAL_DAYS; d += 1) {
         const before = state.history;
-        for (const price of [0.75, 1.5, 2.5]) {
+        /*
+         * Six prices and four batch sizes, not three and one.
+         *
+         * Widened when the allowlist came down to one figure, and the widening
+         * is what found four more shapes — including two that *do* assert
+         * arithmetic: the bulk-discount sentence and the "fewer to sell"
+         * variant. A sweep that only ever plays a sensible day only ever reads
+         * the sentences a sensible day produces.
+         */
+        for (const price of [0.5, 0.75, 1, 1.5, 2.5, 3]) {
           for (const afternoon of [undefined, 1, 2.75]) {
             for (const topUp of [0, ECON.TOPUP_CUPS]) {
-              const order = orderForTargetCups(state, 28);
+              const order = orderForTargetCups(state, TARGETS[d % TARGETS.length]);
               const outcome = runDay(state, {
                 ...order,
                 price,
@@ -649,5 +850,80 @@ describe('no sentence reads a figure that has been superseded', () => {
       expect(why.length, `${field} has no reason written`).toBeGreaterThan(40);
       expect(use, `${field} has no replacement named`).toBeTruthy();
     }
+  });
+});
+
+describe('the allowlist itself stays honest', () => {
+  it('has no entry the game never says', () => {
+    /*
+     * §40's class applied to the registry. A shape that stopped being produced
+     * is a line nobody will ever read again, and a long list of them is how a
+     * reviewer stops reading the list at all — at which point an unclassified
+     * shape gets waved through by somebody pattern-matching on "it is in there
+     * somewhere".
+     *
+     * Depends on the sweep above having run, which vitest guarantees by file
+     * order within a suite. The count is asserted so an empty `produced` — a
+     * sweep that silently stopped sweeping — fails here too.
+     */
+    expect(produced.size, 'the sweep produced nothing, so this proves nothing').toBeGreaterThan(30);
+    const dead = KNOWN_SHAPES.map((entry) => entry.shape).filter((shape) => !produced.has(shape));
+    expect(dead, 'classified but never produced by the sweep').toEqual([]);
+  });
+
+  it('gives every unchecked shape a written reason', () => {
+    /*
+     * A shape with neither arithmetic nor an explanation is a shape somebody
+     * silenced rather than classified.
+     *
+     * "as above" and "the same" are allowed and are not a loophole: several
+     * shapes are the hot/mild/cool or more/fewer variant of the line before
+     * them, and repeating the reason three times would make the list longer
+     * and less readable, which is the thing this check is protecting.
+     */
+    const defers = /^(as above|the same)\b/i;
+    for (const entry of KNOWN_SHAPES) {
+      if (entry.checks) continue;
+      const why = entry.why ?? '';
+      expect(why, `${entry.shape} has no reason written`).toBeTruthy();
+      if (defers.test(why)) continue;
+      expect(why.length, `${entry.shape}'s reason is too short to be one: "${why}"`).toBeGreaterThan(15);
+    }
+  });
+
+  it('never defers to nothing', () => {
+    /* "as above" has to have an above. The first entry cannot defer, and a
+       deferral has to follow an entry that actually explains itself. */
+    const defers = /^(as above|the same)\b/i;
+    KNOWN_SHAPES.forEach((entry, index) => {
+      if (!entry.why || !defers.test(entry.why)) return;
+      expect(index, `${entry.shape} defers to an entry before the first one`).toBeGreaterThan(0);
+      /*
+       * Walk back through a *chain* of deferrals — the three weather variants
+       * defer to each other in a row — and require that the chain ends at an
+       * entry which explains itself.
+       */
+      let at = index - 1;
+      while (at >= 0 && !KNOWN_SHAPES[at].checks && defers.test(KNOWN_SHAPES[at].why ?? '')) at -= 1;
+      const anchor = KNOWN_SHAPES[at];
+      expect(
+        at >= 0 && (Boolean(anchor.checks) || (anchor.why ?? '').length > 15),
+        `${entry.shape} defers up a chain that never explains anything`,
+      ).toBe(true);
+    });
+  });
+
+  it('classifies more one-figure shapes than two-figure ones, which is why they were worth doing', () => {
+    /*
+     * A note in the shape of an assertion. §78 dismissed the one-figure
+     * sentence as unfalsifiable, and the count is the argument against having
+     * skipped them: there are more of them than of everything else, so the
+     * larger half of the game's copy was outside the allowlist entirely.
+     */
+    const figures = (shape: string) => (shape.match(/\$?#%?/g) ?? []).length;
+    const one = KNOWN_SHAPES.filter((entry) => figures(entry.shape) === 1).length;
+    const more = KNOWN_SHAPES.filter((entry) => figures(entry.shape) >= 2).length;
+    expect(one, `${one} one-figure shapes, ${more} with two or more`).toBeGreaterThan(0);
+    expect(one + more).toBe(KNOWN_SHAPES.length);
   });
 });
