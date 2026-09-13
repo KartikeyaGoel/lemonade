@@ -425,22 +425,47 @@ describe('where the flotation stage sends a child', () => {
     expect(nextInFlotation(listed)).toBe('plan');
   });
 
-  it('is the same decision the day loop makes', () => {
+  it('is the same decision the day loop makes, on every day of the week', () => {
     /*
-     * The point of the helper. If `afterDay` and this ever disagree, the bug is
-     * back — so the two are compared directly rather than trusted to stay in
-     * step because they happen to share a line today.
+     * The point of the helper — and the first version of this test skipped the
+     * one case that mattered.
+     *
+     * It compared `afterDay` with `nextInFlotation` only when the direct answer
+     * was *not* `'plan'`, which is exactly the case the refactor broke: folding
+     * the old `if (!listed) return ...` into the helper turned two different
+     * `'plan'` answers into one, and "nothing to price yet" then fell through to
+     * the week-marking clause. A company that had never floated got a share
+     * price of -$0.07.
+     *
+     * So `'plan'` is now the case it checks hardest, and it sweeps every
+     * `stageDay` because the clause it fell into is `stageDay % 7`.
      */
     for (const perDay of [-5, 8]) {
       for (const answeredBoard of [false, true]) {
-        const base = withWeek(perDay);
-        const game = answeredBoard
-          ? { ...base, ownership: recordDealChoice(base.ownership, bestDeal().id) }
-          : base;
-        const routed = afterDay(game, 3, { forkTaken: true });
-        const direct = nextInFlotation(game);
-        if (direct !== 'plan') {
-          expect(routed, `week ${perDay}, board ${answeredBoard}`).toBe(direct);
+        for (const listed of [false, true]) {
+          const base = withWeek(perDay);
+          let game = answeredBoard
+            ? { ...base, ownership: recordDealChoice(base.ownership, bestDeal().id) }
+            : base;
+          if (listed) game = { ...game, listing: { ...game.listing, listed: true } };
+          const direct = nextInFlotation(game);
+          for (let stageDay = 1; stageDay <= WEEKLY_EVERY * 2; stageDay += 1) {
+            const routed = afterDay(game, stageDay, { forkTaken: true });
+            const where = `week ${perDay}, board ${answeredBoard}, listed ${listed}, day ${stageDay}`;
+            if (direct !== 'plan') {
+              expect(routed, where).toBe(direct);
+              continue;
+            }
+            /*
+             * The helper says carry on. The only other thing the day loop may
+             * do is mark a week, and only for a company that is actually
+             * public.
+             */
+            if (routed === 'mark-week') {
+              expect(listed, `${where}: marked a week on a company that never floated`).toBe(true);
+            }
+            expect(routed, `${where}: sent to the pricing screen anyway`).not.toBe('listing');
+          }
         }
       }
     }

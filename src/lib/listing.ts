@@ -25,6 +25,7 @@
 import { round2, type DayRecord, type Insight } from './simulation';
 import { growthRate, trailingWeeklyProfit } from './business';
 import { buyoutOffer, type BuyoutOffer, type OwnershipState } from './ownership';
+import { money } from './copy';
 
 /* ------------------------------------------------------------------ *
  * Shares
@@ -319,7 +320,20 @@ export function markListedWeek(listing: Listing, actualWeekly: number): {
   );
   const expectedAfter = round2(expected * EXPECTATION_MEMORY + actual * (1 - EXPECTATION_MEMORY));
   const priceBefore = listing.price;
-  const priceAfter = round2((expectedAfter * multipleAfter) / listing.shares);
+  /*
+   * A share cannot be worth less than nothing.
+   *
+   * `expectedAfter` goes negative after a bad enough week, and the price is
+   * that times a multiple, so the screen showed **"One piece of your company
+   * -$0.06"**. A limited company's shares floor at zero — that is what limited
+   * liability *means*, and it is the one fact about shares a child should not
+   * be taught backwards.
+   *
+   * The multiple and the expectation are left signed: they are the working,
+   * they are shown as the working, and "they expect you to lose money" is a
+   * true and useful thing for a bad week to say.
+   */
+  const priceAfter = Math.max(0, round2((expectedAfter * multipleAfter) / listing.shares));
 
   const move: PriceMove = {
     week: listing.weeks.length + 1,
@@ -345,19 +359,42 @@ export function markListedWeek(listing: Listing, actualWeekly: number): {
   };
 }
 
+/**
+ * Why the price moved, in the child's own figures.
+ *
+ * The local `money` here took `Math.abs`, so a week that lost $41.16 reported
+ * **"You made $41.16 where they expected $0.00"** — the sign dropped, and the
+ * sentence then said the opposite of what happened. A second implementation of
+ * money formatting, three characters different from the shared one and wrong.
+ *
+ * It uses `copy.ts`'s `money` now, which renders a loss as `-$41.16`, and says
+ * "lost" rather than "made" when that is what happened: a child should not have
+ * to read a minus sign to find out which way their week went.
+ */
 function moveReason(actual: number, expected: number, before: number, after: number): string {
   const gap = round2(actual - expected);
-  const money = (n: number) => `$${Math.abs(n).toFixed(2)}`;
+  /* "You made -$41.16" is not a sentence. Name the direction. */
+  const did = actual < 0 ? `You lost ${money(Math.abs(actual))}` : `You made ${money(actual)}`;
+  /*
+   * The expectation needs the same treatment, and the test found it a minute
+   * after the first half was fixed: once a company has had a bad enough week
+   * the market expects a *loss*, and "where they expected -$30.00" put the
+   * minus sign back in the middle of the sentence it had just come out of.
+   */
+  const theyWanted =
+    expected < 0
+      ? `they were expecting a loss of ${money(Math.abs(expected))}`
+      : `they expected ${money(expected)}`;
   if (Math.abs(gap) < 0.01) {
-    return `You made ${money(actual)}, which is what they were expecting. The price barely moved.`;
+    return `${did}, which is what they were expecting. The price barely moved.`;
   }
   if (gap > 0) {
-    return `You made ${money(actual)} where they expected ${money(expected)}. That is ${money(gap)} more, so they will pay more for a piece.`;
+    return `${did} where ${theyWanted}. That is ${money(gap)} more, so they will pay more for a piece.`;
   }
   if (after < before) {
-    return `You made ${money(actual)} where they expected ${money(expected)}. That is ${money(gap)} short, so a piece is worth less than it was.`;
+    return `${did} where ${theyWanted}. That is ${money(Math.abs(gap))} short, so a piece is worth less than it was.`;
   }
-  return `You made ${money(actual)} where they expected ${money(expected)}.`;
+  return `${did} where ${theyWanted}.`;
 }
 
 /**

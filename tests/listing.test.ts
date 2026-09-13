@@ -5,6 +5,7 @@ import {
   PUBLIC_PREMIUM_WEEKS,
   SHARES,
   createListing,
+  type Listing,
   deriveListingInsights,
   floatChoices,
   floatPlan,
@@ -309,5 +310,78 @@ describe('the words the listing earns', () => {
     const price = found.find((insight) => insight.id === 'share-price')!;
     expect(price.evidence).toContain(marked.move.priceAfter.toFixed(2));
     expect(price.evidence).toContain('95.00');
+  });
+});
+
+/**
+ * A bad week as a public company, which is a real week and has to read like one.
+ *
+ * All three of these shipped, and all three were found by playing to the
+ * flotation stage in a browser with a business that was losing money.
+ */
+describe('when the week goes badly', () => {
+  /** A listed company whose expectations are already on the floor. */
+  const listedAt = (expected: number, price: number, multiple = 4): Listing => ({
+    ...createListing(),
+    listed: true,
+    shares: 1000,
+    expected,
+    price,
+    multiple,
+    founderShare: 0.7,
+    ipoPrice: price,
+    ipoMultiple: multiple,
+  });
+
+  it('never prints a share price below nothing', () => {
+    /*
+     * The screen said **"One piece of your company -$0.06"**. The price is the
+     * expectation times a multiple over the share count, and the expectation
+     * goes negative after a bad enough week — so the price did too.
+     *
+     * A limited company's shares floor at zero. That is what limited liability
+     * means, and it is the one fact about shares a child should not be taught
+     * backwards. Swept across a range of losses, because one fixture would only
+     * prove one.
+     */
+    for (const weekly of [-5, -20, -41.16, -200, -1000]) {
+      const { listing, move } = markListedWeek(listedAt(0, 0.5), weekly);
+      expect(listing.price, `a week of ${weekly} priced a share at ${listing.price}`).toBeGreaterThanOrEqual(0);
+      expect(move.priceAfter).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('says a loss was a loss, rather than reporting it as earnings', () => {
+    /*
+     * The reason line had its own local `money` that took `Math.abs`, so a week
+     * down $41.16 read **"You made $41.16 where they expected $0.00"** — the
+     * sign dropped, and the sentence then claimed the opposite of what
+     * happened. It uses `copy.ts`'s formatter now and names the direction.
+     */
+    const { move } = markListedWeek(listedAt(0, 0.5), -41.16);
+    expect(move.reason).toContain('You lost $41.16');
+    expect(move.reason, 'a loss reported as earnings').not.toMatch(/You made \$41\.16/);
+  });
+
+  it('still says "made" when money was made', () => {
+    const { move } = markListedWeek(listedAt(20, 0.5), 35);
+    expect(move.reason).toMatch(/You made \$35\.00/);
+    expect(move.reason).not.toMatch(/You lost/);
+  });
+
+  it('never writes a minus sign into the middle of a sentence', () => {
+    /*
+     * The general form: "You made -$41.16" is not a sentence, whatever the
+     * arithmetic behind it. Swept over both directions and both sides of the
+     * expectation.
+     */
+    for (const expected of [-30, 0, 25]) {
+      for (const weekly of [-60, -1, 0, 1, 60]) {
+        const { move } = markListedWeek(listedAt(expected, 0.4), weekly);
+        expect(move.reason, `expected ${expected}, made ${weekly}: "${move.reason}"`).not.toMatch(
+          /-\$/,
+        );
+      }
+    }
   });
 });

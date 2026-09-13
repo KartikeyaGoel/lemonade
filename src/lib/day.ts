@@ -459,7 +459,23 @@ export function afterDay(
   if (game.act === 3) {
     const next = nextInFlotation(game);
     if (next !== 'plan') return next;
-    if (stageDay % WEEKLY_EVERY === 0) return 'mark-week';
+    /*
+     * `listed` again, and it is not redundant — I removed it once and broke
+     * this.
+     *
+     * The old shape was `if (!listed) { return worthAnything ? 'listing' :
+     * 'plan'; }`, which **always returned**, so `mark-week` was unreachable
+     * until a company was public. Folding that into `nextInFlotation` turned
+     * two different "plan" answers — *nothing to price yet, carry on* and
+     * *public, and not a marking day* — into one, and the first then fell
+     * through to the second's clause.
+     *
+     * The result was a week marked on a company that had never floated: a
+     * `weeks` entry, a share price of **-$0.07**, and a float price of $0.00 on
+     * a save whose `listed` was still false. Introduced by the commit that
+     * fixed the routing above and found by playing on through it.
+     */
+    if (game.listing.listed && stageDay % WEEKLY_EVERY === 0) return 'mark-week';
   }
 
   return 'plan';
