@@ -603,27 +603,89 @@ function volatilityFrom(closes) {
   return Number(Math.sqrt(variance).toFixed(4));
 }
 
+/**
+ * What is already in the file, by ticker.
+ *
+ * Needed because the two sources fail independently and the consequences are
+ * not symmetric — see `carried` below. Returns an empty map on a first run.
+ */
+async function previous() {
+  try {
+    const prior = JSON.parse(await readFile(OUT, 'utf8'));
+    return {
+      byTicker: new Map((prior.companies ?? []).map((c) => [c.ticker, c])),
+      fundamentalsFetchedAt: prior.fundamentalsFetchedAt ?? prior.fetchedAt ?? null,
+    };
+  } catch {
+    return { byTicker: new Map(), fundamentalsFetchedAt: null };
+  }
+}
+
+/** The fundamental fields — everything that comes from a filing, not a price. */
+const FUNDAMENTAL_FIELDS = [
+  'fiscalYear',
+  'fiscalYearEnd',
+  'filedOn',
+  'annuals',
+  'revenueM',
+  'netIncomeM',
+  'sharesM',
+  'revenueTag',
+  'netIncomeTag',
+  'sharesTag',
+  'growth',
+  'revenueGrowth',
+];
+
 async function main() {
   const out = { companies: [] };
   const problems = [];
+  const prior = await previous();
+  /** Tickers whose fundamentals came from the file rather than from the SEC. */
+  const carried = [];
 
   for (const company of COMPANIES) {
     process.stderr.write(`${company.ticker} … `);
 
-    let facts;
+    /*
+     * The two sources fail independently, and one of them failing must not
+     * take the whole refresh down with it.
+     *
+     * This used to `continue` on any SEC error, and since the loop fetches
+     * prices *after* facts, a blocked SEC meant no company was processed and
+     * no price was fetched — the script refused to write anything at all. That
+     * is what happened: SEC began returning 403 to GitHub Actions' Azure
+     * ranges (the same request returns 200 from a laptop, so it is the IP and
+     * not the User-Agent), the workflow failed every weekday for a fortnight,
+     * and the *live* market — the part of the game that is supposed to never
+     * end — quietly ran on prices that stopped moving. See PRODUCT.md §79.
+     *
+     * The asymmetry is the whole fix. **Prices change weekly and are what the
+     * live market is;** fundamentals come from a 10-K and change once a
+     * quarter. So a blocked filings endpoint carries the previous
+     * fundamentals forward and still writes fresh closes, and the file records
+     * that it did — a carried figure that claims to be fresh would be §4's
+     * defect in data rather than in copy.
+     */
+    let facts = null;
+    const fallback = prior.byTicker.get(company.ticker);
     try {
       facts = await companyFacts(company.cik);
     } catch (error) {
-      problems.push(`${company.ticker}: SEC facts — ${error.message}`);
-      process.stderr.write('SEC FAILED\n');
-      continue;
+      if (!fallback) {
+        problems.push(`${company.ticker}: SEC facts — ${error.message} (and nothing to fall back on)`);
+        process.stderr.write('SEC FAILED, NO FALLBACK\n');
+        continue;
+      }
+      carried.push(company.ticker);
+      process.stderr.write('SEC blocked, carrying fundamentals … ');
     }
 
-    const revenue = annualSeries(facts, REVENUE_TAGS);
-    const netIncome = annualSeries(facts, NET_INCOME_TAGS);
-    const shares = annualSeries(facts, SHARE_TAGS, { shares: true });
+    const revenue = facts ? annualSeries(facts, REVENUE_TAGS) : null;
+    const netIncome = facts ? annualSeries(facts, NET_INCOME_TAGS) : null;
+    const shares = facts ? annualSeries(facts, SHARE_TAGS, { shares: true }) : null;
 
-    if (!revenue || !netIncome || !shares) {
+    if (facts && (!revenue || !netIncome || !shares)) {
       problems.push(`${company.ticker}: missing ${[!revenue && 'revenue', !netIncome && 'net income', !shares && 'shares'].filter(Boolean).join(', ')}`);
       process.stderr.write('FUNDAMENTALS FAILED\n');
       continue;
@@ -641,6 +703,31 @@ async function main() {
     }
     if (splits.length > 0) {
       process.stderr.write(`splits ${splits.map((s) => `${s.factor}x ${s.date}`).join(', ')} `);
+    }
+
+    /*
+     * Carried fundamentals, fresh prices.
+     *
+     * `volatility` is recomputed from the new closes rather than carried,
+     * because it is a property of the prices and not of the filing.
+     */
+    if (!facts) {
+      out.companies.push({
+        ticker: company.ticker,
+        cik: company.cik,
+        name: company.name,
+        emoji: company.emoji,
+        tier: company.tier,
+        whatTheySell: company.whatTheySell,
+        story: company.story,
+        model: company.model,
+        ...Object.fromEntries(FUNDAMENTAL_FIELDS.map((f) => [f, fallback[f]])),
+        volatility: volatilityFrom(closes.slice(-104)),
+        weeklyCloses: closes,
+      });
+      process.stderr.write('ok (fundamentals carried)\n');
+      await sleep(400);
+      continue;
     }
 
     /*
@@ -747,6 +834,26 @@ async function main() {
     for (const problem of problems) console.error(`  - ${problem}`);
     process.exitCode = 1;
     return;
+  }
+
+  /*
+   * When the filings were last actually fetched, as opposed to when this ran.
+   *
+   * Two dates, because they now mean different things and conflating them is
+   * how "the data is a day old" becomes a claim nobody checked. `fetchedAt` is
+   * this run; `fundamentalsFetchedAt` is the last run that got past the SEC.
+   * `check-market-data.mjs` holds a separate limit against each.
+   */
+  const allCarried = carried.length === COMPANIES.length;
+  out.fundamentalsFetchedAt = allCarried
+    ? (prior.fundamentalsFetchedAt ?? new Date().toISOString().slice(0, 10))
+    : new Date().toISOString().slice(0, 10);
+  out.fundamentalsCarried = carried;
+  if (carried.length > 0) {
+    console.error(
+      `\nFundamentals carried from the previous file for ${carried.length} of ${COMPANIES.length}: ${carried.join(', ')}`,
+    );
+    console.error(`Last real filing fetch: ${out.fundamentalsFetchedAt}`);
   }
 
   /*

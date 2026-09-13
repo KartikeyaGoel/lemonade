@@ -9,7 +9,27 @@
 import { readFile } from 'node:fs/promises';
 import { describeSuspectSplit, suspectSplits } from './market-rules.mjs';
 
+/**
+ * How old the prices may be before this is a defect.
+ *
+ * Fourteen days. The live market marks holdings once a week, so a fortnight is
+ * two marks that did not happen — at which point the part of the game that is
+ * meant to never end has quietly ended.
+ */
 const MAX_AGE_DAYS = Number(process.env.MAX_DATA_AGE_DAYS ?? 14);
+
+/**
+ * And how old the *filings* may be.
+ *
+ * Much longer, because they come from a 10-K and change once a quarter. The two
+ * are separate numbers because the two sources fail independently: SEC began
+ * returning 403 to GitHub Actions' address ranges, `fetch-market-data.mjs` now
+ * carries the previous fundamentals forward rather than writing nothing, and
+ * the thing that must not go unnoticed is *how long it has been carrying them*.
+ * One limit against both dates would have to be the loose one, and then a
+ * fortnight of dead prices would pass.
+ */
+const MAX_FUNDAMENTALS_AGE_DAYS = Number(process.env.MAX_FUNDAMENTALS_AGE_DAYS ?? 100);
 
 const data = JSON.parse(await readFile(new URL('../src/lib/market-data.json', import.meta.url), 'utf8'));
 
@@ -54,7 +74,32 @@ console.log(`  fundamentals: ${data.fundamentalsSource}`);
 console.log(`  prices:       ${data.pricesSource}`);
 
 if (ageDays > MAX_AGE_DAYS) {
-  problems.push(`data is ${ageDays} days old (limit ${MAX_AGE_DAYS}); run \`npm run data\``);
+  problems.push(
+    `prices are ${ageDays} days old (limit ${MAX_AGE_DAYS}); run \`npm run data\`, and check ` +
+      `the refresh workflow — it failed silently for a fortnight once. See PRODUCT.md §79.`,
+  );
+}
+
+/*
+ * The filings, checked separately and reported even when they are fine.
+ *
+ * `fundamentalsCarried` names the companies whose numbers came out of the
+ * previous file rather than from the SEC. An empty list is the good case; a
+ * full list every day means the filings endpoint has been unreachable for as
+ * long as `fundamentalsFetchedAt` says, and nobody has noticed.
+ */
+const carried = data.fundamentalsCarried ?? [];
+const fundamentalsAt = data.fundamentalsFetchedAt ?? data.fetchedAt;
+const fundamentalsAge = Math.floor((Date.now() - Date.parse(fundamentalsAt)) / 86_400_000);
+console.log(
+  `  filings:      fetched ${fundamentalsAt} (${fundamentalsAge} days ago)` +
+    (carried.length > 0 ? `, carried for ${carried.length}: ${carried.join(', ')}` : ''),
+);
+if (fundamentalsAge > MAX_FUNDAMENTALS_AGE_DAYS) {
+  problems.push(
+    `filings are ${fundamentalsAge} days old (limit ${MAX_FUNDAMENTALS_AGE_DAYS}); the SEC fetch ` +
+      `has been failing and the numbers are being carried forward`,
+  );
 }
 
 if (problems.length > 0) {

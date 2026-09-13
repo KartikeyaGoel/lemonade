@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run && node scripts/check-reading-level.mjs && node scripts/check-contrast.mjs && node scripts/check-dead-code.mjs && node scripts/check-doc-claims.mjs && node scripts/check-one-day.mjs",
+    "test": "vitest run && node scripts/check-reading-level.mjs && node scripts/check-contrast.mjs && node scripts/check-dead-code.mjs && node scripts/check-doc-claims.mjs && node scripts/check-one-day.mjs && node scripts/check-market-data.mjs",
     "test:watch": "vitest",
     "data": "node scripts/fetch-market-data.mjs",
     "data:check": "node scripts/check-market-data.mjs",
