@@ -8,9 +8,15 @@ import {
   unlockedFeatures,
   type Feature,
 } from '../src/lib/unlocks';
-import { createCareer, recordAnnounced, recordBadges, recordWords } from '../src/lib/career';
+import {
+  createCareer,
+  recordAnnounced,
+  recordBadges,
+  recordWords,
+  type Career,
+} from '../src/lib/career';
 import { createGame, type Game } from '../src/lib/progress';
-import { ECON, type DayRecord } from '../src/lib/simulation';
+import { ECON, orderForTargetCups, runDay, type DayRecord } from '../src/lib/simulation';
 import { createPortfolio } from '../src/lib/market';
 
 const ALL = Object.keys(UNLOCK_COPY) as Feature[];
@@ -183,5 +189,54 @@ describe('announcing them', () => {
     career = recordAnnounced(career, ['trophies', 'identity', 'whats-next']);
     const week = withDays(ECON.TOTAL_DAYS);
     expect(newlyUnlocked(week, career, career.announced).map((u) => u.feature)).toEqual(['challenge']);
+  });
+});
+
+/**
+ * What survives a new season, which is meant to be everything earned.
+ *
+ * The seasons card says it in so many words — "Start again on a different
+ * street, keep everything you earned" — and the Friends desk did not. It gated
+ * on `game.stand.history.length`, the *current run's* days, so a child who had
+ * played a whole season and pressed "new season" lost it until they had played
+ * two more days.
+ *
+ * Found by playing a season to the end in a browser and looking at the title
+ * screen. The `club` case already carried a clause for the same problem.
+ */
+describe('a new season keeps what the last one earned', () => {
+  /** A career that has played a full season, and a game that has not. */
+  const veteran: Career = {
+    ...createCareer('Ada'),
+    seasons: 2,
+    lifetimeDays: 7,
+    badges: ['open-for-business', 'cold-day-profit'],
+    words: ['revenue', 'profit'],
+  };
+
+  it('keeps the Friends desk open on a fresh season', () => {
+    const freshRun = createGame(2026);
+    expect(freshRun.stand.history).toHaveLength(0);
+    expect(
+      isUnlocked('challenge', freshRun, veteran),
+      'a child who played a whole season lost the duel',
+    ).toBe(true);
+  });
+
+  it('still keeps it shut for somebody who has never played a day', () => {
+    /* The other direction, or the gate means nothing: day one announces the
+       trophy case and day two announces this, one card at a time. */
+    const beginner = { ...createCareer('Bo'), lifetimeDays: 0 };
+    expect(isUnlocked('challenge', createGame(7), beginner)).toBe(false);
+  });
+
+  it('opens it after two days of a first run, as it always did', () => {
+    let game = createGame(11);
+    const beginner = { ...createCareer('Cy'), lifetimeDays: 0 };
+    for (let day = 0; day < 2; day += 1) {
+      const order = orderForTargetCups(game.stand, 28);
+      game = { ...game, stand: runDay(game.stand, { ...order, price: 1.5 }).nextState };
+    }
+    expect(isUnlocked('challenge', game, beginner)).toBe(true);
   });
 });

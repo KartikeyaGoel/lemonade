@@ -173,8 +173,25 @@ export function isUnlocked(feature: Feature, game: Game, career: Career): boolea
      * It also keeps the one-card rule: day one announces the trophy case, day
      * two announces this. Never two at once.
      */
+    /*
+     * And it stays open across seasons.
+     *
+     * `daysPlayed` is *this run's* days, so a child who had played a whole
+     * season — floated a company, reached the market — pressed "new season" and
+     * lost the Friends desk until they had played two more days. The seasons
+     * card promises the opposite in so many words: "Start again on a different
+     * street, **keep everything you earned**."
+     *
+     * `career.lifetimeDays` is banked by `recordDay` the moment a day is
+     * finished, so it survives a season the way the badges and the words do.
+     * The `club` case a few lines down already carries a third clause for
+     * exactly this problem — a club orphaned by a new season — and this one
+     * did not.
+     *
+     * Found by playing a season through to the end and starting another.
+     */
     case 'challenge':
-      return daysPlayed >= 2 || career.challengesPlayed > 0;
+      return daysPlayed >= 2 || career.lifetimeDays >= 2 || career.challengesPlayed > 0;
 
     // Arguing about what a company is worth requires having your own money in
     // one. the market is the first moment that is true.
