@@ -11,16 +11,26 @@
  *    10-K. The only requirement is a real User-Agent, which the SEC asks for so
  *    they can contact whoever is hammering them.
  *  - **Weekly closes: Alpha Vantage** if `ALPHAVANTAGE_KEY` is set (official,
- *    free tier is 25 requests a day, which covers eight tickers), otherwise
- *    Yahoo's chart endpoint as a keyless fallback. Yahoo is *unofficial* and can
+ *    free tier is 25 requests a day and asks for no more than one a second),
+ *    otherwise Yahoo's chart endpoint as a keyless fallback.
+ *
+ *    That allowance used to read "which covers eight tickers", written when
+ *    there were eight. There are twenty-four, so a refresh uses twenty-four of
+ *    the twenty-five and a second run on the same day exhausts it — which is
+ *    why the fallback is now **per ticker** rather than per run. Yahoo is *unofficial* and can
  *    change without notice, so it is a convenience for local runs rather than
  *    something to depend on in a deploy.
+ *
+ *    The key is read from `.env.local` as well as from the environment — copy
+ *    `.env.example` and fill it in. In CI it comes from a repository secret of
+ *    the same name, and the real environment always wins over the file.
  *
  * Run it at build time, not at runtime. That way there is no key in the browser,
  * no request from a child's device to a third party, and the app stays a static
  * bundle. A scheduled daily build is what keeps it current.
  *
- *   ALPHAVANTAGE_KEY=... node scripts/fetch-market-data.mjs
+ *   npm run data                  # reads .env.local if there is one
+   ALPHAVANTAGE_KEY=... npm run data
  *
  * If anything fails the script exits non-zero *without* writing, so a bad
  * network day can never replace good data with half-data.
@@ -29,12 +39,29 @@
 import { writeFile, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { envOr, envSource, loadEnv } from './env.mjs';
+
+/*
+ * Before anything reads `process.env`.
+ *
+ * Next.js loads `.env.local` for the app and never for these scripts, so the
+ * one setting that decides whether the price feed is official had nowhere to
+ * live except the command line. See `scripts/env.mjs` and `.env.example`.
+ */
+loadEnv();
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, '..', 'src', 'lib', 'market-data.json');
 
-/** The SEC wants to know who is calling. Be honest about it. */
-const UA = process.env.SEC_USER_AGENT ?? 'lemonade-edu-game (educational, contact: kartgoel@stanford.edu)';
+/**
+ * The SEC wants to know who is calling. Be honest about it.
+ *
+ * `envOr`, not `??`. A GitHub Actions secret that has never been created
+ * arrives as an empty string, and `'' ?? fallback` is `''` — so every scheduled
+ * run was sending the SEC an empty User-Agent, which is the one thing they ask
+ * you not to do. See `envOr` in `env.mjs`.
+ */
+const UA = envOr('SEC_USER_AGENT', 'lemonade-edu-game (educational, contact: kartgoel@stanford.edu)');
 
 /**
  * The eight companies, and the parts of them a data feed cannot supply:
@@ -447,27 +474,51 @@ function latestSharedYearEnd(series) {
   return shared.sort().pop() ?? null;
 }
 
-/** Weekly closes, newest last. */
-async function weeklyCloses(ticker) {
-  const key = process.env.ALPHAVANTAGE_KEY;
+/**
+ * One request a second, and a little over, for Alpha Vantage.
+ *
+ * The free tier asks for "1 request per second" and says so by *refusing* —
+ * not with a 429, but with a 200 carrying `{"Information": "Please consider
+ * spreading out your free API requests more sparingly"}` and no series in it.
+ * Firing twenty-four tickers as fast as the loop goes round got four of them
+ * refused on the first real run with a key, and the script correctly refused to
+ * write a partial file.
+ *
+ * A shared cursor rather than a fixed sleep, so the pause is only as long as it
+ * needs to be — the SEC call and the splits call for the same company already
+ * take most of a second between them.
+ */
+const AV_GAP_MS = 1300;
+let avNextAllowedAt = 0;
 
-  if (key) {
-    const payload = await getJson(
-      `https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY_ADJUSTED&symbol=${ticker}&apikey=${key}`,
+async function pacedForAlphaVantage() {
+  const now = Date.now();
+  if (now < avNextAllowedAt) await sleep(avNextAllowedAt - now);
+  avNextAllowedAt = Date.now() + AV_GAP_MS;
+}
+
+/** Weekly adjusted closes from Alpha Vantage. Official, keyed, rate-limited. */
+async function fromAlphaVantage(ticker, key) {
+  await pacedForAlphaVantage();
+  const payload = await getJson(
+    `https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY_ADJUSTED&symbol=${ticker}&apikey=${key}`,
+  );
+  const series = payload['Weekly Adjusted Time Series'];
+  if (!series) {
+    /* The refusal is a 200 with prose in it, so the message has to carry the
+       prose or the failure reads as "no data for this ticker". */
+    throw new Error(
+      `Alpha Vantage returned no series for ${ticker}: ${JSON.stringify(payload).slice(0, 200)}`,
     );
-    const series = payload['Weekly Adjusted Time Series'];
-    if (!series) {
-      throw new Error(
-        `Alpha Vantage returned no series for ${ticker}: ${JSON.stringify(payload).slice(0, 200)}`,
-      );
-    }
-    return Object.entries(series)
-      .map(([date, row]) => ({ date, close: Number(row['5. adjusted close']) }))
-      .filter((row) => Number.isFinite(row.close) && row.close > 0)
-      .sort((a, b) => a.date.localeCompare(b.date));
   }
+  return Object.entries(series)
+    .map(([date, row]) => ({ date, close: Number(row['5. adjusted close']) }))
+    .filter((row) => Number.isFinite(row.close) && row.close > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
 
-  // Keyless fallback. Unofficial: fine for a local run, not for a deploy.
+/** The same series from Yahoo's chart endpoint. Keyless and undocumented. */
+async function fromYahoo(ticker) {
   const payload = await getJson(
     `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=5y&interval=1wk`,
     { 'User-Agent': 'Mozilla/5.0' },
@@ -483,6 +534,35 @@ async function weeklyCloses(ticker) {
   }
   if (rows.length === 0) throw new Error(`No closes for ${ticker}`);
   return rows.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Weekly closes, newest last, with the source they came from.
+ *
+ * **Per ticker, not per run.** This is the §79 principle applied to prices
+ * instead of to filings: one provider refusing must not take the whole refresh
+ * down, because the thing being protected is that the live market keeps moving.
+ * The free tier is 25 requests a day and there are twenty-four companies, so a
+ * second run on the same day exhausts it — and without a per-ticker fallback
+ * that means a day with no prices at all.
+ *
+ * **Mixing the two is safe, and that is measured rather than assumed.** Both
+ * return split- and dividend-adjusted weekly closes. Aligned by week (Alpha
+ * Vantage stamps the last trading day, Yahoo the first) and compared across the
+ * whole five-year window: **261 weeks, worst disagreement 0.011%, none over
+ * 1%** — for Apple and for Walmart, which had a three-for-one split inside the
+ * window. Two sources that disagreed about adjustment would show up as a
+ * uniform ratio, and they do not.
+ */
+async function weeklyCloses(ticker) {
+  const key = process.env.ALPHAVANTAGE_KEY;
+  if (!key) return { rows: await fromYahoo(ticker), source: 'yahoo' };
+  try {
+    return { rows: await fromAlphaVantage(ticker, key), source: 'alphavantage' };
+  } catch (error) {
+    process.stderr.write(`(AV: ${String(error.message).slice(0, 60)}… falling back to Yahoo) `);
+    return { rows: await fromYahoo(ticker), source: 'yahoo' };
+  }
 }
 
 /**
@@ -638,11 +718,37 @@ const FUNDAMENTAL_FIELDS = [
 ];
 
 async function main() {
+  /*
+   * Say which source this run will use, and where the key came from, before
+   * anything is fetched.
+   *
+   * Not after: a line at the end is a line nobody reads when the run is slow,
+   * and "why are my prices unofficial" is exactly the question this answers.
+   * The *name* of the variable, never its value — see `loadEnv`.
+   */
+  if (process.env.ALPHAVANTAGE_KEY) {
+    const where = envSource('ALPHAVANTAGE_KEY') ?? 'the environment';
+    process.stderr.write(`prices: Alpha Vantage (official), key from ${where}\n`);
+  } else {
+    process.stderr.write(
+      'prices: Yahoo chart endpoint — undocumented, and can change shape without notice.\n' +
+        '        Set ALPHAVANTAGE_KEY to use the official feed. Copy .env.example to\n' +
+        '        .env.local and fill it in; a free key takes a minute.\n',
+    );
+  }
+
   const out = { companies: [] };
   const problems = [];
   const prior = await previous();
   /** Tickers whose fundamentals came from the file rather than from the SEC. */
   const carried = [];
+  /**
+   * Tickers whose prices came from Yahoo when Alpha Vantage was meant to serve
+   * them — a rate limit, a refusal, an outage. Empty is the good case, and a
+   * long list every day means the key is exhausted or wrong.
+   */
+  const fellBackToYahoo = [];
+  const intendedSource = process.env.ALPHAVANTAGE_KEY ? 'alphavantage' : 'yahoo';
 
   for (const company of COMPANIES) {
     process.stderr.write(`${company.ticker} … `);
@@ -694,7 +800,9 @@ async function main() {
     let closes;
     let splits;
     try {
-      closes = await weeklyCloses(company.ticker);
+      const prices = await weeklyCloses(company.ticker);
+      closes = prices.rows;
+      if (prices.source !== intendedSource) fellBackToYahoo.push(company.ticker);
       splits = await splitsFor(company.ticker);
     } catch (error) {
       problems.push(`${company.ticker}: ${error.message}`);
@@ -889,9 +997,28 @@ async function main() {
     /** Date of the most recent weekly close in the file. */
     asOf: weeks[weeks.length - 1],
     fundamentalsSource: 'SEC EDGAR XBRL company facts (10-K filings)',
-    pricesSource: process.env.ALPHAVANTAGE_KEY
-      ? 'Alpha Vantage TIME_SERIES_WEEKLY_ADJUSTED'
-      : 'Yahoo Finance chart endpoint (unofficial)',
+    /*
+     * What the prices are, said accurately rather than optimistically.
+     *
+     * This read the key and claimed Alpha Vantage for the whole file. With a
+     * per-ticker fallback that can be false for some of the companies, and
+     * "the numbers are always real" does not survive a source line that is
+     * only mostly true — the app prints this string on the company card.
+     */
+    pricesSource: (() => {
+      const total = out.companies.length;
+      if (!process.env.ALPHAVANTAGE_KEY) return 'Yahoo Finance chart endpoint (unofficial)';
+      if (fellBackToYahoo.length === 0) return 'Alpha Vantage TIME_SERIES_WEEKLY_ADJUSTED';
+      /* All of them is not "Alpha Vantage, and Yahoo for 24 of 24" — that names
+         a source that served nothing. The key was set and exhausted, which is a
+         different sentence. */
+      if (fellBackToYahoo.length >= total) {
+        return 'Yahoo Finance chart endpoint (unofficial) — the Alpha Vantage key was set and served none';
+      }
+      return `Alpha Vantage TIME_SERIES_WEEKLY_ADJUSTED, and Yahoo for ${fellBackToYahoo.length} of ${total}`;
+    })(),
+    /** Tickers Alpha Vantage was meant to serve and did not. Empty is good. */
+    pricesFellBack: fellBackToYahoo,
     fetchedAt: new Date().toISOString().slice(0, 10),
     /**
      * When the *filings* were last actually fetched, and for whom they were

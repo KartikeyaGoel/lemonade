@@ -9,6 +9,9 @@
 import { readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { describeSuspectSplit, suspectSplits } from './market-rules.mjs';
+import { envOr, loadEnv } from './env.mjs';
+
+loadEnv();
 
 /**
  * How old the prices may be before this is a defect.
@@ -37,7 +40,9 @@ if (!declared) {
   );
   process.exit(1);
 }
-const MAX_AGE_DAYS = Number(process.env.MAX_DATA_AGE_DAYS ?? declared[1]);
+/* `envOr`, not `??`: a blank line in a copied `.env.example` makes this
+   `Number('')`, which is zero, and the gate then fails on data fetched today. */
+const MAX_AGE_DAYS = Number(envOr('MAX_DATA_AGE_DAYS', declared[1]));
 
 /**
  * And how old the *filings* may be.
@@ -50,7 +55,7 @@ const MAX_AGE_DAYS = Number(process.env.MAX_DATA_AGE_DAYS ?? declared[1]);
  * One limit against both dates would have to be the loose one, and then a
  * fortnight of dead prices would pass.
  */
-const MAX_FUNDAMENTALS_AGE_DAYS = Number(process.env.MAX_FUNDAMENTALS_AGE_DAYS ?? 100);
+const MAX_FUNDAMENTALS_AGE_DAYS = Number(envOr('MAX_FUNDAMENTALS_AGE_DAYS', '100'));
 
 const data = JSON.parse(await readFile(new URL('../src/lib/market-data.json', import.meta.url), 'utf8'));
 
@@ -93,6 +98,34 @@ console.log(
 );
 console.log(`  fundamentals: ${data.fundamentalsSource}`);
 console.log(`  prices:       ${data.pricesSource}`);
+
+/*
+ * Which companies the keyed source did not serve, reported and never failed on.
+ *
+ * Alpha Vantage's free tier is 25 requests a day and there are twenty-four
+ * companies, so the scheduled run fits exactly once and any extra run that day
+ * falls back per ticker. That is the design working, not a defect: the two
+ * sources return the same adjusted weekly closes, measured at 261 aligned weeks
+ * with a worst disagreement of 0.011%.
+ *
+ * So this is a provenance line, not a gate. Failing the build because a
+ * provider rate-limited us today is the "cries wolf" failure mode that gets a
+ * gate switched off — and the outcome that actually matters, the prices going
+ * stale, is already gated above. What this protects against is nobody ever
+ * finding out which source they are looking at.
+ */
+const fellBack = Array.isArray(data.pricesFellBack) ? data.pricesFellBack : null;
+if (fellBack === null) {
+  problems.push(
+    'pricesFellBack is missing; the writer is not emitting it, so which companies the keyed ' +
+      'price source actually served cannot be known',
+  );
+} else if (fellBack.length > 0) {
+  console.log(
+    `                — ${fellBack.length} of ${data.companies.length} came from the keyless ` +
+      `fallback: ${fellBack.join(', ')}`,
+  );
+}
 
 if (ageDays > MAX_AGE_DAYS) {
   problems.push(

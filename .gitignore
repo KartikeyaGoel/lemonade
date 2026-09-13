@@ -10,7 +10,12 @@ next-env.d.ts
 
 # Claude Code local preview config
 .claude/
+
+# Local secrets. `.env.example` is committed on purpose: it names the settings
+# without holding any of their values, so a fresh clone can see what there is
+# to set. See `scripts/env.mjs`.
 .env*
+!.env.example
 
 # Coverage output
 coverage/

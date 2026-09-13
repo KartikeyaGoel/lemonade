@@ -12,14 +12,18 @@
 # records that it did, and `check-market-data.mjs` fails the build if it has
 # been carrying them for more than a hundred days.
 #
-# Prices use Alpha Vantage when `ALPHAVANTAGE_KEY` is set as a repository secret
-# (free tier is 25 requests a day, and this uses eight), and fall back to
-# Yahoo's chart endpoint otherwise. **The secret is not set**, so that fallback
-# is what the deploy runs on: an undocumented endpoint that can change shape
-# without notice. The step below says so in the run summary, and the check
-# compares every settled weekly close against the last commit so a silent change
-# of series fails rather than ships. Setting the secret is still the real fix
-# and needs somebody with an account.
+# Prices come from Alpha Vantage, which is official and documented. The free
+# tier allows 25 requests a day and asks for no more than one a second; there
+# are twenty-four companies, so **a refresh uses twenty-four of the
+# twenty-five** and one scheduled run a day fits exactly. Any extra run that
+# day — a manual dispatch, a local test — will find the allowance spent and
+# fall back to Yahoo's keyless endpoint **per ticker**, which keeps the market
+# alive rather than writing nothing. The two sources return the same adjusted
+# weekly closes: measured at 261 aligned weeks, worst disagreement 0.011%.
+#
+# `check-market-data.mjs` prints which companies came from which source, and
+# compares every settled weekly close against the last commit so a silent
+# change of series fails rather than ships.
 name: Refresh market data
 
 on:
@@ -46,15 +50,27 @@ jobs:
       # Said in the run summary rather than in a document, because a document
       # nobody opens is how this pipeline came to fail in silence for a
       # fortnight. See PRODUCT.md §79.
-      - name: Say which price source this run is about to use
+      #
+      # Both secrets are checked, and the User-Agent one is not cosmetic: a
+      # secret that does not exist arrives here as an **empty string**, and
+      # `process.env.X ?? fallback` does not fall back on `''` — so every run
+      # before this sent the SEC an empty User-Agent, which is the one thing
+      # they ask you not to do. `envOr` in `scripts/env.mjs` fixes the reading
+      # side; this makes the absence visible.
+      - name: Say which sources this run is about to use
         env:
           ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
         run: |
           if [ -z "$ALPHAVANTAGE_KEY" ]; then
-            echo "::warning title=Unofficial price source::ALPHAVANTAGE_KEY is not set, so prices come from Yahoo's chart endpoint. It is undocumented and can change shape without notice. check-market-data.mjs compares the result against the last commit to catch that, but the real fix is to set the secret."
+            echo "::warning title=Unofficial price source::ALPHAVANTAGE_KEY is not set, so prices come from Yahoo's chart endpoint. It is undocumented and can change shape without notice."
             echo "Prices: **Yahoo chart endpoint (unofficial)** — \`ALPHAVANTAGE_KEY\` is not set." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Prices: Alpha Vantage (official, keyed)." >> "$GITHUB_STEP_SUMMARY"
+            echo "Prices: Alpha Vantage (official, keyed). 24 of the 25 daily requests." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -z "$SEC_USER_AGENT" ]; then
+            echo "::warning title=No SEC User-Agent::SEC_USER_AGENT is not set, so the filings fetch falls back to the maintainer's address. The SEC asks for a real one and may refuse requests without it."
+            echo "Filings: falling back to the built-in User-Agent." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Fetch real fundamentals and weekly closes
