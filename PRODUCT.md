@@ -5875,3 +5875,276 @@ It was not in the app at all — it was in the pipeline feeding it.
 The lesson is narrow and worth keeping: **every gate in this project checks the
 code. This one checks that the world still reaches it.** Those are different
 questions, and until now only one of them was being asked.
+
+## 80. Closing the four holes, and what closing them found
+
+§78 ended with a list of what was *not* guaranteed, written out because the word
+asked for was honesty. Then §79 found a live defect outside all of it. The
+customer's reply is the instruction this section is built on:
+
+> then do these, not sure why you keep leaving things unfinished, we need to
+> continually move forward so be proactive and do things ahead of time that you
+> anticipate will come up in the future
+
+Fair. A named hole is a task, not a disclaimer — the second time you write the
+same list it has stopped being honest and started being a way of not doing the
+work. So: all four, plus the unexamined area §79 named, plus the thing §79 said
+it could not fix. That agreement now lives in `CLAUDE.md`, at the top, in the
+customer's words.
+
+Six defects came out of the closing. Every one of them was shipped, and none of
+them was in a state anybody had thought to look at.
+
+### The endless half had never been measured
+
+The largest unexamined area, and the one the whole engagement thesis rests on.
+`tests/endless.test.ts` plays a year of the live market — an account anchored a
+year back in real history and caught up, so the weeks are real closes with real
+gaps and real scares.
+
+Measured: **52 of 52 weeks have something to say**, 40 of them correctly ask the
+child to do nothing, 26 of 52 go down, and the year finishes 4% behind. The
+ritual pays the same in week 52 as in week one; there is no ramp and no decay,
+which is the property that makes a loop endless rather than merely long. Coming
+back after a week, a month, a quarter and a year all reconcile, and a four-day
+absence correctly reports that no week has passed.
+
+**The ladder ended before the content did.** `rankFor` reads *standing* — badges
+plus words plus companies whose accounts the child opened — and the note above
+it says why:
+
+> Badges alone made the ladder finish ... a kid who got there had nothing left
+> to climb, which is the same completion trap the four acts had, one layer up. A
+> ladder that ends is a ladder you eventually stop looking at.
+
+The top rung was at 70. The collection had grown to 40 badges, 36 words and 24
+companies — 100 points — so **a third of everything a child can demonstrate
+bought no rung at all**, in the ladder whose own comment argues against exactly
+that. The argument had been sitting at the top of the file for months and
+nothing read it. The last rung is pinned to `STANDING_CEILING` now, so it
+stretches when the content does.
+
+### `MARKET_WEEKS = 12`, measured at last
+
+The same shape as `ACT2_DAYS = 16`: a bare constant, agreed with by six test
+files, measured by none, in the stage the pilot reaches next. Swept across all
+225 windows the replay can draw, with a bought-and-held three-company portfolio:
+
+| cap | a holding fell 10% | and came back while held | a scare week |
+|---|---|---|---|
+| 4 weeks | 25% | 0% | 18% |
+| 8 weeks | 46% | 4% | 27% |
+| **12 weeks** | **63%** | **10%** | **35%** |
+| 16 weeks | 71% | 17% | 39% |
+| 20 weeks | 82% | 29% | 44% |
+
+Twelve is right for what it can do — two children in three watch something they
+own fall a tenth, which is the fear the stage exists to be about, and cutting to
+six halves that.
+
+The second column is the more interesting one. **One child in ten sees a holding
+fall and climb back inside twelve weeks, and twenty weeks only reaches 29%.** No
+cap fixes that, because a recovery takes as long as it takes and curating the
+window for one would be a lie about how markets work. So the lesson the whole
+product is *for* cannot be taught by the twelve-week story at all. That is not a
+defect in the on-ramp; it is the argument for the live account, which has years.
+The endless half is the product rather than the epilogue, and now there is a
+measurement saying so.
+
+While measuring it, `windowStartFor`'s own comment turned out to be wrong: it
+claimed 88% of windows contain a fall of 10% or more, under no reading that
+holds. 98% contain a company that fell that far, 63% contain one the child
+holds, 15% contain a market-wide fall. Corrected and pinned.
+
+### A constant that paced nothing, and the gate that asked
+
+`scripts/check-measured.mjs` is §78's third hole — *a number that is right in
+code and wrong in the world* — turned into a class. Every time-shaped constant
+in `src/lib` must be classified: either it paces the game, in which case a test
+that **plays the game** has to name it, or it does not, in which case the reason
+is written down. Twenty-nine found, eleven paces, eighteen with a reason.
+
+A unit test does not count, and that is the whole point: `ACT2_DAYS = 16` had
+nine of them.
+
+It failed on four constants immediately. Three got measurements —
+`MARKET_WEEKS`, `CHALLENGE_DAYS` and `ECON.ACT1_EXPLORE_DAYS`. The fourth,
+`TWO_STAND_DAYS_REQUIRED`, turned out to pace nothing: "profitable days with two
+stands open that end the act" had been true until the shop was merged into the
+business stage and `act2Progress` started completing on `shopProgress`. Its only
+consumer was the `chain-of-two` badge, with the number written out again as a
+literal beside it. §62 and §40 in one constant, found by a gate asking a
+question nobody had asked.
+
+The duel got measured too, and it validated copy that was already on screen. Two
+runs on the same sky differing in one decision, 60 seeds:
+
+| duel | the better decision won | ties |
+|---|---|---|
+| 1 day | 75% | 15 of 60 |
+| 3 days | 100% | 0 |
+| 7 days | 100% | 0 |
+
+The screen offers "one day — about 2 minutes" and "whole week — the real
+contest". **A one-day duel is a quarter noise.** The labels were right; nothing
+had checked them.
+
+### The claim sweep became an allowlist, and two cards did not add up
+
+§78's first hole, in its own words: *"a false claim in an unknown shape ships."*
+`badClaims` knew three bad shapes and waved everything else through.
+
+Now every sentence about a day carrying two or more figures is normalised to a
+shape, and the shape has to be in `KNOWN_SHAPES` — thirty of them, each with
+either the arithmetic it asserts or a written reason there is none. A sentence in
+a shape nobody has classified fails the sweep and prints itself ready to paste.
+
+Writing the list out found five never-checked shapes. Two were live:
+
+- **"$20.25 in, $10.39 out, so you kept $4.46."** Out by exactly the $5.40 of
+  cups sent for at lunchtime, on the card that teaches a child what profit is.
+- **"You keep $0.69 of every $0.75 cup, because each one costs $0.16 to make."**
+  `grossMarginPerCup` is computed from what was actually taken per cup — its own
+  comment explains that a second price and a punch card blend it — and the
+  sentence went on naming the price off the sign.
+
+Both are the §74 class in a third and fourth module: copy written when a day had
+one price, left behind by the change that gave it two. Both are now **derived
+from the figures either side of them**, so they close by construction for every
+cost or price this day has or ever gains. Fixing instances is what let this reach
+six; this is the first gate that asks about the shapes nobody has thought of.
+
+### The states nobody thought of, generated
+
+§78's second hole: *"a bug in a state the walk cannot reach ships. Depth beyond
+the walk needs a fixture, and a fixture needs somebody to think of the state."*
+
+`tests/ui/combos.test.tsx` stops choosing. Nine dimensions, each a decision a
+child makes — hire, open another table *including on the pavement they are
+already on*, buy kit, borrow for the door, meet the competitor, sell a slice, run
+the Saturday stand, arrive with words owed. The cross product is 7,776 saves; a
+greedy covering array does every one of the 268 reachable **pairs** in
+twenty-one, boots the whole app on each, and asks the three questions the soak
+asks after every tap.
+
+It was measured against the defect it exists for. Revert the grouping in
+`dailyFixedCosts` and it goes red on the React tripwire at tap 8 of the case with
+three tables, two of them on the sidewalk — **from a state the array generated,
+with no fixture written for it.** The soak was measured against the same defect
+and could not reach it.
+
+That run also set the tap count. At six taps the array reached the state and the
+walk never rendered the screen that breaks on it, so the sweep passed on a live
+bug. A net whose hole has not been measured is a net nobody should trust.
+
+Two more defects surfaced while writing it, both of which had made the array
+cover pairs in name only: the stand mutator ran before anybody was hired, so
+`openStand` correctly refused and a third of the cases silently had one table;
+and the equity mutator guarded on `offer.worthAnything`, a field `EquityOffer`
+does not have, so that dimension never applied at all. Every choice now has a
+`holds` predicate and a declined mutator is a failure.
+
+### Repetitive, as a number
+
+§78's fourth hole is the one that cannot be closed: *nothing here measures
+whether it is any good.* Still true. Whether a nine-year-old enjoys an afternoon
+of this is not decidable from source.
+
+But the pilot's complaint was narrower than that, and it was said twice: **"16
+rounds still felt repetitive."** Repetitive is not a feeling about taste, it is a
+property of what the days offered — and the only thing that came out of the
+response was an assertion about *length*. A build could hold that number and make
+every day identical.
+
+`tests/novelty.test.ts` counts it. A day is new if it hands over a word, sets a
+goal the child has not been set, puts a decision on the yard they could not make
+before, asks something at lunchtime they have not been asked, explains the day
+with a cause they have not been given, or moves the competitor. All offers,
+nothing about whether they did well — a day can be new while going badly, which
+matters, because a careless child's *outcome* is nearly constant.
+
+| | stand-stage days | days that offered something new | longest run offering nothing |
+|---|---|---|---|
+| careless, `ACT2_DAYS = 16` | 23 | 9-10 | **6-12** |
+| careless, as shipped | 19 | 9-10 | **5-8** |
+| careful, either cap | 11-17 | 11-15 | **0-2** |
+
+Read the middle column twice. **The number of days that offered a careless child
+something new did not change.** Every one of the four days the cut removed was a
+day with nothing in it. That is the clearest evidence in the project that
+shortening the stage was the right change rather than a smaller number, and it
+was not available until something counted this.
+
+Put `ACT2_DAYS` back to 16 and this file goes red at twelve dead days in a row.
+It is the first gate in the project that would have failed on the build a child
+put down.
+
+### The world, checked twice
+
+§79 fixed the pipeline and named what it could not fix: `pricesSource` still
+reads "Yahoo Finance chart endpoint (unofficial)" because `ALPHAVANTAGE_KEY` is
+not set as a repository secret, and the fetch script's own note says Yahoo "can
+change without notice, so it is a convenience for local runs rather than
+something to depend on in a deploy". It is what the deploy depends on. Setting
+the secret needs an account and cannot be done from here.
+
+What can: the risk of an undocumented endpoint is not a 404. A 404 fails loudly
+and the script refuses to write. It is the endpoint quietly returning **something
+else** — unadjusted closes, a different interval, the wrong ticker, another
+currency. All of those produce a file that passes every check and is wrong in the
+one way a product built on "the numbers are always real" cannot survive.
+
+So `check-market-data.mjs` now compares the file against the last committed
+version of itself, on the invariant that **history is not rewritten**: a weekly
+close from 2023 is a fact. Measured on the current pair — 6,288 shared rows, zero
+changed. The legitimate exception is an adjustment, where a split or a dividend
+rescales a whole stretch by one constant factor, so a few distinct ratios pass
+and a scatter of them does not. Mutation-tested both ways.
+
+Deliberately tight enough to have no false positives. A gate that cries wolf on a
+weekly cron is a gate somebody switches off, which is how this pipeline came to
+fail in silence for a fortnight.
+
+And the missing secret is now said in the workflow's run summary and as a warning
+annotation, rather than in a comment nobody opens — the same lesson as §79,
+applied to the part §79 could not fix.
+
+### What is guaranteed now, and what is still not
+
+| class | gate |
+|---|---|
+| two implementations of a day | `check-one-day.mjs` |
+| a mechanic no screen shows | `tests/wired.test.ts` |
+| a false arithmetic claim **in any shape a day can say** | `tests/claims.test.ts`, allowlist over 30 shapes |
+| a superseded figure in a sentence | `tests/claims.test.ts`, registry plus source check |
+| a dead end, an impossible figure, a React complaint | `tests/ui/soak.test.tsx`, deep from 8 states |
+| the same, in a state nobody thought of | `tests/ui/combos.test.tsx`, every pair of 9 dimensions |
+| a number that paces the game and was never measured | `check-measured.mjs` |
+| a stage that offers a child nothing new for days | `tests/novelty.test.ts` |
+| the data going stale, in the repo | `check-market-data.mjs` |
+| the data going stale, **on a phone after deploy** | `pricesBehind`, on `LiveOpenScreen` |
+| the price endpoint returning a different series | `check-market-data.mjs`, against the last commit |
+
+Eleven classes, up from five. And what is still not guaranteed:
+
+- **Three-way state bugs.** The covering array does pairs: 268 of a cross
+  product of 7,776 whole states. A defect needing three specific choices at
+  once still gets through, and so does one in a tenth dimension nobody thought
+  to name. That is a smaller hole than "a fixture needs somebody to think of the
+  state", and it is not no hole.
+- **A false claim in a sentence with one figure in it.** The allowlist triggers
+  on two or more. "You sold most of them" is unfalsifiable by arithmetic and
+  always will be.
+- **A measurement that is honest and wrong.** `check-measured.mjs` checks that a
+  pace constant is *named* in a file whose job is measuring. Whether the
+  measurement is any good is a reviewer's problem, which is why each one is
+  written out with its figures in the comment.
+- **Whether it is any good.** Unchanged and unchangeable. `novelty.test.ts` is
+  the closest thing to a proxy and it is a proxy: it would have failed on the
+  build the pilot put down, and it would pass on a build that is dull in a way
+  nobody has thought of. That still takes a child.
+
+The honest summary has moved, and it is worth saying exactly how far. §78 said
+five classes gated and four holes named. This says eleven gated and four holes
+named — but the four are different holes, each a genuine step narrower than the
+one it replaced, and six shipped defects came out of closing the old ones.

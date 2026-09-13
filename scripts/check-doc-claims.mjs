@@ -115,6 +115,9 @@ truth.tests = testFiles.reduce(
 
 const DOCS = [
   'PRODUCT.md',
+  /* The working agreement. It makes claims about the gates, so it is checked
+     like every other document rather than trusted because it is for us. */
+  'CLAUDE.md',
   'FRAMEWORK.md',
   'LEARNING.md',
   'PITCH.md',
