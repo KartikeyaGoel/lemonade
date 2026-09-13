@@ -31,6 +31,8 @@
  * because it is about the two-price day specifically. This is the general one.
  */
 import { describe, expect, it } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import {
   ECON,
   createInitialState,
@@ -247,6 +249,89 @@ describe('no sentence about a day claims arithmetic that does not close', () => 
         state = runDay(state, { ...orderForTargetCups(state, 28), price: 1.5 }).nextState;
         if (state.status === 'finished') break;
       }
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * The cause, not the symptom
+ * ------------------------------------------------------------------ */
+
+/**
+ * Figures that must never appear in a sentence, because a better one exists.
+ *
+ * This is the other half of the §74 story and the more useful half. The sweep
+ * above catches a false claim *once a fixture produces it*; this catches the
+ * mistake that produces them, which is reading a figure that has been
+ * superseded.
+ *
+ * `cupsMakeable` is a correct name for what the morning's shopping poured, and
+ * that is exactly why it is dangerous: nothing about it looks wrong. Once a
+ * child could send out for more cups at lunchtime it stopped being *how many
+ * cups the day had*, and every sentence meaning "how many you had" became
+ * false on a top-up day. It has now been fixed three times in three modules —
+ * the close screen and Pip's line in §74, the calibration insight in §77, and
+ * the jug explanation in `diagnose.ts` found by this very check. Fixing
+ * instances is what let it reach three.
+ */
+const SUPERSEDED = [
+  {
+    field: 'cupsMakeable',
+    use: 'cupsAvailable',
+    why:
+      'the morning batch, not the day’s cups. On a day the child sent out for more at ' +
+      'lunchtime a sentence reading this says they had fewer than they did — see §74.',
+    /*
+     * `planned.cupsMakeable` is right and must stay: the comparison screen is
+     * explicitly about the plan made in the morning against what happened, so
+     * the morning figure is the subject rather than a stale copy of the day's.
+     */
+    allow: /\bplanned\.cupsMakeable\b/,
+  },
+];
+
+describe('no sentence reads a figure that has been superseded', () => {
+  it('keeps the superseded ones out of every template literal in src', () => {
+    /*
+     * Scoped to template literals on purpose. These fields are computed, read
+     * and asserted on all over `simulation.ts`, and that is correct — the bug
+     * is not the field existing, it is the field appearing in a **sentence**.
+     * So the check is: does it appear between backticks.
+     */
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(ts|tsx)$/.test(entry.name)) files.push(full);
+      }
+    };
+    walk(resolve(process.cwd(), 'src'));
+    expect(files.length, 'no source files found').toBeGreaterThan(20);
+
+    const offences: string[] = [];
+    for (const file of files) {
+      const src = readFileSync(file, 'utf8');
+      /* Template literals only, comments stripped so the prose above is safe. */
+      const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+      for (const m of code.matchAll(/`(?:[^`\\]|\\.)*`/g)) {
+        for (const { field, use, allow } of SUPERSEDED) {
+          if (!new RegExp(`\\b${field}\\b`).test(m[0])) continue;
+          if (allow && allow.test(m[0])) continue;
+          offences.push(
+            `${file.replace(process.cwd() + '/', '')}: says ${field}, should say ${use}\n    ${m[0].slice(0, 110)}`,
+          );
+        }
+      }
+    }
+    expect(offences, `\n${offences.join('\n')}\n`).toEqual([]);
+  });
+
+  it('names why each one is superseded, so the list is readable', () => {
+    /* A registry with no reasons in it is a list somebody will delete. */
+    for (const { field, use, why } of SUPERSEDED) {
+      expect(why.length, `${field} has no reason written`).toBeGreaterThan(40);
+      expect(use, `${field} has no replacement named`).toBeTruthy();
     }
   });
 });

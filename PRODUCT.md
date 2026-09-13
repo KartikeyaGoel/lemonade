@@ -5643,3 +5643,136 @@ right to pick it up.
   nine-year-old enjoys it, and that still takes a child.
 - **No gate replaces opening the screen.** Every one of the three bugs the merge
   introduced was found by asking what a change made reachable, not by a test.
+
+## 78. Asked to make it bulletproof
+
+The customer asked for the word:
+
+> well then can you make it bulletproof, until you can confidently and honestly
+> say that it is bulletproof. not hallucination but honesty
+
+The honest answer is that **"bulletproof" is not a state this can reach**, and
+saying it had would be the hallucination the same sentence asks to avoid. Two of
+the classes have no checkable form: *does this sentence mislead a nine-year-old*
+and *is this fun* are not decidable from source, and the second is the whole
+product. What can be done is to close every class that *does* have a checkable
+form, measure the hole in each, and write the holes down. That is what this
+section is.
+
+### The app is now walked, not just unit-tested
+
+`tests/fuzz.test.ts` attacks the *simulation* with thousands of randomised days
+and it works. Nothing did that for the **app** — the state machine, the
+routing, the screens — which is where every bug in §75 lived.
+
+`tests/ui/soak.test.tsx` walks the real `<Page />`. After every single tap it
+asserts what must never be true: no dead end, no `NaN`/`Infinity`/`undefined`
+on screen, no React complaint, a legal save, and a history that only shrinks
+when the child has started a different run.
+
+The customer put the obvious hole in the first version:
+
+> a test that just taps on the screen randomly for 1000 times, like what if it
+> doesn't even tap a button? Shouldn't we drive every UI path the user can take?
+
+Right — a random walk reports luck, not coverage. So the walk is
+**coverage-guided**: at each step it prefers a control it has never pressed, and
+falls back to random only to get out of a screen it has exhausted. The result is
+a number rather than a hope: **363 of 393 distinct controls, across 127
+screens.**
+
+Getting that number to mean anything took two wrong answers, both worth
+recording because both looked right:
+
+| keyed by | denominator | coverage | why it was wrong |
+|---|---|---|---|
+| `(heading, label)` | 760 | 57% | the market's 24 company screens offer the *same* 26 buttons; keyed by company that is 624 pairs a walk can never press |
+| `(set of labels on screen, label)` | 5,229 | 33% | an attempt to fix the above — but every transient badge toast changes the set, so one screen became dozens of "kinds" |
+| **`label`, figures stripped** | **393** | **92%** | pressing "It keeps a big slice" on Apple and on Nike is pressing one control; the company is data |
+
+Both wrong versions were measuring the fingerprint rather than the app, and
+both would have been reported as "we drive every path" by a less careful
+reading.
+
+The residue is named, not glossed: almost all 30 misses are data rows in two
+lists — the market's 24 companies and the club's buy screen offering the same 24
+again. Every *kind* of control is pressed; the long tail of "same row,
+different data" is not, and belongs to `check-market-data.mjs`.
+
+### How big the net's hole is, measured
+
+Two real defects were put back to find out.
+
+| defect restored | caught? |
+|---|---|
+| a figure forced to `NaN` in `runDay` | **yes**, first walk |
+| the two ledger rows both labelled "Your sidewalk pitch" | **no** |
+
+The second is the honest one. The React tripwire works — it is exactly what
+duplicate keys print — but the walk never reaches the state: two stands on the
+*same* pitch needs a manager hired and then a sidewalk stand opened, and a
+random walk does not find that inside its steps. It is covered by a unit test in
+`tests/business.test.ts` instead, which is where a specific state combination
+belongs. A soak is a net, and a net has holes of a known size.
+
+### The claim sweep, and the cause behind it
+
+§77 added `tests/claims.test.ts`, which holds the *shapes* of checkable claim —
+`A of B` asserts `A <= B`, `N cups x $P = $T` asserts a product — and sweeps
+every copy producer over a fuzz of days. That closes the symptom.
+
+This pass added the other half, which closes the **cause**. The §74 defect was
+never really "a sentence said 40 of 28". It was that `cupsMakeable` — a
+perfectly correct name for what the morning's shopping poured — stopped being
+*how many cups the day had* the moment a child could send out for more at
+lunchtime, and every sentence meaning "how many you had" became false without a
+character of it changing.
+
+So there is a registry of **superseded figures**, and a source check that no
+template literal in `src` may read one. It found a third instance immediately,
+in `diagnose.ts`, written in this same session:
+
+> "You made 24 cups yesterday and **28** today — 4 more to sell."
+
+The arithmetic beside it already used `cupsAvailable`; only the sentence still
+said `cupsMakeable`. Two numbers shown together that do not reconcile, which is
+§4, in the module added to fix §68.
+
+**That is the argument for causes over instances, made by the code rather than
+by me.** §74 fixed three sentences by hand and declared the class closed. The
+fourth was sitting in another file, and the fifth was written two commits later
+by the same hand that wrote the fix.
+
+### What is guaranteed, and what is not
+
+Five classes now have a gate, each mutation-tested in both directions:
+
+| class | gate |
+|---|---|
+| two implementations of a day | `check-one-day.mjs` — 81 state-advancing exports classified, allowlist, fails on the unclassified |
+| a mechanic no screen shows | `tests/wired.test.ts` — reads the opt-in lists out of `page.tsx` |
+| a false arithmetic claim in a known shape | `tests/claims.test.ts` — every copy producer, 2,000+ sentences a run |
+| a superseded figure in a sentence | `tests/claims.test.ts` — registry plus source check |
+| a dead end, an impossible figure, a React complaint | `tests/ui/soak.test.tsx` — the real app, walked |
+
+And what is **not** guaranteed, stated plainly because the word asked for was
+honesty:
+
+- **A false claim in an unknown shape ships.** `badClaims` knows three shapes. A
+  percentage that does not divide, a count of people against a count of cups, a
+  date — all pass. Adding a shape is a four-line change and the sweep is
+  already wired to every producer, but somebody has to notice.
+- **A bug in a state the walk cannot reach ships.** Measured above: the
+  duplicate-key defect was not caught. Depth beyond the walk needs a fixture,
+  and a fixture needs somebody to think of the state.
+- **A number that is right in code and wrong in the world ships** until
+  somebody measures it. `arclength.test.ts` measures the arc's length and what a
+  child can do at the end; it said nothing about whether sixteen rounds felt
+  repetitive, and nothing ever will. That took a child.
+- **Nothing here measures whether it is any good.** Every gate in the table
+  above would have passed on the version five children put down inside five
+  minutes.
+
+So: not bulletproof. **Five classes gated, each with its hole measured and
+written down, and one class — is this worth a child's afternoon — that only a
+child can answer.** That is the most I can say without making something up.

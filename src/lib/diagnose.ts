@@ -287,7 +287,21 @@ export function diagnose(outcome: DayOutcome, history: readonly DayRecord[]): Di
     price: `${money(yesterday.price)} yesterday, ${money(outcome.price)} today. That alone ${
       up ? 'brought' : 'cost you'
     } about ${plural(cups, 'customer')}.`,
-    batch: `You made ${plural(yesterday.cupsMade ?? yesterday.cupsSold, 'cup')} yesterday and ${outcome.cupsMakeable} today — ${cups} ${up ? 'more' : 'fewer'} to sell.`,
+    /*
+     * `cupsAvailable`, not `cupsMakeable`.
+     *
+     * The third instance of PRODUCT.md §74's defect, and it was in this file.
+     * `changesSince` above already measures the jug with `cupsAvailable` — the
+     * day's cups, morning batch plus anything sent for at lunchtime — and this
+     * sentence was still printing the morning batch. So on a top-up day the
+     * figure in the sentence and the cups it attributed disagreed, which is
+     * §4 exactly: two numbers shown together that do not reconcile.
+     *
+     * Found by the source check in `tests/claims.test.ts`, after the same
+     * defect had already been fixed twice by hand in other modules. Fixing
+     * instances is what let it reach three.
+     */
+    batch: `You made ${plural(yesterday.cupsMade ?? yesterday.cupsSold, 'cup')} yesterday and ${outcome.cupsAvailable} today — ${cups} ${up ? 'more' : 'fewer'} to sell.`,
     quality: `The lemons ${up ? 'brought' : 'cost you'} about ${plural(cups, 'customer')} against yesterday's. Yesterday's kind still counts today — that is word of mouth.`,
     weather: `${WEATHER_COPY[yesterday.weather]} yesterday. ${WEATHER_COPY[outcome.weather]} today. About ${plural(cups, 'person', 'people')} ${up ? 'more' : 'fewer'} wanted a cup, and you chose none of it.`,
     /*
