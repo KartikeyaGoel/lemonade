@@ -2,11 +2,12 @@
 
 import { useEffect } from 'react';
 import { play } from '@/lib/sound';
-import { SNAPSHOT } from '@/lib/companies';
+import { SNAPSHOT, pricesBehind } from '@/lib/companies';
 import { totalValue, type PortfolioState } from '@/lib/market';
 import { lastWeekOnTheMarket, runningFor, type CatchUp } from '@/lib/live';
 import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
 import { plural } from '@/lib/copy';
+import { localDay } from '@/lib/ledger';
 
 /**
  * Opening the live account.
@@ -24,6 +25,18 @@ import { plural } from '@/lib/copy';
  *    anyway — real closes, nothing held — because a kid being shown this for
  *    the first time should not have to wait until Monday to find out it is
  *    real. Manufacturing a number instead would be the one unforgivable thing.
+ *
+ * And a third, which is not a state of the account at all: **the prices have
+ * stopped arriving.** "Nothing has happened yet. Prices land once a week, so
+ * there is nothing new to see" is true when the feed is alive and a lie when it
+ * is dead — and it is the only thing a child is told about a market that is
+ * supposed to never end. The refresh really did fail silently for a fortnight
+ * (PRODUCT.md §79), during which this screen would have said that every day.
+ *
+ * A gate in CI cannot reach a phone: the bundle that passed it goes on ageing
+ * after deploy. So the screen checks for itself, and when the data is behind it
+ * says so instead — plainly, without blaming the child, and without pretending
+ * the quiet is the market being quiet.
  */
 export function LiveOpenScreen({
   portfolio,
@@ -39,6 +52,7 @@ export function LiveOpenScreen({
 }) {
   const moved = report !== null && report.weeks > 0;
   const up = (report?.changeDollars ?? 0) >= 0;
+  const stale = pricesBehind(localDay());
 
   useEffect(() => {
     if (!moved) return;
@@ -114,11 +128,12 @@ export function LiveOpenScreen({
         ) : (
           <>
             <SignHeading className="mt-1 !text-lemon-light text-4xl leading-[0.95]">
-              Nothing has happened yet.
+              {stale.behind ? 'The prices are stuck.' : 'Nothing has happened yet.'}
             </SignHeading>
             <p className="mt-2 font-body text-sm font-extrabold text-white/85">
-              {runningFor(portfolio)} Prices land once a week, so there is nothing new to see and
-              nothing you need to do. Waiting is most of this.
+              {stale.behind
+                ? `${runningFor(portfolio)} Our last real prices are from ${plural(stale.days, 'day')} ago, so the market below is not today's. That is our fault, not yours — the real one kept going.`
+                : `${runningFor(portfolio)} Prices land once a week, so there is nothing new to see and nothing you need to do. Waiting is most of this.`}
             </p>
 
             <div className="mt-4 rounded-2xl border-[3px] border-white/25 bg-night-panel p-4">
@@ -133,7 +148,7 @@ export function LiveOpenScreen({
             {/* Real, and true on the very first visit. */}
             <div className="mt-4 rounded-2xl border-[3px] border-white/20 bg-white/90 p-3">
               <div className="mb-0.5 font-body text-[10px] font-extrabold uppercase tracking-[0.16em] text-ink/45">
-                What the market did last week
+                {stale.behind ? 'The last week we have' : 'What the market did last week'}
               </div>
               <div className="mb-1.5 font-body text-[11px] font-bold text-ink/45">
                 {market.from} to {market.to}. Real closes, whether you own them or not.

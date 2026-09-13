@@ -24,7 +24,13 @@ import {
   totalValue,
   type PortfolioState,
 } from '../src/lib/market';
-import { SNAPSHOT } from '../src/lib/companies';
+import {
+  DATA_FETCHED_AT,
+  PRICES_STALE_AFTER_DAYS,
+  SNAPSHOT,
+  pricesBehind,
+} from '../src/lib/companies';
+import { readFileSync } from 'node:fs';
 import { toCents } from '../src/lib/simulation';
 
 /**
@@ -379,5 +385,62 @@ describe('the file rolls, and a saved account must not', () => {
       .slice(0, 10);
     expect(indexOfDate(midWeek)).toBe(30);
     expect(indexOfDate(known)).toBe(30);
+  });
+});
+
+/**
+ * Whether the pipe is still open, which is a different question from where the
+ * account is standing.
+ *
+ * §79's defect was a silent one: the refresh failed every weekday for a
+ * fortnight and every gate stayed green. The gate is fixed, but a gate runs in
+ * CI and a bundle ages on a phone — so the app has to be able to tell, and this
+ * is the function it tells with.
+ */
+describe('noticing that the prices have stopped', () => {
+  const plus = (days: number) => {
+    const at = Date.parse(`${DATA_FETCHED_AT}T00:00:00Z`) + days * 86_400_000;
+    return new Date(at).toISOString().slice(0, 10);
+  };
+
+  it('is quiet on the day the data was fetched', () => {
+    expect(pricesBehind(DATA_FETCHED_AT)).toEqual({ days: 0, behind: false });
+  });
+
+  it('counts the days without complaining, right up to the limit', () => {
+    for (let day = 0; day <= PRICES_STALE_AFTER_DAYS; day += 1) {
+      const seen = pricesBehind(plus(day));
+      expect(seen.days, `${day} days after the fetch`).toBe(day);
+      expect(seen.behind, `${day} days is inside the limit`).toBe(false);
+    }
+  });
+
+  it('says so the day after the limit, and stays said', () => {
+    expect(pricesBehind(plus(PRICES_STALE_AFTER_DAYS + 1)).behind).toBe(true);
+    expect(pricesBehind(plus(400)).behind).toBe(true);
+    expect(pricesBehind(plus(400)).days).toBe(400);
+  });
+
+  it('never reports a negative age, whatever the clock on the device says', () => {
+    /*
+     * A child's tablet with the date set wrong is not a hypothetical, and
+     * "fetched in -3 days" on a screen is the kind of wrongness that makes
+     * every other number on it suspect. Clamped at zero, silent.
+     */
+    expect(pricesBehind(plus(-30))).toEqual({ days: 0, behind: false });
+    expect(pricesBehind('not-a-date')).toEqual({ days: 0, behind: false });
+  });
+
+  it('is the same limit the build gate uses', () => {
+    /*
+     * The gate reads `PRICES_STALE_AFTER_DAYS` out of `companies.ts` by regex
+     * rather than keeping its own fourteen. This asserts the shape that regex
+     * depends on, so a rename fails here — next to the constant — instead of
+     * in a script somebody runs less often.
+     */
+    const source = readFileSync(new URL('../src/lib/companies.ts', import.meta.url), 'utf8');
+    expect(source).toMatch(
+      new RegExp(`export const PRICES_STALE_AFTER_DAYS = ${PRICES_STALE_AFTER_DAYS}\\b`),
+    );
   });
 });

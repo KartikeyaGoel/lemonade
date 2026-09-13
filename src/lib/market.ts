@@ -70,11 +70,27 @@ export const HISTORY_WEEKS = WEEK_DATES.length;
 /**
  * Which twelve weeks this run gets.
  *
- * Uniform over every window where all eight companies have published accounts.
+ * Uniform over every window where all the companies have published accounts.
  * Deliberately *not* filtered to windows containing a crash: curating for drama
  * would teach a kid that markets always fall in three months, which is its own
- * kind of lie. Measured across the available windows, 88% contain a real fall
- * of 10% or more anyway.
+ * kind of lie.
+ *
+ * And it does not need to be curated. Measured across all 225 available
+ * windows, with a bought-and-held three-company portfolio:
+ *
+ *  - **98%** contain a company that fell a tenth at some point.
+ *  - **63%** contain one the child actually *holds* falling that far, which is
+ *    the number that matters, because the fear is only a lesson when it is
+ *    their money.
+ *  - **15%** contain a fall of a tenth in the market as a whole.
+ *  - Only **10%** contain a holding that fell a tenth *and climbed back while
+ *    still held* — and twenty weeks only reaches 29%. A recovery takes as long
+ *    as it takes. That one is the live account's job, not this stage's.
+ *
+ * This comment previously said "88%", with no reading of it that was true and
+ * nothing asserting it — the same defect as `ACT2_DAYS = 16`, in prose. The
+ * figures above are swept in `tests/endless.test.ts`, which fails if the shape
+ * of them changes.
  */
 export function windowStartFor(seed: number): number {
   const first = FIRST_HONEST_WEEK;

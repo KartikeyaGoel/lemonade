@@ -15,8 +15,28 @@ import { describeSuspectSplit, suspectSplits } from './market-rules.mjs';
  * Fourteen days. The live market marks holdings once a week, so a fortnight is
  * two marks that did not happen — at which point the part of the game that is
  * meant to never end has quietly ended.
+ *
+ * **Read out of `companies.ts` rather than typed here.** The app now shows the
+ * same warning to the child (`pricesBehind`), so this limit is a fact with two
+ * consumers — and a fact with two homes drifts, which is PRODUCT.md §62 and has
+ * recurred five times. `market-rules.mjs` exists for the same reason: that rule
+ * was written out twice and the two copies disagreed for months.
+ *
+ * A regex over source rather than an import because this is an `.mjs` script
+ * and that is a `.ts` module. If the constant is ever renamed or removed this
+ * throws rather than silently falling back to a default, which is the whole
+ * lesson of the `?? data.fetchedAt` fallback that hid a bug in this very file.
  */
-const MAX_AGE_DAYS = Number(process.env.MAX_DATA_AGE_DAYS ?? 14);
+const companiesSource = await readFile(new URL('../src/lib/companies.ts', import.meta.url), 'utf8');
+const declared = companiesSource.match(/export const PRICES_STALE_AFTER_DAYS = (\d+)/);
+if (!declared) {
+  console.error(
+    'PRICES_STALE_AFTER_DAYS is not declared in src/lib/companies.ts. That constant is the one ' +
+      'definition of how stale the prices may be, and both this gate and the live screen read it.',
+  );
+  process.exit(1);
+}
+const MAX_AGE_DAYS = Number(process.env.MAX_DATA_AGE_DAYS ?? declared[1]);
 
 /**
  * And how old the *filings* may be.

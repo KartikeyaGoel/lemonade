@@ -282,7 +282,18 @@ export const MAX_STANDS = 3;
  */
 export const SAME_PITCH_SHARE = 0.5;
 
-/** Profitable days with two stands open that end the act. */
+/**
+ * Profitable days with two stands open that prove the second one pays.
+ *
+ * Not a gate. It used to end the act, and the sentence above said so long after
+ * it had stopped being true: merging the shop into the business stage made
+ * `act2Progress` complete on `shopProgress`, and this constant kept its old
+ * description while gating nothing at all. Its one real consumer is the
+ * `chain-of-two` badge, which had the number written out again as a literal.
+ *
+ * Found by `scripts/check-measured.mjs`, which asks what every time-shaped
+ * constant paces and would not accept "nothing".
+ */
 export const TWO_STAND_DAYS_REQUIRED = 2;
 
 /* ------------------------------------------------------------------ *

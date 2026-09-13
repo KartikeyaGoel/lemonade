@@ -38,6 +38,57 @@ export const SNAPSHOT_AS_OF: string = DATA.asOf;
 export const FUNDAMENTALS_SOURCE: string = DATA.fundamentalsSource;
 export const PRICES_SOURCE: string = DATA.pricesSource;
 
+/** When the refresh last actually reached a data provider. */
+export const DATA_FETCHED_AT: string = DATA.fetchedAt;
+
+/**
+ * How old the bundled prices may be before the app has to say so.
+ *
+ * Fourteen days: the live market marks holdings once a week, so a fortnight is
+ * two marks that did not happen.
+ *
+ * **This is the one definition of the limit.** `scripts/check-market-data.mjs`
+ * reads the number out of this file rather than keeping its own copy, because
+ * that gate and this screen are making the same claim and PRODUCT.md §62 is
+ * about exactly that — a fact with more than one home drifts.
+ *
+ * ## Why the app needs this at all, when there is already a gate
+ *
+ * The refresh workflow failed on every weekday for a fortnight and `npm run
+ * check` stayed green, because nothing read its output (§79). That is fixed:
+ * a stale file now fails the build.
+ *
+ * But a build that passed the gate is a bundle that then **ages on a phone.**
+ * Deploy on Monday, the cron dies on Tuesday, and no gate anywhere runs again
+ * — while `LiveOpenScreen` goes on saying *"Nothing has happened yet. Prices
+ * land once a week, so there is nothing new to see"* for as long as nobody
+ * notices. That sentence is true when the feed is alive and a lie when it is
+ * not, and it is the only thing a child is told about a market that is
+ * supposed to never end.
+ *
+ * So the check in CI protects the repo and this protects the child. They are
+ * different questions and only one of them was being asked.
+ */
+export const PRICES_STALE_AFTER_DAYS = 14;
+
+/**
+ * Whether the bundled prices have stopped moving, and by how much.
+ *
+ * Measured from `fetchedAt` — when a provider was last actually reached —
+ * rather than from `asOf`, the newest close. The two differ by up to a few
+ * days in the ordinary case because the newest row is the week in progress,
+ * and only one of them says anything about whether the pipe is still open.
+ *
+ * Pure: the day comes in as an argument.
+ */
+export function pricesBehind(today: string): { days: number; behind: boolean } {
+  const from = Date.parse(`${DATA_FETCHED_AT}T00:00:00Z`);
+  const to = Date.parse(`${today}T00:00:00Z`);
+  if (Number.isNaN(from) || Number.isNaN(to)) return { days: 0, behind: false };
+  const days = Math.max(0, Math.floor((to - from) / 86_400_000));
+  return { days, behind: days > PRICES_STALE_AFTER_DAYS };
+}
+
 /** The shared weekly date axis, oldest first. */
 export const WEEK_DATES: string[] = DATA.weeks;
 

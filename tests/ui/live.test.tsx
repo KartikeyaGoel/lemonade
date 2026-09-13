@@ -1,11 +1,13 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LiveOpenScreen } from '@/components/acts/LiveOpenScreen';
 import { catchUp, createLivePortfolio, dateOfWeek, LATEST_WEEK } from '@/lib/live';
 import { buy, createPortfolio, type PortfolioState } from '@/lib/market';
 import { MarketScreen } from '@/components/acts/MarketScreen';
+import { DATA_FETCHED_AT, PRICES_STALE_AFTER_DAYS, pricesBehind } from '@/lib/companies';
+import { localDay } from '@/lib/ledger';
 
 /** Rewinds by rows of price data. See `tests/live.test.ts` for why not weeks. */
 function openedRowsAgo(cash: number, rows: number): PortfolioState {
@@ -87,6 +89,82 @@ describe('opening one that has done nothing yet', () => {
     render(<LiveOpenScreen portfolio={fresh} report={null} onEnter={onEnter} onBack={() => {}} />);
     await userEvent.click(screen.getByText(/Go to the market/i));
     expect(onEnter).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * The third state, which is not about the account at all.
+ *
+ * "Nothing has happened yet. Prices land once a week, so there is nothing new
+ * to see" is true while the feed is alive and a lie the moment it dies — and
+ * the feed really did die for a fortnight without anybody noticing (PRODUCT.md
+ * §79). A gate in CI cannot reach a phone: the bundle that passed it ages after
+ * deploy, and this screen is the only thing a child is told about a market that
+ * is supposed to never end.
+ *
+ * The clock is moved rather than the data, because the data is the real file
+ * and a fixture of it would be a second copy of the thing under test.
+ */
+describe('opening one when the prices have stopped arriving', () => {
+  const fresh = createLivePortfolio(750);
+
+  /** Far enough past `fetchedAt` to be over `PRICES_STALE_AFTER_DAYS`. */
+  const longAfterTheFeedDied = () => {
+    const died = Date.parse(`${DATA_FETCHED_AT}T00:00:00Z`);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(died + (PRICES_STALE_AFTER_DAYS + 20) * 86_400_000));
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('says the prices are stuck instead of saying nothing happened', () => {
+    longAfterTheFeedDied();
+    render(
+      <LiveOpenScreen portfolio={fresh} report={null} onEnter={() => {}} onBack={() => {}} />,
+    );
+    expect(screen.getByText(/The prices are stuck/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing has happened yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Waiting is most of this/i)).not.toBeInTheDocument();
+  });
+
+  it('takes the blame, and says how far behind it is', () => {
+    longAfterTheFeedDied();
+    render(
+      <LiveOpenScreen portfolio={fresh} report={null} onEnter={() => {}} onBack={() => {}} />,
+    );
+    /* Our fault, not the child's — §15's rule about never telling a kid off
+       applies hardest when the thing that went wrong is ours. */
+    expect(screen.getByText(/That is our fault, not yours/i)).toBeInTheDocument();
+    expect(screen.getByText(/the real one kept going/i)).toBeInTheDocument();
+    /*
+     * The count read off the same function the screen uses, not from the
+     * offset above. `localDay` is the child's *local* day, so a clock set to
+     * UTC midnight lands on the previous date west of Greenwich — and a test
+     * that hard-coded 34 would pass in London and fail in California.
+     */
+    const behind = pricesBehind(localDay());
+    expect(behind.behind).toBe(true);
+    expect(screen.getByText(new RegExp(`${behind.days} days ago`))).toBeInTheDocument();
+  });
+
+  it('stops calling the last row it has "last week"', () => {
+    longAfterTheFeedDied();
+    render(
+      <LiveOpenScreen portfolio={fresh} report={null} onEnter={() => {}} onBack={() => {}} />,
+    );
+    expect(screen.queryByText(/What the market did last week/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/The last week we have/i)).toBeInTheDocument();
+  });
+
+  it('says nothing about staleness while the feed is alive', () => {
+    /* The other direction, so this cannot pass by always warning. */
+    render(
+      <LiveOpenScreen portfolio={fresh} report={null} onEnter={() => {}} onBack={() => {}} />,
+    );
+    expect(screen.getByText(/Nothing has happened yet/i)).toBeInTheDocument();
+    expect(screen.queryByText(/prices are stuck/i)).not.toBeInTheDocument();
   });
 });
 

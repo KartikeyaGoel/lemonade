@@ -23,12 +23,17 @@
  */
 
 import { swingAfterWorstDay, type DayRecord } from './simulation';
-import { HANDS_OFF_DAYS_REQUIRED, type BusinessState } from './business';
+import {
+  HANDS_OFF_DAYS_REQUIRED,
+  TWO_STAND_DAYS_REQUIRED,
+  type BusinessState,
+} from './business';
 import { GROWING_MULTIPLE, judgeDealChoice, type OwnershipState } from './ownership';
 import { founderStake, type Listing } from './listing';
 import { loanCleared } from './retail';
 import { DIVERSIFIED_MIN_HOLDINGS, type PortfolioState } from './market';
 import { GLOSSARY } from './glossary';
+import { SNAPSHOT } from './companies';
 
 export type BadgeTier = 'bronze' | 'silver' | 'gold' | 'legend';
 
@@ -245,7 +250,11 @@ export const BADGES: BadgeDef[] = [
     how: 'Run two stands at a profit, on the same price, twice.',
     tier: 'gold',
     act: 2,
-    test: (c) => c.business.twoStandDays >= 2,
+    /* The threshold lives in `business.ts` with the counter it reads. This was
+       a literal `2` next to a constant that said the same thing, which is §62
+       exactly — and the constant had drifted out of use entirely while nobody
+       was looking at either. */
+    test: (c) => c.business.twoStandDays >= TWO_STAND_DAYS_REQUIRED,
   },
   {
     id: 'read-the-street',
@@ -615,6 +624,22 @@ export interface Rank {
  * could observe, a word the kid was given for something they had already done,
  * or a set of real accounts they opened and looked at.
  */
+/**
+ * Everything there is to have, added up.
+ *
+ * The ladder's top rung is pinned to this rather than typed in, and that is the
+ * whole point of the constant existing. The thresholds below were absolute
+ * while the content was not: the collection grew from eight companies to
+ * twenty-four and the glossary to thirty-six, the ceiling moved from 66 to 100,
+ * and the last rung stayed at 70. So thirty points of demonstrated work — a
+ * third of everything — bought no rung at all, in the ladder whose own note
+ * says "a ladder that ends is a ladder you eventually stop looking at".
+ *
+ * Found by `tests/endless.test.ts`, which measures the live loop rather than
+ * reading the file. The argument had been written at the top of it for months.
+ */
+export const STANDING_CEILING = BADGES.length + GLOSSARY.length + SNAPSHOT.length;
+
 const LADDER: Array<{ at: number; name: string; emoji: string }> = [
   { at: 0, name: 'Kid with a jug', emoji: '🥤' },
   { at: 6, name: 'Stand owner', emoji: '🍋' },
@@ -624,6 +649,19 @@ const LADDER: Array<{ at: number; name: string; emoji: string }> = [
   { at: 44, name: 'Investor', emoji: '📈' },
   { at: 56, name: 'Analyst', emoji: '🧠' },
   { at: 70, name: 'Portfolio manager', emoji: '🗂️' },
+  { at: 84, name: 'Fund manager', emoji: '💼' },
+  /*
+   * The last rung, and deliberately the hardest thing in the product: every
+   * badge, every word, every set of accounts read. Most children will never
+   * stand on it, which is the same rule the trophy case is built on — "a
+   * trophy case that fills up on its own is worth nothing to look at".
+   *
+   * "Teacher" rather than another finance title because it is the one identity
+   * past portfolio manager that a nine-year-old can picture, and because it is
+   * what the product actually asks for: `taught-a-grown-up` is the deed, and
+   * `missions.ts` exists to make a child say the thing out loud.
+   */
+  { at: STANDING_CEILING, name: 'Teacher', emoji: '🧑‍🏫' },
 ];
 
 export function rankFor(standing: number): Rank {

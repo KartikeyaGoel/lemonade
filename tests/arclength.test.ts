@@ -33,7 +33,7 @@
  *  - **`mastery`** — fifteen skills, each detected from sightings in the
  *    child's own history rather than from a word being shown.
  *
- * Words are still counted, at the bott, as a *floor* rather than a target: if
+ * Words are still counted, at the bottom, as a *floor* rather than a target: if
  * the arc ever stops delivering most of them, something is wrong even if the
  * behaviour metrics hold.
  */
@@ -319,6 +319,33 @@ describe('what each day-costing constant is worth', () => {
    * What this test holds is the shape of that argument, not the numbers: each
    * streak is at least two, because one is an anecdote.
    */
+  it('leaves room for the goal after the practice days', () => {
+    /*
+     * `ECON.ACT1_EXPLORE_DAYS = 2` is the one pace nothing measured, and its
+     * cost is not obvious from reading it: the goal is not *mentioned* for the
+     * first two days, so every day of the target has to happen after them.
+     *
+     * Measured: the fastest careful stage 1 is **4 days** — two practice days
+     * and then `ACT1_TARGET_HITS = 2` days over target, back to back. Which
+     * means the two numbers are exactly tight against the measured floor, and
+     * raising either by one adds a day to the shortest possible opening for
+     * every child who plays well.
+     *
+     * That is worth a test rather than a comment, because it is the arithmetic
+     * that makes the difference between "the goal arrives once you know what a
+     * cup costs" and "the goal arrives after you have already been told you are
+     * behind". `tests/stage1.test.ts` checks that the strip says the right
+     * thing on each of those days; this checks there are days left afterwards.
+     */
+    const fastest = Math.min(...RUNS.map((run) => run.stage1));
+    expect(fastest, `fastest careful stage 1 was ${fastest} days`).toBe(
+      ECON.ACT1_EXPLORE_DAYS + ECON.ACT1_TARGET_HITS,
+    );
+    /* And the cap has to hold both with something spare, or a child who needs
+       a third go at the target is timed out by the practice days. */
+    expect(ECON.ACT1_EXPLORE_DAYS + ECON.ACT1_TARGET_HITS).toBeLessThan(ECON.TOTAL_DAYS);
+  });
+
   it('keeps each proof streak long enough to rule out a fluke', () => {
     expect(HANDS_OFF_DAYS_REQUIRED).toBeGreaterThanOrEqual(2);
     expect(SHOP_DAYS_REQUIRED).toBeGreaterThanOrEqual(2);
