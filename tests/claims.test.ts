@@ -188,8 +188,22 @@ function claimingSentences(text: string): string[] {
     .filter((sentence) => (sentence.match(FIGURE) ?? []).length >= 2);
 }
 
-/** Within a cent, which is as close as two rounded figures can be asked to be. */
-const closes = (a: number, b: number) => Math.abs(a - b) <= 0.011;
+/**
+ * Exact to the printed cent.
+ *
+ * This was `<= 0.011`, which sounds like a reasonable tolerance for rounded
+ * figures and is not: it is precisely the width of the defect. The margin card
+ * printed "keep $0.81 ... sold for $1.01 ... cost $0.19" — a penny out, on a
+ * screen where a child can do the sum in their head — and passed, because a
+ * penny is inside every sensible tolerance a test would pick.
+ *
+ * The figures are compared **as printed**, to two decimal places, because §4 is
+ * about what a child reads rather than about what the floats were. A producer
+ * whose three figures do not add up to the cent has a rounding bug, and the
+ * answer is to derive one of them from the others rather than to widen this.
+ */
+const asPrinted = (n: number) => Number(n.toFixed(2));
+const closes = (a: number, b: number) => asPrinted(a) === asPrinted(b);
 /** Within a cent a cup, for the lines that divide a total by a count. */
 const divides = (total: number, count: number, each: number) =>
   count > 0 && Math.abs(total / count - each) <= 0.011;

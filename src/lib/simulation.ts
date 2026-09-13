@@ -1884,14 +1884,28 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
      * rather than quietly averaging — the same branch the `revenue` card makes
      * a few lines up, for the same reason.
      */
-    const perCupTaken = round2(outcome.grossMarginPerCup + outcome.ingredients.perCup);
+    /*
+     * All three figures off the *rounded* unit cost, which is the one the
+     * sentence prints.
+     *
+     * `grossMarginPerCup` is already computed against `toCents(perCup)` — its
+     * own comment says why: "the close screen shows both, and they must
+     * reconcile on paper". Adding the raw `perCup` back on gave the third
+     * figure a different rounding: a cup costing 0.195 printed as "keep $0.81
+     * ... sold for $1.01 ... cost $0.19", which is a penny out on a screen
+     * where a child can do the sum in their head. Found by driving day one in
+     * a browser, because a cent is inside every sensible tolerance a test
+     * would use — and §4 is about what is *printed*, not about what is close.
+     */
+    const perCupCost = toCents(outcome.ingredients.perCup);
+    const perCupTaken = round2(outcome.grossMarginPerCup + perCupCost);
     found.push({
       id: 'margin',
       term: 'Gross margin',
       evidence:
         centsApart(perCupTaken, outcome.price) > 0
-          ? `You keep ${money(outcome.grossMarginPerCup)} on an average cup: it sold for ${money(perCupTaken)} and cost ${money(outcome.ingredients.perCup)} to make.`
-          : `You keep ${money(outcome.grossMarginPerCup)} of every ${money(perCupTaken)} cup, because each one costs ${money(outcome.ingredients.perCup)} to make.`,
+          ? `You keep ${money(outcome.grossMarginPerCup)} on an average cup: it sold for ${money(perCupTaken)} and cost ${money(perCupCost)} to make.`
+          : `You keep ${money(outcome.grossMarginPerCup)} of every ${money(perCupTaken)} cup, because each one costs ${money(perCupCost)} to make.`,
       carriesForward: soldMoreEarnedLess
         ? 'You have now had a day where you sold more cups and made less money. Volume is not the goal. Margin times volume is.'
         : 'Two businesses can sell the same amount and one keeps far more of it. That gap is margin.',
