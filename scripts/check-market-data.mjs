@@ -7,6 +7,7 @@
  * six-month-old file looks identical to a build with a fresh one.
  */
 import { readFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { describeSuspectSplit, suspectSplits } from './market-rules.mjs';
 
 /**
@@ -134,6 +135,123 @@ if (fundamentalsAge > MAX_FUNDAMENTALS_AGE_DAYS) {
     `filings are ${fundamentalsAge} days old (limit ${MAX_FUNDAMENTALS_AGE_DAYS}); the SEC fetch ` +
       `has been failing and the numbers are being carried forward`,
   );
+}
+
+/* ------------------------------------------------------------------ *
+ * Did the *shape* of what arrived change?
+ * ------------------------------------------------------------------ */
+
+/**
+ * The file against the last committed version of itself.
+ *
+ * Everything above checks that the data is well formed and recent. None of it
+ * would notice the actual risk of an unofficial endpoint, which is not a 404 —
+ * a 404 fails loudly and the script refuses to write. It is the endpoint
+ * quietly starting to return **something else**: unadjusted closes instead of
+ * adjusted, a different interval, the wrong ticker, prices in another currency.
+ * Every one of those produces a file that passes every check in this script and
+ * is wrong in the way the product cannot survive, because "the numbers are
+ * always real" is the load-bearing claim.
+ *
+ * `pricesSource` still reads "Yahoo Finance chart endpoint (unofficial)"
+ * because `ALPHAVANTAGE_KEY` is not set as a repository secret, and the fetch
+ * script's own note says Yahoo "can change without notice, so it is a
+ * convenience for local runs rather than something to depend on in a deploy".
+ * It is what the deploy depends on. Setting the secret is the real fix and it
+ * needs somebody with an account; this is what can be done without one.
+ *
+ * **The invariant is that history is not rewritten.** A weekly close from 2023
+ * is a fact. Measured across the current file and its predecessor: 6,288 shared
+ * rows, **zero** changed. The one legitimate exception is an adjustment — a
+ * split or a dividend rescales every row before it by one constant factor — so
+ * a handful of distinct ratios is allowed and a scatter of them is not.
+ *
+ * Deliberately tight enough to have no false positives and loose enough to
+ * survive a real corporate action, because a gate that cries wolf on the weekly
+ * cron is a gate somebody switches off. That is how the refresh came to fail in
+ * silence for a fortnight in the first place.
+ */
+function previousCommitted() {
+  try {
+    const raw = execFileSync('git', ['show', 'HEAD:src/lib/market-data.json'], {
+      cwd: new URL('..', import.meta.url),
+      encoding: 'utf8',
+      maxBuffer: 1 << 28,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+const before = previousCommitted();
+if (!before) {
+  console.log('  shape:        no committed version to compare against (skipped)');
+} else {
+  if (before.asOf > data.asOf) {
+    problems.push(`asOf went backwards: ${before.asOf} -> ${data.asOf}`);
+  }
+  if (data.weeks.length < before.weeks.length - 2) {
+    problems.push(
+      `the price history shrank from ${before.weeks.length} weeks to ${data.weeks.length}; ` +
+        `the window rolls, it does not collapse`,
+    );
+  }
+
+  const wasAt = new Map(before.weeks.map((date, index) => [date, index]));
+  const wasClose = new Map(before.companies.map((company) => [company.ticker, company.closes]));
+  for (const company of before.companies) {
+    if (!data.companies.some((now) => now.ticker === company.ticker)) {
+      problems.push(`${company.ticker} has gone from the file; the snapshot does not lose companies`);
+    }
+  }
+
+  let shared = 0;
+  let rewritten = 0;
+  const ratios = new Map();
+  for (const company of data.companies) {
+    const was = wasClose.get(company.ticker);
+    if (!was) continue;
+    data.weeks.forEach((date, index) => {
+      const then = wasAt.get(date);
+      if (then === undefined) return;
+      const a = was[then];
+      const b = company.closes[index];
+      if (!Number.isFinite(a) || !Number.isFinite(b) || a <= 0) return;
+      shared += 1;
+      /*
+       * The newest row is the week in progress, so its close moves legitimately
+       * every day until the week closes. Everything older is a settled fact.
+       */
+      if (index >= data.weeks.length - 1) return;
+      const ratio = b / a;
+      if (Math.abs(ratio - 1) <= 0.005) return;
+      rewritten += 1;
+      const key = ratio.toFixed(3);
+      ratios.set(key, (ratios.get(key) ?? 0) + 1);
+      if (ratio > 10 || ratio < 0.1) {
+        problems.push(
+          `${company.ticker} ${date}: ${a} became ${b}. A hundredfold move in a settled week is ` +
+            `a different series, not a price change — check what the endpoint returned`,
+        );
+      }
+    });
+  }
+
+  const spread = [...ratios.keys()].length;
+  console.log(
+    `  shape:        ${shared} weeks shared with the last commit, ${rewritten} rewritten` +
+      (spread > 0 ? ` across ${spread} adjustment ratio${spread === 1 ? '' : 's'}` : ''),
+  );
+  if (rewritten > shared * 0.05 && spread > 3) {
+    problems.push(
+      `${rewritten} of ${shared} settled weekly closes changed, across ${spread} different ` +
+        `ratios. A split or a dividend rescales a whole stretch by one factor; a scatter of ` +
+        `ratios means the endpoint is returning a different series than it was. ` +
+        `See PRODUCT.md §79.`,
+    );
+  }
 }
 
 if (problems.length > 0) {

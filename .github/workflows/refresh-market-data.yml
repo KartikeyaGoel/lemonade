@@ -6,10 +6,20 @@
 # which means the app stays static, the key stays server-side, and the numbers
 # are never more than a day old.
 #
-# Fundamentals come from SEC EDGAR and need no key at all. Prices use Alpha
-# Vantage when `ALPHAVANTAGE_KEY` is set as a repository secret (free tier is 25
-# requests a day, and this uses eight), and fall back to an unofficial endpoint
-# otherwise. Set the secret before relying on this.
+# Fundamentals come from SEC EDGAR and need no key at all — though the SEC now
+# returns 403 to GitHub Actions' address ranges, so the fetch carries the
+# previous filings forward and writes fresh prices anyway. `fundamentalsCarried`
+# records that it did, and `check-market-data.mjs` fails the build if it has
+# been carrying them for more than a hundred days.
+#
+# Prices use Alpha Vantage when `ALPHAVANTAGE_KEY` is set as a repository secret
+# (free tier is 25 requests a day, and this uses eight), and fall back to
+# Yahoo's chart endpoint otherwise. **The secret is not set**, so that fallback
+# is what the deploy runs on: an undocumented endpoint that can change shape
+# without notice. The step below says so in the run summary, and the check
+# compares every settled weekly close against the last commit so a silent change
+# of series fails rather than ships. Setting the secret is still the real fix
+# and needs somebody with an account.
 name: Refresh market data
 
 on:
@@ -32,6 +42,20 @@ jobs:
           node-version: 22
 
       - run: npm ci
+
+      # Said in the run summary rather than in a document, because a document
+      # nobody opens is how this pipeline came to fail in silence for a
+      # fortnight. See PRODUCT.md §79.
+      - name: Say which price source this run is about to use
+        env:
+          ALPHAVANTAGE_KEY: ${{ secrets.ALPHAVANTAGE_KEY }}
+        run: |
+          if [ -z "$ALPHAVANTAGE_KEY" ]; then
+            echo "::warning title=Unofficial price source::ALPHAVANTAGE_KEY is not set, so prices come from Yahoo's chart endpoint. It is undocumented and can change shape without notice. check-market-data.mjs compares the result against the last commit to catch that, but the real fix is to set the secret."
+            echo "Prices: **Yahoo chart endpoint (unofficial)** — \`ALPHAVANTAGE_KEY\` is not set." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Prices: Alpha Vantage (official, keyed)." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Fetch real fundamentals and weekly closes
         env:
