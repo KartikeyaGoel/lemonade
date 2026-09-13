@@ -21,6 +21,7 @@ import {
   type DayOutcome,
   type GameState,
 } from '../src/lib/simulation';
+import { RIVAL_APPEARS_ON_DAY } from '../src/lib/business';
 
 /** Act 2 params: no last day, no cash floor. */
 const ACT2 = { ...DEFAULT_DAY_PARAMS, lastDay: null, cashFloor: null };
@@ -180,6 +181,77 @@ describe('the thread', () => {
     const seen = ['welcome', 'act2-open'];
     expect(nextBeat(context({ act: 2, act2Day: STALL_DAY - 1 }), seen)).toBeNull();
     expect(nextBeat(context({ act: 2, act2Day: 12, hasManager: true }), seen)).toBeNull();
+  });
+
+  it('names the rival the day he starts costing money, not four days later', () => {
+    /*
+     * The beat that was unreachable, and the reason it is not on the clock.
+     *
+     * A rival opens on day three of the stands stage and takes about 54% of
+     * the street. `STALL_DAY` is seven. So gating this the way the manager
+     * nudge is gated would mean four days in which the game knew exactly why
+     * the money had gone and said nothing — and those four days are, measured,
+     * the difference between a stage finished in six days and a stage that
+     * cannot be finished at all.
+     */
+    const seen = ['welcome', 'act2-open'];
+    const contested = context({ act: 2, act2Day: RIVAL_APPEARS_ON_DAY, marketShare: 0.46 });
+    expect(RIVAL_APPEARS_ON_DAY).toBeLessThan(STALL_DAY);
+    expect(nextBeat(contested, seen)?.id).toBe('act2-rival');
+  });
+
+  it('says nothing about the rival once something has been done about him', () => {
+    /*
+     * The condition is evidence, not a timer: the street is shared *and*
+     * nothing that answers him has been bought. A child who bought the kit on
+     * the first contested day is told nothing, because there is nothing to
+     * tell them.
+     */
+    const seen = ['welcome', 'act2-open'];
+    const answered = context({
+      act: 2,
+      act2Day: 4,
+      marketShare: 0.46,
+      differentiated: true,
+    });
+    expect(nextBeat(answered, seen)).toBeNull();
+
+    // And never on an uncontested street, which is every day of Stage 1.
+    expect(nextBeat(context({ act: 2, act2Day: 4, marketShare: 1 }), seen)).toBeNull();
+    expect(nextBeat(context({ act: 1, act2Day: 4, marketShare: 0.46 }), ['welcome'])).toBeNull();
+  });
+
+  it('comes before the manager nudge when a child is behind on both', () => {
+    /*
+     * One line at a time, and the rival is the one costing money right now.
+     * A child past halfway with no manager *and* an unanswered rival needs the
+     * share of the street first: hiring into a half-empty queue is how the
+     * stage becomes unfinishable.
+     */
+    const both = context({
+      act: 2,
+      act2Day: STALL_DAY + 2,
+      hasManager: false,
+      marketShare: 0.46,
+    });
+    expect(nextBeat(both, ['welcome', 'act2-open'])?.id).toBe('act2-rival');
+    // And the manager nudge still arrives on the next pass.
+    expect(nextBeat(both, ['welcome', 'act2-open', 'act2-rival'])?.id).toBe('act2-stall');
+  });
+
+  it('reports the rival as a fact and never as a move', () => {
+    /*
+     * The load-bearing rule of this file, applied to the beat most tempting to
+     * break it with — the answer really is "buy the fresh-squeezed", and
+     * saying so would play the game for them and hollow out the
+     * differentiation lesson the stage exists for.
+     */
+    const rival = lineFor('act2-rival').says.join(' ');
+    expect(rival).toMatch(/across the road|street/i);
+    expect(rival).not.toMatch(/\bbuy\b|\bbuying\b/i);
+    expect(rival).not.toMatch(/\bfresh|\bsign\b/i);
+    expect(rival).not.toMatch(/\byou (should|could|need to|have to|might want)\b/i);
+    expect(rival).not.toMatch(/\b(lower|raise|drop|charge) your price\b/i);
   });
 
   it('states the act’s objective rather than a way of reaching it', () => {

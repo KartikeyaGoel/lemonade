@@ -154,43 +154,63 @@ export const ROUND = {
 /**
  * Days the stands stage runs before it hands over regardless.
  *
- * Sixteen, and it stays sixteen. This was cut to thirteen on the argument that
- * a cap is the fallback for a child who has *not* met the goal, so its slack is
- * only ever spent by whoever is already struggling — which is true, and turned
- * out to be the wrong conclusion.
+ * **Ten.** It was sixteen, and the sixteen was measured in a game with no
+ * competitor in it.
  *
- * `tests/wordbudget.test.ts` measured what the cut actually costs, over ten
- * seeds and two levels of play, and the answer is a specific word:
- * **`delegation`**.
+ * ## What the old number rested on
  *
- * | cap | careless runs that lose a word | word lost |
- * | --- | --- | --- |
- * | 16 | 0/10 | — |
- * | 15 | 1/10 | `delegation` |
- * | 14 | 1/10 | `delegation` |
- * | 13 | 2/10 | `delegation` |
- * | 12 | 3/10 | `delegation` |
- * | 11 | 5/10 | `delegation`, `spoilage` |
+ * `tests/wordbudget.test.ts` measured what a shorter stage costs and found a
+ * specific word — `delegation`, the one this stage exists to teach — going
+ * missing for careless players at every cap below sixteen. That table read:
  *
- * Careful play is untouched at any of these — it finishes by day eleven. The
- * cost lands entirely on the child who plays badly, hires a manager late
- * because the cash took a while, and needs the tail of the stage to get there.
- * And the word they lose is the one this stage is *for*: the manager, the
- * business that runs without you, the difference between owning a job and
- * owning a business.
+ * | cap | careless runs that lose a word |
+ * | --- | --- |
+ * | 16 | 0/10 |
+ * | 13 | 2/10 |
+ * | 11 | 5/10 |
  *
- * So the length of this stage is load-bearing for its own central idea, and no
- * cap below sixteen is free. If it should be shorter, the lever is the gate —
- * make `delegation` reachable sooner — not the clock.
+ * The conclusion — "the length of this stage is load-bearing for its own
+ * central idea, and no cap below sixteen is free" — followed correctly from
+ * that table. The table was wrong. `wordbudget.test.ts` had its own copy of the
+ * day loop, and like the other three copies it was missing `advanceRival`, so
+ * every figure in it described a street with nobody across the road. See
+ * `src/lib/day.ts`.
  *
- * `ACT3_DAYS` is the opposite case and was cut from twelve to six, because
- * there the same measurement found the slack really was spare.
+ * ## What the same measurement says now
  *
- * The caveat that survives all of it: the cap is not what makes the runway
- * long. The objectives are. A kid who does everything right still plays about
- * twenty-six days before a share price appears, and no cap can shorten that.
+ * Re-run through `settleDay`, over the same ten seeds and the same two levels
+ * of play:
+ *
+ * | | sensible | careless |
+ * |---|---|---|
+ * | days to finish the stage, uncapped | **5–6** | 22–59 |
+ * | goal reached, uncapped | 10/10 | 10/10 |
+ *
+ * And the words, which is the part that decides this. **Every cap from six to
+ * sixteen loses exactly the same four words** — `spoilage`, `delegation`,
+ * `capex-vs-opex`, `dividends` — and loses them only for careless play, which
+ * needs twenty-two days at best and fifty-nine at worst. No reachable cap
+ * rescues that run, so the extra ten days were not buying the word they were
+ * justified by. They were buying ten more identical days.
+ *
+ * Which is exactly what the second pilot reported: *sixteen rounds still felt
+ * repetitive.* It was not a pacing preference. Careless play **always** runs
+ * this stage to its clock, so sixteen was the number of days a struggling child
+ * actually played, every time.
+ *
+ * ## Why ten and not six
+ *
+ * Six is the arithmetic floor and it has no margin: the slowest sensible run
+ * measured takes six days, so a cap of six would time out the next run that is
+ * a day unluckier with the weather. Ten is the floor plus four, which is the
+ * same policy `ACT3_DAYS` states — worst observed run plus margin — with more
+ * margin because this stage's worst run varies with the sky and the shop's does
+ * not.
+ *
+ * The caveat that survives all of it, restated because it is still true: the
+ * cap is not what makes the runway long. The objectives are.
  */
-export const ACT2_DAYS = 16;
+export const ACT2_DAYS = 10;
 /** Profitable manager-run days needed to prove it runs without the kid. */
 export const HANDS_OFF_DAYS_REQUIRED = 3;
 
@@ -565,12 +585,44 @@ export function serviceCapacity(business: BusinessState): number {
  * end of Stage 3 a kid has made all four.
  */
 export function dailyFixedCosts(business: BusinessState): FixedCostLine[] {
-  const lines: FixedCostLine[] = [
-    { label: `${LOCATIONS[business.location].name} pitch`, amount: LOCATIONS[business.location].fee },
-  ];
-  for (const stand of business.stands) {
-    lines.push({ label: `${LOCATIONS[stand.location].name} pitch`, amount: LOCATIONS[stand.location].fee });
-  }
+  /*
+   * Pitch fees, grouped by pitch.
+   *
+   * One line per stand, before — and two stands on the *same* pitch is not an
+   * edge case, it is a designed one: `standLines` prices it with
+   * `SAME_PITCH_SHARE`, the yard offers `sidewalk` as somewhere to open, and
+   * the child starts standing on the sidewalk. So "Your sidewalk pitch $5"
+   * appeared twice in the profit and loss, and both the close screen and the
+   * cash box key those rows by their label — `key={line.label}` in each — so
+   * React was reconciling two siblings with one key on the one screen in the
+   * game whose entire job is adding up.
+   *
+   * Grouped rather than de-duplicated, because the money is genuinely owed
+   * twice and `totalFixedCost` sums these. `×2` is the same shape this function
+   * already uses for stand minders a few lines down, so a child who has met
+   * one has met the other.
+   *
+   * Found by a fixture with two stands on one pitch, which is the state
+   * PRODUCT.md §49 says to build from the real constructors and then look at.
+   */
+  const pitches: FixedCostLine[] = [];
+  const addPitch = (location: LocationId) => {
+    const name = `${LOCATIONS[location].name} pitch`;
+    const fee = LOCATIONS[location].fee;
+    const already = pitches.find((line) => line.label === name || line.label.startsWith(`${name} ×`));
+    if (!already) {
+      pitches.push({ label: name, amount: fee });
+      return;
+    }
+    const count = Math.round(already.amount / fee) + 1;
+    already.label = `${name} ×${count}`;
+    already.amount = round2(already.amount + fee);
+  };
+
+  addPitch(business.location);
+  for (const stand of business.stands) addPitch(stand.location);
+
+  const lines: FixedCostLine[] = [...pitches];
   if (business.staff.helper) lines.push({ label: 'Helper wages', amount: STAFF.helper.wage });
   if (business.staff.manager) lines.push({ label: 'Manager wages', amount: STAFF.manager.wage });
   const minders = business.stands.filter((stand) => stand.runBy === 'minder').length;

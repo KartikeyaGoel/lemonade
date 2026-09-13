@@ -128,7 +128,28 @@ describe('the whole arc, played', () => {
     let game = beginAct2(createGame(2026));
     game = {
       ...game,
-      business: { ...game.business, staff: { helper: false, manager: true } },
+      business: {
+        ...game.business,
+        staff: { helper: false, manager: true },
+        /*
+         * The kit, which this fixture used to leave empty.
+         *
+         * It could, while `playDay` never advanced the rival — with the street
+         * uncontested the streak filled in about a week on the cooler alone.
+         * With the competitor restored it takes the full sixteen days and this
+         * assertion fails, which is the trap this fixture would otherwise be
+         * quietly asserting is fine: a child standing across the road from
+         * somebody cheaper, paying a manager twenty dollars a day, on a
+         * business that loses money about two days in three.
+         *
+         * So the fixture is now a child who has bought the fifty-five dollars
+         * of kit that answers the rival, because what this test is about is
+         * whether the gate lands with days to spare for somebody playing the
+         * stage as designed. The trap itself is measured in
+         * `tests/rival.test.ts`, where it belongs.
+         */
+        upgrades: { ...game.business.upgrades, freshSqueeze: true, bigSign: true, cooler: true },
+      },
       stand: { ...game.stand, cash: 300 },
     };
 
@@ -136,8 +157,8 @@ describe('the whole arc, played', () => {
 
     let days = 0;
     while (days < ACT2_DAYS && game.business.handsOffDays < HANDS_OFF_DAYS_REQUIRED) {
-      game = playDay(game, sensiblePrice(game), sensibleBatch(game), true);
       days += 1;
+      game = playDay(game, sensiblePrice(game), sensibleBatch(game), true, days);
     }
 
     expect(game.business.handsOffDays).toBeGreaterThanOrEqual(HANDS_OFF_DAYS_REQUIRED);

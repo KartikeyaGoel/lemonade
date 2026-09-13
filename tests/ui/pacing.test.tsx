@@ -312,8 +312,156 @@ describe('the manager shortcut', () => {
         before,
       ),
     );
-    // And it counts as a hands-off day, which is what the stage is gated on.
-    expect(Number(saved().business.handsOffDays)).toBeGreaterThanOrEqual(handsOffBefore);
+
+    /*
+     * It counts as a hands-off day — up on a profit, down on a loss.
+     *
+     * This used to assert the streak never went backwards, and it passed for a
+     * reason that was a bug. `game.stand` was advanced only in `closeDay`, so
+     * at a close screen the stand was still sitting on that morning. Handing
+     * over from there ran `openStand` against the *pre-day* state: the day the
+     * child had just played was silently discarded and replayed under the
+     * manager, on the same seed and so the same weather — and because the
+     * counters had already been banked for it, one calendar day moved the
+     * hands-off streak twice. A child could fill the streak by tapping the
+     * shortcut without a day passing.
+     *
+     * With the transition in one place (`src/lib/day.ts`) the day is banked
+     * before the close screen renders, so the shortcut starts *tomorrow*,
+     * which is what the arrow on the button always said it did. Tomorrow has
+     * its own weather, and `updateHandsOff` ticks down by one on a loss — so
+     * the honest property is that the day was **counted**, in whichever
+     * direction it earned.
+     */
+    const days = saved().stand.history as Array<{ profit: number }>;
+    const managersDay = days[days.length - 1];
+    const handsOffAfter = Number(saved().business.handsOffDays);
+    expect(
+      handsOffAfter,
+      `the manager made $${managersDay.profit} and the streak went ${handsOffBefore} → ${handsOffAfter}`,
+    ).toBe(managersDay.profit > 0 ? handsOffBefore + 1 : Math.max(0, handsOffBefore - 1));
+  }, 60_000);
+
+  it('starts tomorrow rather than replaying the day on screen', async () => {
+    /*
+     * The bug above, pinned on its own so it cannot come back quietly.
+     *
+     * The shortcut sits on the close screen next to "Start day N →". Both are
+     * ways of leaving that screen and both must leave it forward. What made
+     * the old behaviour hard to see is that it looked right: a day appeared, it
+     * had a plausible result, and the only tell was that the seed had not
+     * moved, so the weather was yesterday's again.
+     */
+    seed({
+      act: 2,
+      business: {
+        ...createBusinessState(),
+        staff: { helper: false, manager: true },
+        handsOffDays: 1,
+      },
+    });
+    await resume();
+
+    for (let step = 0; step < 24 && !find(/Let your manager run it/); step++) {
+      if (await maybe(/Got it|TAP TO CLOSE|BADGE EARNED|WORD EARNED/i)) continue;
+      if (find(/Tap to speed up|Let the rest come|Wave them over|Hurrying|Count up the money/)) {
+        await playOutTheDay();
+        continue;
+      }
+      const moved =
+        (await maybe(/Open the stand!/)) ||
+        (await maybe(/Open up today|Open up shop/)) ||
+        (await maybe(/Go shopping/)) ||
+        (await maybe(/Set my price/)) ||
+        (await maybe(/Start day \d+|See your week|Carry on/));
+      if (!moved) break;
+    }
+    expect(find(/Let your manager run it/), 'the manager was never offered').toBeTruthy();
+
+    /*
+     * The day on screen is already in the history by the time the shortcut is
+     * offered, which is the whole fix: there is nothing left to replay.
+     */
+    const bankedBefore = (saved().stand.history as Array<{ day: number }>).map((d) => d.day);
+
+    await must(/Let your manager run it/, 'handing the day over');
+    await playOutTheDay();
+    for (let i = 0; i < 10; i++) if (!(await maybe(/Got it|TAP TO CLOSE|WORD EARNED|BADGE EARNED/i))) break;
+
+    await waitFor(() => {
+      const after = (saved().stand.history as Array<{ day: number }>).map((d) => d.day);
+      expect(after.length, 'the handed-over day was not banked').toBe(bankedBefore.length + 1);
+      // A genuinely new day, not the one that was on screen a second ago.
+      expect(
+        new Set(after).size,
+        `the same day was banked twice: ${after.join(',')}`,
+      ).toBe(after.length);
+    });
+  }, 60_000);
+});
+
+describe('the end-of-week fork on a stage boundary', () => {
+  /*
+   * The fork now fires on the last day of a stage as well as every seventh
+   * day, because sensible play finishes the stands stage on day five or six
+   * and so never reached it — see `afterDay` in `src/lib/day.ts`.
+   *
+   * That created a second, sharper bug, and it is the reason this test is at
+   * the UI level rather than in `tests/day.test.ts`: the fork now has to be
+   * able to hand over to the *next act*, and the routing helper was reading
+   * the game off a React closure. So `setGame` applied the child's choices,
+   * routing ran against the pre-fork game, and `beginAct3` overwrote them —
+   * sixteen neighbours signed up and silently thrown away. No pure test could
+   * have seen it. It was found by ticking the box in a browser and reading the
+   * save.
+   */
+  it('keeps what the child chose when the stage hands over', async () => {
+    seed({
+      act: 2,
+      business: {
+        ...createBusinessState(),
+        staff: { helper: false, manager: true },
+        upgrades: { cooler: true, bigSign: true, freshSqueeze: true },
+        handsOffDays: 5,
+        stands: [
+          { id: 'home', location: 'sidewalk', open: true },
+          { id: 'second', location: 'park', open: true },
+        ],
+        twoStandDays: 1,
+      } as never,
+    });
+    await resume();
+
+    /* Play whatever day we land on until the fork appears. */
+    for (let step = 0; step < 30 && !find(/Leave it|Take it/); step++) {
+      if (await maybe(/Got it|TAP TO CLOSE|BADGE EARNED|WORD EARNED/i)) continue;
+      if (find(/Tap to speed up|Let the rest come|Count up the money|Hurrying/)) {
+        await playOutTheDay();
+        continue;
+      }
+      const moved =
+        (await maybe(/Open the stand!/)) ||
+        (await maybe(/Open up today|Open up shop/)) ||
+        (await maybe(/Set my price/)) ||
+        (await maybe(/Start day \d+|See your week|Carry on/));
+      if (!moved) break;
+    }
+
+    expect(body(), 'the stage ended without offering the fork').toMatch(/Keep it or grow it/i);
+
+    /* Sign up the round — the mechanic that was unreachable for good play. */
+    const expected = body().match(/About (\d+) would say yes/);
+    expect(expected, 'the fork did not offer the round').toBeTruthy();
+    await must(/signing up regulars/i, 'ticking the round');
+    await must(/Leave it|Take it/, 'committing the choice');
+
+    await waitFor(() => {
+      expect(
+        Number(saved().business.regulars),
+        'the neighbours signed up at the fork were discarded by the act handover',
+      ).toBe(Number(expected![1]));
+    });
+    expect(Number(saved().business.roundDrives)).toBe(1);
   }, 60_000);
 });
 

@@ -55,19 +55,19 @@ import {
 import {
   ACT2_DAYS,
   HANDS_OFF_DAYS_REQUIRED,
+  UPGRADES,
   act2Progress,
   buyUpgrade,
-  deriveDayParams,
   openStand,
   serviceCapacity,
   standCount,
   toggleStaff,
-  updateHandsOff,
-  updateTwoStandDays,
+  type UpgradeId,
 } from './business';
-import { SHOP, loanQuote, repayLoan, shopProgress, updateShopDays } from './retail';
+import { SHOP, loanQuote, shopProgress } from './retail';
 import { acceptBuyout, bestDeal, buyoutOffer, recordDealChoice } from './ownership';
-import { ECON, batchPlan, deriveInsights, runDay } from './simulation';
+import { ECON, batchPlan, runDay } from './simulation';
+import { paramsForDay, settleDay } from './day';
 
 /**
  * A price that clears the day's costs.
@@ -100,33 +100,47 @@ export function batchForCapacity(game: Game): number {
 }
 
 /**
- * One day, with every counter the close screen advances.
+ * One day, through the same function the app uses.
  *
- * Deliberately mirrors `closeDay` in `src/app/page.tsx`: the hands-off streak,
- * the two-stand streak, the shop's run of good days, a day off the loan and the
- * lifetime day count. If this drifts from that, a stage goal can become
- * unreachable in the app while every test still passes.
+ * This used to be a second implementation of playing a day — the hands-off
+ * streak, the two-stand streak, the shop's good days, a day off the loan, the
+ * lifetime count — written to "deliberately mirror `closeDay` in
+ * `src/app/page.tsx`". It did not mirror it. `closeDay` advanced the rival and
+ * this did not, so `tests/arc.test.ts` proved the game finishable with the
+ * competitor switched off, and the measurement that set `ACT2_DAYS = 16` was
+ * taken in the same absent-competitor world. See `src/lib/day.ts` for the
+ * numbers and for why there is now one function instead of two.
  *
- * The words are collected here too. A child is handed one insight a day and
- * ends up having been told all of them; a jumped save arrives with the same set
- * already learned, which is what `readiness` reads for its margin criterion.
+ * The only thing this adds on top is that it drains the word queue. A child is
+ * rationed to one insight a day by `WORDS_PER_DAY`; a demo save stands in for
+ * somebody who *played* those days and was handed them one at a time, so it
+ * arrives having been told the same set rather than a seventh of it. That is
+ * what `readiness` reads for its margin criterion, and rationing it here would
+ * hand somebody a market they cannot buy in.
  */
-export function playDay(game: Game, price: number, cups: number, byManager = false): Game {
-  const params = deriveDayParams(game.business, price);
+export function playDay(
+  game: Game,
+  price: number,
+  cups: number,
+  byManager = false,
+  /**
+   * Which day of the current stage this is, counting today.
+   *
+   * Defaults to the lifetime day count, which is what every caller meant by
+   * "today" before the rival — which reads it — was wired in here.
+   */
+  stageDay = game.daysTraded + 1,
+): Game {
   const plan = batchPlan(game.stand, cups);
-  const outcome = runDay(game.stand, { ...plan.order, price }, { ...params, lastDay: null });
-  const taught = deriveInsights(outcome, game.stand.history).map((insight) => insight.id);
+  const outcome = runDay(game.stand, { ...plan.order, price }, paramsForDay(game, price));
+
+  const { game: settled } = settleDay(game, outcome, { ranByManager: byManager, stageDay });
   return {
-    ...game,
-    stand: outcome.nextState,
-    daysTraded: game.daysTraded + 1,
-    learned: [...new Set([...game.learned, ...taught])],
-    business: {
-      ...updateHandsOff(game.business, byManager, outcome.profit),
-      twoStandDays: updateTwoStandDays(game.business, outcome.profit).twoStandDays,
-      shop: updateShopDays(game.business.shop, outcome.profit),
-      loan: repayLoan(game.business.loan),
-    },
+    ...settled,
+    learned: [
+      ...new Set([...settled.learned, ...settled.pendingInsights.map((insight) => insight.id)]),
+    ],
+    pendingInsights: [],
   };
 }
 
@@ -141,16 +155,17 @@ export function playDay(game: Game, price: number, cups: number, byManager = fal
  */
 export function throughActOne(seed = 2026, price = 1.4, cups = 36): Game {
   let game = createGame(seed);
+  /*
+   * Through `playDay`, which is through `settleDay`.
+   *
+   * This had its own day loop — `runDay` plus `deriveInsights` and three
+   * fields — which is a fourth implementation of a day and was missing the
+   * counters, the competitor and the word queue. It got away with it because
+   * Stage 1 has none of those. `paramsForDay` reads the act, so Stage 1 still
+   * runs on the flat `DEFAULT_DAY_PARAMS` the specification asks for.
+   */
   for (let day = 0; day < ECON.TOTAL_DAYS; day += 1) {
-    const plan = batchPlan(game.stand, cups);
-    const outcome = runDay(game.stand, { ...plan.order, price });
-    const taught = deriveInsights(outcome, game.stand.history).map((insight) => insight.id);
-    game = {
-      ...game,
-      stand: outcome.nextState,
-      daysTraded: game.daysTraded + 1,
-      learned: [...new Set([...game.learned, ...taught])],
-    };
+    game = playDay(game, price, cups, false, day + 1);
   }
   return { ...game, stand: { ...game.stand, status: 'playing' } };
 }
@@ -158,17 +173,50 @@ export function throughActOne(seed = 2026, price = 1.4, cups = 36): Game {
 /**
  * The stands stage, played the way the goal strip asks.
  *
- * Buy the cooler, hire a manager once there is a wage in hand, wait for the
+ * Buy the kit, hire a manager once there is a wage in hand, wait for the
  * hands-off days, then open at the park. Returns how many days it took as well,
  * because "before the fallback fires" is the assertion that matters.
+ *
+ * ## Why it buys three things and not one
+ *
+ * It bought the cooler alone, which is enough to serve the queue and is the
+ * whole of what the stage's first wall asks for. That was a competent-looking
+ * policy right up until `playDay` started advancing the rival, at which point
+ * it stopped finishing the stage at all.
+ *
+ * Measured over ten seeds, with the rival live, holding everything else in
+ * this file fixed:
+ *
+ * | what it buys | finishes | days | cash over the stage |
+ * |---|---|---|---|
+ * | cooler only | 3/10 | 13.9 | **−$56** |
+ * | cooler + sign + fresh-squeezed | **10/10** | **5.1** | **+$192** |
+ *
+ * Fifty-five dollars, and the stage goes from not-finishable inside its clock
+ * to finished in five days with every single day profitable. That is not a
+ * tuning artefact — it is `business.ts`'s own stated design working as
+ * written: *"a kid who tries to win on price alone ends up destroying their
+ * own margin to beat someone who cannot go any lower. The way out is to be
+ * different, not cheaper."* `freshSqueeze` swaps `ECON.DEMAND_SLOPE` for
+ * `QUALITY_SLOPE` so the queue stops caring so much what the sign says, and
+ * `bigSign` adds intercept. Both feed `standAppeal`, which is what decides the
+ * split against the rival.
+ *
+ * So this is the policy a child who has understood the stage would play, and
+ * it is what the arc test should be walking. The order matters: the two
+ * differentiators come first, because they are what make the days profitable
+ * enough to afford the rest.
  */
 export function throughStands(start: Game): { game: Game; days: number } {
   let game = beginAct2(start);
   let days = 0;
+  /* Differentiators first, then capacity. See the note above. */
+  const KIT: UpgradeId[] = ['freshSqueeze', 'bigSign', 'cooler'];
   while (days < ACT2_DAYS && !act2Progress(game.business, days).complete) {
-    if (!game.business.upgrades.cooler && game.stand.cash > 80) {
-      const bought = buyUpgrade(game.stand.cash, game.business, 'cooler');
-      if (bought.ok) {
+    for (const id of KIT) {
+      if (game.business.upgrades[id]) continue;
+      const bought = buyUpgrade(game.stand.cash, game.business, id);
+      if (bought.ok && game.stand.cash - UPGRADES[id].cost > 20) {
         game = { ...game, stand: { ...game.stand, cash: bought.cash }, business: bought.business };
       }
     }
@@ -185,8 +233,14 @@ export function throughStands(start: Game): { game: Game; days: number } {
         game = { ...game, stand: { ...game.stand, cash: opened.cash }, business: opened.business };
       }
     }
-    game = playDay(game, sensiblePrice(game), batchForCapacity(game), game.business.staff.manager);
     days += 1;
+    game = playDay(
+      game,
+      sensiblePrice(game),
+      batchForCapacity(game),
+      game.business.staff.manager,
+      days,
+    );
   }
   return { game, days };
 }
@@ -209,8 +263,8 @@ export function throughShop(start: Game): { game: Game; days: number } {
         business: { ...game.business, shop: { ...game.business.shop, open: true } },
       };
     }
-    game = playDay(game, sensiblePrice(game), batchForCapacity(game), true);
     days += 1;
+    game = playDay(game, sensiblePrice(game), batchForCapacity(game), true, days);
   }
   return { game, days };
 }

@@ -92,6 +92,7 @@ export const LEDGER_OPEN_DAYS = 3;
 export type Beat =
   | 'welcome'
   | 'act2-open'
+  | 'act2-rival'
   | 'act2-stall'
   | 'act3-open'
   | 'act4-open'
@@ -153,6 +154,23 @@ const LINES: Record<Beat, GuideLine> = {
     id: 'act2-stall',
     says: ['Somebody else could mind this stand.', 'Then your hands would be free.'],
   },
+  /*
+   * The other stall, and the expensive one.
+   *
+   * Facts with the child's own figure in them and no verb in the imperative,
+   * which is this file's rule. It does not say "buy the fresh-squeezed" — the
+   * second line is what a share of the street *is*, and the third is the
+   * arithmetic of a wage against a half-empty queue. Where to go from there is
+   * theirs.
+   */
+  'act2-rival': {
+    id: 'act2-rival',
+    says: [
+      'Somebody is selling across the road.',
+      'Under half the street is walking to you now.',
+      'The wages are the same either way.',
+    ],
+  },
   'act3-open': {
     id: 'act3-open',
     says: ['Two stands, and the rain still shuts both.', 'A door would not care.'],
@@ -204,6 +222,15 @@ export interface GuideContext {
   /** Day within Act 2, when that is where they are. */
   act2Day: number;
   hasManager: boolean;
+  /**
+   * Share of the street coming to them today. 1 means nobody is competing.
+   *
+   * Optional so every existing caller and test still means what it meant:
+   * absent reads as an uncontested street, which is what Stage 1 always is.
+   */
+  marketShare?: number;
+  /** Whether either of the two things that answer a rival has been bought. */
+  differentiated?: boolean;
   /** True on the market screen itself. */
   inMarket: boolean;
   /**
@@ -239,10 +266,61 @@ export function nextBeat(context: GuideContext, seen: readonly string[]): GuideL
   if (context.act === 3 && unseen('act3-open')) return LINES['act3-open'];
   if (context.act === 2 && unseen('act2-open')) return LINES['act2-open'];
 
-  // The boredom beat. Only once past halfway, and only while the thing that
-  // ends the act has not been done.
-  if (context.act === 2 && context.act2Day >= STALL_DAY && !context.hasManager && unseen('act2-stall')) {
-    return LINES['act2-stall'];
+  /*
+   * The two ways Stage 2 stalls, and it only ever detected one.
+   *
+   * `!hasManager` was the whole condition, so the child this beat exists for
+   * — the one grinding identical days with the goal strip repeating itself —
+   * was silent for exactly half of them. Hiring a manager cleared the flag and
+   * the help stopped, whether or not anything had started moving.
+   *
+   * The half it missed is the expensive one. A rival opens on day three of the
+   * stage and takes about 54% of the street, and a stand paying a manager
+   * twenty dollars a day into a half-empty queue loses money about two days in
+   * three — so `handsOffDays`, which ticks *down* on a loss, never reaches
+   * three, and the stage runs its full sixteen days without completing.
+   * Measured over ten seeds: 3 of 10 finish, 13.9 days, $56 down. With the
+   * fifty-five dollars of kit that answers him: 10 of 10, 5.1 days, $192 up.
+   *
+   * Which makes this the most valuable thing Pip can say in the whole stage,
+   * and it was unreachable. The rival beat goes first because it is the one
+   * that is costing money right now.
+   *
+   * Both still wait for `STALL_DAY`. Nagging before halfway is nagging, and
+   * the rival arriving is not by itself a problem — a child who buys the kit
+   * early never sees this, which is correct.
+   */
+  if (context.act === 2) {
+    /*
+     * The rival beat is not on the clock, and that is the point.
+     *
+     * `STALL_DAY` is the right gate for the manager nudge: that beat states an
+     * objective the child has not started, and saying it on day two would be
+     * nagging somebody who is still finding their feet. The rival is the
+     * opposite kind of fact. He opens on day three of the stage and takes
+     * about 54% of the street that afternoon, and the money is gone from that
+     * day forward — so waiting until day seven means four losing days in which
+     * the game knew and did not say.
+     *
+     * The condition is evidence rather than a timer: the street *is* shared and
+     * nothing that answers him has been bought. A child who buys the kit on
+     * the first contested day never sees this, which is correct — there is
+     * nothing to tell them.
+     *
+     * This is also the honest version of "is this child trying". Software
+     * cannot know, and a score for it would be a guess wearing a number's
+     * clothes. What it can see is that the information has been on screen and
+     * nothing has changed, which is all this condition claims.
+     */
+    const contested = (context.marketShare ?? 1) < 1;
+    if (contested && !context.differentiated && unseen('act2-rival')) {
+      return LINES['act2-rival'];
+    }
+    // The boredom beat. Only once past halfway, and only while the thing that
+    // ends the act has not been done.
+    if (context.act2Day >= STALL_DAY && !context.hasManager && unseen('act2-stall')) {
+      return LINES['act2-stall'];
+    }
   }
 
   return null;

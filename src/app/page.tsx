@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { WEEKLY_EVERY, afterDay, paramsForDay, settleDay, type AfterDay } from '@/lib/day';
 import {
   DEFAULT_DAY_PARAMS,
   ECON,
   batchPlan,
-  deriveInsights,
   orderForTargetCups,
   projectDay,
   round2,
@@ -23,14 +23,10 @@ import {
   ACT2_DAYS,
   act2Progress,
   signUpRegulars,
-  advanceRival,
   applyWeeklyChoice,
   buyUpgrade,
   closeStand as closeStandAt,
   cheapestUpgrade,
-  deriveAct2Insights,
-  deriveAct3Insights,
-  deriveDayParams,
   managerBatch,
   managerPrice,
   moveTo,
@@ -38,8 +34,6 @@ import {
   standCount,
   toggleStaff,
   trailingWeeklyProfit,
-  updateHandsOff,
-  updateTwoStandDays,
   type LocationId,
   type StaffId,
   type UpgradeId,
@@ -49,8 +43,6 @@ import {
   hireShopStaff,
   letShopStaffGo,
   loanQuote,
-  repayLoan,
-  updateShopDays,
 } from '@/lib/retail';
 import {
   deriveListingInsights,
@@ -68,7 +60,6 @@ import {
   declineEquity,
   equityOffer,
   recordDealChoice,
-  recordInvestorCut,
 } from '@/lib/ownership';
 import {
   DIVERSIFIED_MIN_HOLDINGS,
@@ -92,8 +83,6 @@ import {
   endWeekend,
   WEEKEND_FLOAT,
   ACT3_DAYS,
-  act2Complete,
-  act3Complete,
   act3Progress,
   act4Complete,
   actDay,
@@ -150,7 +139,6 @@ import {
   luckInsight,
   multipleInsightFor,
   peRatioInsight,
-  recurringRevenueInsight,
   thesisInsight,
   unrecorded,
 } from '@/lib/glossary';
@@ -273,8 +261,6 @@ import { NextUp } from '@/components/meta/NextUp';
 import { ReckoningScreen } from '@/components/meta/ReckoningScreen';
 
 /** One screen, one decision. */
-/** How many new words a kid is handed at the end of one day. One. */
-const WORDS_PER_DAY = 1;
 
 type Phase =
   | 'title'
@@ -449,6 +435,18 @@ export default function Page() {
     params: Partial<DayParams>;
     ranByManager: boolean;
   } | null>(null);
+
+  /**
+   * Which day of the stage the last banked day was, counting itself.
+   *
+   * Captured when the day is banked rather than recomputed when the close
+   * screen is dismissed, because `actDay` reads `stand.history.length` and
+   * banking appends to it. Every routing decision below — the act boundaries
+   * and the weekly fork — is about the day just played, so it reads this.
+   * This is the off-by-one that used to be implicit in the stand being
+   * advanced in one callback and the counters in another.
+   */
+  const [settledStageDay, setSettledStageDay] = useState(1);
   const [planned, setPlanned] = useState<DayProjection | null>(null);
   const [newInsights, setNewInsights] = useState<Insight[]>([]);
   const [weekReport, setWeekReport] = useState<WeekReport | null>(null);
@@ -607,20 +605,6 @@ export default function Page() {
   }, [guideSeen]);
 
   /**
-   * The game including the day being read on the close screen.
-   *
-   * A day is not banked into `stand.history` until the kid taps through the
-   * profit and loss, which meant every badge landed one screen late — the toast
-   * for "you opened for business" arrived over day two's planning screen
-   * instead of over the result that earned it. Badges never reverse, so it is
-   * safe to count a day the moment its numbers are on screen.
-   */
-  const settledGame = useMemo(
-    () => (game && outcome ? { ...game, stand: outcome.nextState } : game),
-    [game, outcome],
-  );
-
-  /**
    * Fold what the kid has just demonstrated into the permanent record.
    *
    * Badges are recomputed from state every time rather than being set at the
@@ -630,11 +614,11 @@ export default function Page() {
    * after one pass instead of looping.
    */
   useEffect(() => {
-    if (!settledGame || !career) return;
-    const earned = earnedBadges(badgeContext(settledGame, career));
+    if (!game || !career) return;
+    const earned = earnedBadges(badgeContext(game, career));
     const fresh = newlyEarned(career, earned);
 
-    let next = recordWords(career, settledGame.learned);
+    let next = recordWords(career, game.learned);
     if (fresh.length > 0) {
       next = recordBadges(next, earned);
       // Deduped on insert. In development React runs effects twice, and either
@@ -649,12 +633,12 @@ export default function Page() {
       });
     }
     if (next !== career) setCareer(next);
-  }, [settledGame, career]);
+  }, [game, career]);
 
   /** Announce each new system exactly once, the moment it becomes real. */
   useEffect(() => {
-    if (!settledGame || !career) return;
-    const fresh = newlyUnlocked(settledGame, career, career.announced);
+    if (!game || !career) return;
+    const fresh = newlyUnlocked(game, career, career.announced);
     if (fresh.length === 0) return;
     // Everything is marked seen; only the non-silent ones get a card.
     setUnlockQueue((queue) => {
@@ -663,7 +647,7 @@ export default function Page() {
       return add.length > 0 ? [...queue, ...add] : queue;
     });
     setCareer(recordAnnounced(career, fresh.map((unlock) => unlock.feature)));
-  }, [settledGame, career]);
+  }, [game, career]);
 
   /**
    * Hand over a word the kid has just earned, once.
@@ -719,27 +703,18 @@ export default function Page() {
   );
 
   /**
-   * Everything owned by somebody other than the kid.
+   * Today's rules, for the screens that only *read* them.
    *
-   * Auntie Ro's slice plus whatever went to the public at the float. Two
-   * separate things that are recorded separately — see `handleList` — and add
-   * up to one number in exactly one place, which is here.
+   * The planning screen shows the capacity, the rent and the share of the
+   * street, so it needs the same parameters the day will be run with — priced
+   * off yesterday's sign, because today's has not been set yet. One function
+   * answers this for every caller; see `paramsForDay`.
    */
-  const outsideShare = useMemo(
-    () => (game ? round2(game.ownership.equitySoldPct + game.listing.floated) : 0),
-    [game],
-  );
-
-  /** Act 2 onwards, the day's economics come from the business the kid built. */
   const dayParams = useMemo(() => {
     if (!game) return DEFAULT_DAY_PARAMS;
-    if (game.act === 1) return DEFAULT_DAY_PARAMS;
     const price = game.stand.history[game.stand.history.length - 1]?.price ?? 1.6;
-    return {
-      ...deriveDayParams(game.business, price),
-      equityShare: outsideShare,
-    };
-  }, [game, outsideShare]);
+    return paramsForDay(game, price);
+  }, [game]);
 
 
   /*
@@ -931,21 +906,8 @@ export default function Page() {
         return;
       }
 
-      /*
-       * The Saturday stand is a folding table again.
-       *
-       * It deliberately does not inherit the cooler, the pitch or the manager:
-       * the kid sold that business. It also runs with no cash floor, because
-       * the mercy rule that stops a nine-year-old going broke on day three
-       * would quietly print money into an investment account.
-       */
-      const params = game.weekend
-        ? { ...DEFAULT_DAY_PARAMS, lastDay: null, cashFloor: null }
-        : // A duel is a one-day Act 1, so the last day comes from the challenge
-          // rather than from ECON. Everything else about the day is identical.
-          game.act === 1
-          ? { ...DEFAULT_DAY_PARAMS, lastDay: game.challenge?.spec.days ?? ECON.TOTAL_DAYS }
-          : { ...deriveDayParams(game.business, price), equityShare: outsideShare };
+      // What kind of day this is, economically. One answer, in `day.ts`.
+      const params = paramsForDay(game, price);
 
       const order = orderForTargetCups(game.stand, cups);
       const decisions = { ...order, price, grade };
@@ -974,7 +936,7 @@ export default function Page() {
       setOutcome(result);
       setPhase('run');
     },
-    [game, outsideShare],
+    [game],
   );
 
   /**
@@ -1017,70 +979,30 @@ export default function Page() {
    * computed from the *pre-day* game and the final outcome, which is what makes
    * it safe to be called once at the end rather than incrementally.
    */
-  const settleDay = useCallback(
+  const bankDay = useCallback(
     (result: DayOutcome, ranByManager: boolean) => {
       if (!game) return;
 
-      const act1Insights = deriveInsights(result, result.nextState.history);
-      const act2Insights =
-        game.act >= 2 ? deriveAct2Insights(result, game.business, result.nextState.history) : [];
-      // Break-even and interest, and only for a kid who has a rent or a
-      // repayment to be taught them by. Both derivers are filtered against
-      // what has already been handed over, so nothing repeats.
-      const act3Insights = game.act >= 3 ? deriveAct3Insights(result, game.business) : [];
-      // The round earns its word the first day somebody on it is served, and
-      // the copy leans on a cold day if that is what happened — because turning
-      // up when nobody else did is the entire point of recurring revenue.
-      const roundInsights =
-        result.subscriberCups > 0
-          ? [recurringRevenueInsight(result.subscriberCups, result.subscriberPrice, result.weather)]
-          : [];
-      // Filtered against what is queued as well as what has been given, or a
-      // word waiting its turn would be earned again tomorrow and end up in the
-      // queue twice.
-      const earned = unrecorded(
-        [...act1Insights, ...act2Insights, ...act3Insights, ...roundInsights],
-        [...game.learned, ...game.pendingInsights.map((insight) => insight.id)],
-      );
-
-      // One word a day. Day one earns three, and three explanations stacked
-      // under the first P&L a kid has ever read is a worksheet. The rest wait
-      // their turn — see `Game.pendingInsights`.
-      const queue = [...game.pendingInsights, ...earned];
-      const today = queue.slice(0, WORDS_PER_DAY);
-      const waiting = queue.slice(WORDS_PER_DAY);
-
-      setNewInsights(today);
-
       /*
-       * Everything the day changes about the business, in one place.
+       * Everything the day changes, in `src/lib/day.ts`.
        *
-       * The order matters only in that each of these reads the *pre-day* state
-       * and none of them reads another's output: the hands-off streak, the
-       * two-stand streak, the shop's run of good days and a day off the loan.
-       * The Saturday stand is excluded from all four, because a folding table
-       * out of an investment account is not the business any of them are about.
+       * This function used to hold half of it and `closeDay` held the other
+       * half — the streaks and the words here, the stand and the competitor
+       * there — and `src/lib/demo.ts` held a third copy of the same idea for
+       * the tests to walk. They drifted, and the drift is why the finishability
+       * proof ran Stage 2 with no competitor in it for however long. There is
+       * one function now and all three callers use it.
+       *
+       * The stage day is captured here rather than recomputed at close,
+       * because `actDay` reads `stand.history.length` and the settle appends
+       * to it. See `SettleOptions.stageDay`.
        */
-      const businessAfter = game.weekend
-        ? game.business
-        : {
-            ...updateHandsOff(game.business, ranByManager, result.profit),
-            twoStandDays: updateTwoStandDays(game.business, result.profit).twoStandDays,
-            shop: updateShopDays(game.business.shop, result.profit),
-            loan: repayLoan(game.business.loan),
-          };
-
-      setGame({
-        ...game,
-        // Only what was actually handed over counts as learned; that is what
-        // gates the harder panels and fills the words tab.
-        learned: [...game.learned, ...today.map((i) => i.id)],
-        pendingInsights: waiting,
-        business: businessAfter,
-        ownership: recordInvestorCut(game.ownership, result.investorCut),
-      });
+      const settled = settleDay(game, result, { ranByManager, stageDay });
+      setNewInsights(settled.handedOver);
+      setSettledStageDay(stageDay);
+      setGame(settled.game);
     },
-    [game],
+    [game, stageDay],
   );
 
   /** The manager runs a sensible day so the kid can genuinely step away. */
@@ -1115,39 +1037,76 @@ export default function Page() {
     [handOverOne],
   );
 
+  /**
+   * Maps the routing decision onto a screen.
+   *
+   * The decision itself is `afterDay`, in `src/lib/day.ts`, where it can be
+   * tested without playing to the day in question. This half is the part that
+   * genuinely needs React: setting a phase, and calling the right `beginActN`
+   * for a boundary.
+   *
+   * `from` is required and has no default, which is deliberate. It read `game`
+   * off the closure for about an hour and that was a bug with teeth: the weekly
+   * fork calls `setGame` with the child's choices and then routes, React has
+   * not flushed by then, so `beginAct3` ran against the *pre-fork* game and
+   * silently discarded the sixteen neighbours they had just signed up. Found by
+   * ticking the box in the browser and reading the save.
+   *
+   * A default would have hidden it again. Every caller now has to say which
+   * game it means, and the one that has just changed it says so.
+   */
+  const goWhere = useCallback(
+    (where: AfterDay, from: Game) => {
+      const game = from;
+      switch (where) {
+        case 'week-end':
+          setPhase('week-end');
+          return;
+        case 'weekly-choice':
+          setPhase('weekly-choice');
+          return;
+        case 'next-act':
+          setGame(game.act === 2 ? beginAct3(game) : beginAct4(game));
+          setPhase('act-intro');
+          return;
+        case 'deals':
+          setPhase('deals');
+          return;
+        case 'listing':
+          setPhase('listing');
+          return;
+        case 'mark-week':
+          markTheWeek(game);
+          return;
+        default:
+          setPhase('plan');
+      }
+    },
+    [markTheWeek],
+  );
+
+  /**
+   * The close screen is dismissed. Decide where the child goes.
+   *
+   * Routing only. This used to advance the stand, the competitor and the day
+   * count as well, which is half of a day's state transition living in a React
+   * callback while the other half lived in `bankDay` and a third copy lived in
+   * `src/lib/demo.ts`. All of it is in `settleDay` now and the day is already
+   * banked by the time this runs — see `src/lib/day.ts` for what that drift
+   * cost.
+   *
+   * Every decision below is about **the day just played**, so every one of
+   * them reads `settledStageDay` rather than `stageDay`. `stageDay` is derived
+   * from the history and the history now includes today, so it is one greater
+   * here than it was when the day was banked.
+   */
   const closeDay = useCallback(() => {
     if (!game || !outcome) return;
 
-    // Act 1 ends itself after seven days; later acts pass lastDay: null, so
-    // the stand's own status is already correct and needs no fixing up here.
-    const nextStand = outcome.nextState;
-    const business = {
-      ...game.business,
-      /*
-       * No rival in the first stage.
-       *
-       * `advanceRival` had no act guard and `RIVAL_APPEARS_ON_DAY` is 3, so a
-       * competitor turned up on Act 1 day three — visible on the stand, with a
-       * price, and doing *nothing*, because Act 1 runs on `DEFAULT_DAY_PARAMS`
-       * and never consults `deriveDayParams`. A child watched somebody
-       * undercut them and nothing happened.
-       *
-       * Wrong twice over: a mechanic wired to nothing (PRODUCT.md §40), and
-       * competition is an Act 2 word — FRAMEWORK.md §1 says Stage 1's demand
-       * is "driven only by price + quality ... No weather, competition,
-       * location". Found by playing to day four.
-       */
-      rival: advanceRival(game.business, stageDay, outcome.price, game.act),
-      daysAtPark:
-        game.business.location === 'park' ? game.business.daysAtPark + 1 : game.business.daysAtPark,
-    };
-
-    const advanced: Game = { ...game, stand: nextStand, business, daysTraded: game.daysTraded + 1 };
-
     // Sunday. The float and the day's takings go back into the account, and the
     // kid lands back where the money is for.
-    if (advanced.weekend) {
-      setGame(endWeekend(advanced));
+    if (game.weekend) {
+      setGame(endWeekend(game));
       setCareer((current) => (current ? recordDay(current, outcome.profit) : current));
       noteDeed('ran-a-day');
       if (outcome.profit >= ECON.ACT1_PROFIT_TARGET) noteDeed('hit-the-goal');
@@ -1158,7 +1117,6 @@ export default function Page() {
       return;
     }
 
-    setGame(advanced);
     // Banked now rather than at the end of a season, because most runs are
     // abandoned rather than finished and the parent view reads this number.
     setCareer((current) => (current ? recordDay(current, outcome.profit) : current));
@@ -1169,84 +1127,17 @@ export default function Page() {
      *
      * `heldThroughWorstDay` is one of the four readiness criteria, so the
      * definition of "did not panic" lives in exactly one place and this reads
-     * it rather than inventing a second one. Checked against the history *with*
-     * today in it, because holding is only visible in the day after the loss.
+     * it rather than inventing a second one. Read off the settled history,
+     * which has today in it, because holding is only visible in the day after
+     * the loss.
      */
-    if (heldThroughWorstDay([...nextStand.history]).met) noteDeed('held-through-a-loss');
+    if (heldThroughWorstDay([...game.stand.history]).met) noteDeed('held-through-a-loss');
     setOutcome(null);
     setPlanned(null);
     setNewInsights([]);
 
-    // Act boundaries.
-    if (
-      advanced.act === 1 &&
-      act1Complete(advanced.stand, advanced.challenge?.spec.days ?? ECON.TOTAL_DAYS)
-    ) {
-      setPhase('week-end');
-      return;
-    }
-    if (advanced.act === 2) {
-      if (act2Complete(advanced.business, stageDay)) {
-        setGame(beginAct3(advanced));
-        setPhase('act-intro');
-        return;
-      }
-      // Every seventh day of the act, the reinvest-or-take-it-out fork.
-      if (stageDay % 7 === 0) {
-        setPhase('weekly-choice');
-        return;
-      }
-    }
-    if (advanced.act === 3) {
-      if (act3Complete(advanced.business, stageDay)) {
-        setGame(beginAct4(advanced));
-        setPhase('act-intro');
-        return;
-      }
-      // The same weekly fork as the stands stage. A shop makes the choice
-      // sharper rather than redundant: the rent is owed either way, so money
-      // taken out of a business with a lease is money it may need on Tuesday.
-      if (stageDay % 7 === 0) {
-        setPhase('weekly-choice');
-        return;
-      }
-    }
-    /*
-     * The listing stage, in the order the beats have to arrive.
-     *
-     * The deal board first, because ranking three stands by what they cost per
-     * dollar of profit is what makes a multiple mean anything — and it has to
-     * happen before the kid is handed one for their own company, or the number
-     * on their own offer is the first multiple they have ever seen and they
-     * have nothing to judge it against.
-     *
-     * Then the two ways out. Then, once listed, a week at a time: the day loop
-     * carries on and the price is marked every seventh day, because that is
-     * what being public is — you keep running the shop and somebody re-prices
-     * it while you do.
-     */
-    if (advanced.act === 4) {
-      if (!advanced.ownership.comparisonAnswered) {
-        setPhase('deals');
-        return;
-      }
-      if (!advanced.listing.listed) {
-        // Nothing to price yet. The goal strip says why, and the day loop
-        // carries on — one decent week is all it takes.
-        if (listingOffer(advanced.stand.history, advanced.ownership).worthAnything) {
-          setPhase('listing');
-          return;
-        }
-        setPhase('plan');
-        return;
-      }
-      if (stageDay % 7 === 0) {
-        markTheWeek(advanced);
-        return;
-      }
-    }
-    setPhase('plan');
-  }, [game, outcome, stageDay, markTheWeek, noteDeed]);
+    goWhere(afterDay(game, settledStageDay, { forkTaken: false }), game);
+  }, [game, outcome, settledStageDay, goWhere, noteDeed]);
 
   /* ---------------- Act 2 actions ---------------- */
 
@@ -1496,14 +1387,29 @@ export default function Page() {
         { cashOut, signUpRegulars },
         game.stand.history,
       );
-      setGame({
+      /*
+       * The choices, applied once, and then routed *from the result*.
+       *
+       * Both halves read `chosen` rather than `game`. Routing from `game` is
+       * the bug described on `goWhere`: it threw away the regulars.
+       */
+      const chosen: Game = {
         ...game,
         stand: { ...game.stand, cash: result.cash },
         business: result.business,
-      });
-      setPhase('plan');
+      };
+      setGame(chosen);
+      /*
+       * Back through the same decision, with the fork marked as taken.
+       *
+       * This used to go straight to the planning screen, which was fine while
+       * the fork could only fire mid-stage. It now also fires on a stage's last
+       * day — see `afterDay` for why — so dismissing it has to be able to land
+       * on the next act's introduction instead.
+       */
+      goWhere(afterDay(chosen, settledStageDay, { forkTaken: true }), chosen);
     },
-    [game],
+    [game, settledStageDay, goWhere],
   );
 
   /* ---------------- Act 3 actions ---------------- */
@@ -2143,6 +2049,16 @@ export default function Page() {
             daysPlayed: game.stand.history.length,
             act2Day: stageDay,
             hasManager: game.business.staff.manager,
+            /*
+             * The rival, and whether anything has been done about him.
+             *
+             * Read off `dayParams`, which is the same `paramsForDay` the day
+             * itself runs on — so the share Pip mentions is the share the
+             * queue actually split by, rather than a second opinion about it.
+             */
+            marketShare: dayParams.marketShare,
+            differentiated:
+              game.business.upgrades.freshSqueeze || game.business.upgrades.bigSign,
             inMarket: phase === 'market',
             listed: game.listing.listed,
           },
@@ -2714,7 +2630,7 @@ export default function Page() {
              * `openStand` used to do — would have banked the morning's figures
              * and then disagreed with the close screen.
              */
-            settleDay(outcome, dayPlan?.ranByManager ?? false);
+            bankDay(outcome, dayPlan?.ranByManager ?? false);
             setPhase('close');
           }}
         />
@@ -2760,10 +2676,10 @@ export default function Page() {
           }
           onManagerRuns={letManagerRun}
           nextUp={
-            isUnlocked('whats-next', settledGame ?? game, career) ? (
+            isUnlocked('whats-next', game, career) ? (
               <div className="mt-4">
                 <NextUp
-                  things={whatsNext(settledGame ?? game, career)}
+                  things={whatsNext(game, career)}
                   onOpenTrophies={
                     isUnlocked('trophies', game, career)
                       ? () => {
@@ -2853,7 +2769,10 @@ export default function Page() {
         <WeeklyChoiceScreen
           cash={game.stand.cash}
           savings={game.business.savings}
-          weekNumber={Math.floor(stageDay / 7)}
+          /* A stage's last day is an end-of-week whatever its number says, so
+             this can no longer be a seventh of the day count — that read
+             "week 0" on a stage that finished on day five. */
+          weekNumber={Math.max(1, Math.ceil(settledStageDay / WEEKLY_EVERY))}
           regulars={game.business.regulars}
           expectedSignups={signUpRegulars(game.business, game.stand.history).added}
           onChoose={handleWeeklyChoice}

@@ -65,8 +65,24 @@ describe('you cannot be in two places at once', () => {
     business = openStand(business, 'park', 999).business;
     business = openStand(business, 'sidewalk', 999).business;
 
-    const labels = dailyFixedCosts(business).map((line) => line.label);
-    expect(labels.filter((label) => label.includes('pitch'))).toHaveLength(3);
+    const lines = dailyFixedCosts(business);
+    const labels = lines.map((line) => line.label);
+
+    /*
+     * Three pitches are charged for, in two rows.
+     *
+     * Counted in money rather than in rows, because two stands sharing a pitch
+     * are now one row reading "×2" — they were two rows with the same label,
+     * and both screens that render this key by `line.label`. What this test
+     * cares about is that all three pitches are paid for, which the money says
+     * and the row count never did.
+     */
+    const pitchMoney = lines
+      .filter((line) => line.label.includes('pitch'))
+      .reduce((sum, line) => sum + line.amount, 0);
+    expect(pitchMoney).toBe(LOCATIONS.sidewalk.fee * 2 + LOCATIONS.park.fee);
+    expect(new Set(labels).size, `duplicate rows: ${labels.join(', ')}`).toBe(labels.length);
+
     expect(labels).toContain('Manager wages');
     expect(labels.some((label) => label.startsWith('Stand minder'))).toBe(true);
   });

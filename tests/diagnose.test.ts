@@ -143,8 +143,21 @@ describe('the question at the end of a day', () => {
     for (let seed = 1; seed <= 40; seed++) {
       const jug = twoDays(seed, { price: 1.5, cups: 16 }, { price: 1.5, cups: 48 });
       const moved = changesSince(jug.outcome, jug.before[jug.before.length - 1]);
-      // The jug really did move more than the sky on this pair.
+      /*
+       * The jug really did move more than the sky on this pair *and* the move
+       * actually bit.
+       *
+       * The threshold used to be missing here, and it passed anyway because
+       * the batch term was a bare difference of the two jugs — so 16 against
+       * 48 always read as a 32-cup change, including on a cold day where
+       * fourteen people came and both jugs cleared the queue with cups to
+       * spare. The term is now capped by demand, so those days correctly
+       * report nothing moved, and a pair with nothing to attribute is not a
+       * pair this property is about.
+       */
+      const biggest = Math.max(...Object.values(moved).map(Math.abs));
       if (Math.abs(moved.batch) <= Math.abs(moved.weather)) continue;
+      if (biggest < WORTH_ASKING_CUPS) continue;
       expect(diagnose(jug.outcome, jug.before)!.cause, `seed ${seed}`).toBe('batch');
       checked++;
     }
@@ -218,6 +231,119 @@ describe('the question at the end of a day', () => {
         for (const answer of found.answers) expect(answer.label).not.toMatch(advice);
       }
     }
+  });
+});
+
+describe('the stand across the road', () => {
+  /*
+   * The cause that was missing, and the day it was missing on.
+   *
+   * `changesSince` decomposed a day into price, jug, lemons and weather.
+   * `marketShare` is a fifth multiplicative factor in `cupsWantedWith`,
+   * identical in kind to the other three, and it was not in the list. So on
+   * the day a rival opened across the road and took half the street, the four
+   * terms summed to roughly nothing while the day lost four fifths of its
+   * profit, and the child was told the weather did it.
+   */
+  function twoDaysWithARival(seed: number) {
+    const params = { ...DEFAULT_DAY_PARAMS, lastDay: null, marketShare: 1 };
+    const state = createInitialState(seed);
+    const first = runDay(state, { ...orderForTargetCups(state, 40), price: 1.5 }, params);
+    const before = first.nextState.history;
+    /* The same stand, the same price, the same jug — and half the street. */
+    const second = runDay(
+      first.nextState,
+      { ...orderForTargetCups(first.nextState, 40), price: 1.5 },
+      { ...params, marketShare: 0.46 },
+    );
+    return { outcome: second, before };
+  }
+
+  it('is the answer on the day a competitor takes half the street', () => {
+    let named = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const { outcome, before } = twoDaysWithARival(seed);
+      const found = diagnose(outcome, before);
+      if (!found) continue;
+      expect(found.cause, `seed ${seed} blamed ${found.cause}`).toBe('rival');
+      named++;
+    }
+    expect(named, 'no pair ever produced a rival day to test').toBeGreaterThan(20);
+  });
+
+  it('offers the rival as an answer only where there is one', () => {
+    /*
+     * Stage 1 has no competitor at all — FRAMEWORK.md §1 says its demand is
+     * "driven only by price + quality ... No weather, competition, location" —
+     * so offering it there would be an option that cannot be true for a whole
+     * stage, which teaches a child that the options are decoration.
+     */
+    const plain = twoDays(7, { price: 1.2, cups: 28 }, { price: 1.8, cups: 36 });
+    const stage1 = diagnose(plain.outcome, plain.before)!;
+    expect(stage1.answers.map((a) => a.cause)).not.toContain('rival');
+    expect(stage1.answers).toHaveLength(4);
+
+    const contested = twoDaysWithARival(3);
+    const stage2 = diagnose(contested.outcome, contested.before)!;
+    expect(stage2.answers.map((a) => a.cause)).toContain('rival');
+    expect(stage2.answers).toHaveLength(5);
+  });
+
+  it('reconciles with the share the stand shows when the rival is tapped', () => {
+    /*
+     * §62: one fact, two homes. `PlanScreen`'s rival sheet says "Share of the
+     * street coming to you: 47%" off `params.marketShare`, and this sentence
+     * has to be read off the same number or the two screens disagree about
+     * what happened.
+     */
+    const { outcome, before } = twoDaysWithARival(3);
+    const found = diagnose(outcome, before)!;
+    expect(found.because).toContain('100% of the street came to you yesterday');
+    expect(found.because).toContain('46% today');
+  });
+
+  it('attributes nothing to a rival whose share did not move', () => {
+    /*
+     * The same exactness the other causes get. A competitor who was there
+     * yesterday and is there today did not *change* anything, so a steady
+     * rival contributes zero — and the question falls through to whatever did
+     * move.
+     */
+    const params = { ...DEFAULT_DAY_PARAMS, lastDay: null, marketShare: 0.47 };
+    const state = createInitialState(9);
+    const first = runDay(state, { ...orderForTargetCups(state, 40), price: 1.5 }, params);
+    const second = runDay(
+      first.nextState,
+      { ...orderForTargetCups(first.nextState, 40), price: 1.5 },
+      params,
+    );
+    const moved = changesSince(second, first.nextState.history[0]);
+    expect(moved.rival).toBe(0);
+  });
+
+  it('says nothing about a rival to a save from before shares were recorded', () => {
+    /*
+     * `DayRecord.marketShare` is optional, and yesterday defaults to *today's*
+     * share rather than to 1 — so an old save reports no change instead of
+     * inventing a competitor who arrived overnight.
+     */
+    const { outcome, before } = twoDaysWithARival(3);
+    const withoutShare = [{ ...before[before.length - 1], marketShare: undefined }];
+    expect(changesSince(outcome, withoutShare[0]).rival).toBe(0);
+  });
+
+  it('never tells the child what to do about him', () => {
+    /*
+     * The hardest place in the product to keep `guide.ts`'s rule, because the
+     * answer really is "buy the fresh-squeezed" — and saying so would play the
+     * game for them and hollow out the one lesson this stage exists for.
+     * "You do not have to be cheaper than him" is a fact about the demand
+     * curve, not a move.
+     */
+    const { outcome, before } = twoDaysWithARival(3);
+    const found = diagnose(outcome, before)!;
+    expect(found.because).not.toMatch(/\bbuy\b|\bshould\b|\bneed to\b|\btry\b/i);
+    expect(found.answers.map((a) => a.label).join(' ')).not.toMatch(/\bshould\b/i);
   });
 });
 
@@ -319,10 +445,31 @@ describe('days that must not be compared', () => {
     // The shop day it is being held against really is a different business.
     expect(last!.cupsMade ?? last!.cupsSold).toBeGreaterThan(outcome.cupsMakeable * 2);
 
-    // So the raw comparison blames the jug for the sale of a company.
+    /*
+     * So the raw comparison answers confidently about a business the child
+     * sold.
+     *
+     * This used to pin the answer to `batch` and the sentence to "fewer to
+     * sell", which was true of the save `demoGame` produced at the time and
+     * is not a property of anything. The demo policy changed — it buys the kit
+     * that answers the rival now, so its last shop day pours 180 cups instead
+     * of 84 — and the biggest difference moved to the weather. The test broke
+     * without anything it cares about having changed, which is the definition
+     * of a fixture pinned to the wrong thing.
+     *
+     * What actually justifies the suppression at the call site is that the
+     * comparison produces a confident figure *at all* across two different
+     * businesses. That is what this now holds, and it holds however the demo
+     * save is played.
+     */
     const found = diagnose(outcome, weekend.stand.history);
-    expect(found?.cause).toBe('batch');
-    expect(found!.because).toMatch(/fewer to sell/);
+    expect(found, 'the nonsense comparison asked nothing, so there is nothing to suppress').not.toBeNull();
+    expect(
+      Math.abs(changesSince(outcome, last!)[found!.cause]),
+      'the answer it gave was within the noise, so it is not evidence of anything',
+    ).toBeGreaterThan(WORTH_ASKING_CUPS);
+    // And it reports it with a figure, which is what makes it sound true.
+    expect(found!.because).toMatch(/\d/);
   });
 
   it('is silent on a day the child did not price', () => {
@@ -339,8 +486,16 @@ describe('days that must not be compared', () => {
       managerPriced.outcome,
       managerPriced.before[managerPriced.before.length - 1],
     );
-    // Both of the child's levers appear to have moved, and neither did.
+    /*
+     * The sign appears to have moved, and the child never touched it.
+     *
+     * The jug is deliberately no longer part of this claim. It was, on the
+     * strength of a 28-to-44 change that never sold a cup either way, and the
+     * batch term now reports only the part of a jug change that actually
+     * constrained the day. One honest attribution to something the child did
+     * not do is enough to justify the suppression at the call site, and the
+     * price is the one that survives on the arithmetic.
+     */
     expect(Math.abs(moved.price)).toBeGreaterThan(WORTH_ASKING_CUPS);
-    expect(Math.abs(moved.batch)).toBeGreaterThan(WORTH_ASKING_CUPS);
   });
 });

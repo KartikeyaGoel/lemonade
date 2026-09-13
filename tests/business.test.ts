@@ -81,6 +81,57 @@ describe('the wall that starts Act 2: you are capped', () => {
   });
 });
 
+describe('the profit and loss adds up when two stands share a pitch', () => {
+  /*
+   * Two stands on one pitch is a designed state, not an edge case:
+   * `standLines` prices it with `SAME_PITCH_SHARE`, the yard offers
+   * `sidewalk` as somewhere to open a stand, and the child is standing on the
+   * sidewalk when they get there. So it is two taps away from the start of the
+   * stage.
+   *
+   * `dailyFixedCosts` emitted one line per stand, which gave the day two rows
+   * both labelled "Your sidewalk pitch" — and `CloseScreen` and `PlanScreen`
+   * each key those rows by `line.label`. Two siblings, one React key, on the
+   * one screen in the game whose whole job is adding up.
+   */
+  function twoOnTheSidewalk() {
+    const managed = toggleStaff(business(), 'manager');
+    const first = openStand(managed, 'sidewalk', 500);
+    expect(first.opened, 'could not open a second stand on the home pitch').toBe(true);
+    return first.business;
+  }
+
+  it('shows one row per pitch, so no two rows share a label', () => {
+    const lines = dailyFixedCosts(twoOnTheSidewalk());
+    const labels = lines.map((line) => line.label);
+    expect(new Set(labels).size, `duplicate rows: ${labels.join(', ')}`).toBe(labels.length);
+  });
+
+  it('still charges for both, and says so', () => {
+    const lines = dailyFixedCosts(twoOnTheSidewalk());
+    const pitch = lines.find((line) => /sidewalk pitch/.test(line.label))!;
+    expect(pitch.label).toBe(`${LOCATIONS.sidewalk.name} pitch ×2`);
+    expect(pitch.amount).toBe(LOCATIONS.sidewalk.fee * 2);
+  });
+
+  it('leaves a single pitch reading exactly as it always did', () => {
+    /* No "×1" on the ordinary day, which is every day before a second stand. */
+    const lines = dailyFixedCosts(business());
+    expect(lines[0].label).toBe(`${LOCATIONS.sidewalk.name} pitch`);
+    expect(lines[0].amount).toBe(LOCATIONS.sidewalk.fee);
+  });
+
+  it('keeps the total the same however the rows are grouped', () => {
+    /*
+     * The property that makes grouping safe. `totalFixedCost` sums these rows
+     * and the day's profit is computed from that sum, so a grouping that lost
+     * a fee would be a silent change to the economy rather than to a label.
+     */
+    const grouped = dailyFixedCosts(twoOnTheSidewalk());
+    expect(totalFixedCost(grouped)).toBe(LOCATIONS.sidewalk.fee * 2 + STAFF.manager.wage);
+  });
+});
+
 describe('capex versus opex, felt rather than explained', () => {
   it('a cooler costs once and never appears in daily costs again', () => {
     const withCooler = buyUpgrade(100, business(), 'cooler').business;

@@ -78,8 +78,8 @@ import {
 } from './simulation';
 import { money, plural } from './copy';
 
-/** The four things a child can point at when a day comes out different. */
-export type Cause = 'batch' | 'price' | 'quality' | 'weather';
+/** The things a child can point at when a day comes out different. */
+export type Cause = 'batch' | 'price' | 'quality' | 'rival' | 'weather';
 
 export interface Answer {
   cause: Cause;
@@ -126,6 +126,29 @@ export const WORTH_ASKING_CUPS = 3;
  *
  * The jug is the exception and is not a demand effect at all: it is how many
  * cups there were to sell, which caps everything downstream of it.
+ *
+ * ## The fifth term, and the three days it was missing
+ *
+ * `marketShare` was not in this decomposition, and it is a plain multiplicative
+ * factor inside `cupsWantedWith` exactly like the other three. So on the day a
+ * rival opened across the road the four terms below summed to roughly nothing
+ * while the day itself lost four fifths of its profit, and the residual landed
+ * on whichever of the four happened to twitch.
+ *
+ * Measured, at $1.80 with the cooler bought, on the day the rival arrives:
+ *
+ * | seed | yesterday | today | what this said |
+ * |---|---|---|---|
+ * | 1 | $33.82 | $6.11 | *the weather was different* — on 4.4 cups of weather |
+ * | 99 | $32.92 | $5.11 | *you made a different number of cups* |
+ * | 2026 | $17.22 | $5.61 | nothing at all — every term under the threshold |
+ *
+ * Blaming the sky for a competitor is worse than saying nothing, because the
+ * whole of PRODUCT.md §4 is that two figures shown together have to reconcile,
+ * and worse again because *the child can do something about a rival*. Stage 2
+ * is winnable in five days by whoever works out that being different beats
+ * being cheaper, and unwinnable inside its sixteen-day clock by whoever does
+ * not. This question is the one place the game was ever going to say so.
  */
 export function changesSince(outcome: DayOutcome, yesterday: DayRecord): Record<Cause, number> {
   const params = resolveDayParams(outcome.params);
@@ -144,6 +167,20 @@ export function changesSince(outcome: DayOutcome, yesterday: DayRecord): Record<
   const gradeToday = gradeDemandFactor(outcome.grade, [yesterday]);
   const gradeYesterday = gradeDemandFactor((yesterday.grade ?? 'regular') as LemonGrade, []);
 
+  /*
+   * The same day with a different share of the street, which is the only thing
+   * a rival changes. Share multiplies demand, so this is the identical
+   * hold-the-others-still move the price term makes one line up.
+   *
+   * Yesterday defaults to today's share rather than to 1, so a save from
+   * before the field existed — and every day of Stage 1, which has no rival
+   * ever — reports no change instead of inventing a competitor.
+   */
+  const shareToday = params.marketShare;
+  const shareYesterday = yesterday.marketShare ?? shareToday;
+  const atShare = (share: number) =>
+    cupsWantedWith(outcome.price, 'mild', { ...params, marketShare: share });
+
   const base = at(outcome.price);
   return {
     price: at(outcome.price) - at(yesterday.price),
@@ -151,14 +188,33 @@ export function changesSince(outcome: DayOutcome, yesterday: DayRecord): Record<
       base * weatherFactor(outcome.weather, params.indoorShare) -
       base * weatherFactor(yesterday.weather, params.indoorShare),
     quality: base * gradeToday - base * gradeYesterday,
-    batch: outcome.cupsMakeable - (yesterday.cupsMade ?? yesterday.cupsSold),
+    /*
+     * Only the part of the jug that actually bit.
+     *
+     * This was a bare difference of the two batches, and a bare difference
+     * claims a day was decided by cups that were never going to be sold: a
+     * jug cut from 44 to 24 on a day sixteen people wanted a cup changed
+     * nothing whatsoever, and reported twenty. On seed 99, the day the rival
+     * arrived, that phantom twenty beat the nineteen cups the rival really
+     * took and the child was told they had made a different number of cups.
+     *
+     * So it is capped by today's demand on both sides — the same
+     * hold-everything-else-still move every other term makes. Two jugs that
+     * both clear the queue difference to zero, which is the truth, and the
+     * question falls through to whichever thing did decide the day.
+     */
+    batch:
+      Math.min(outcome.cupsWanted, outcome.cupsAvailable) -
+      Math.min(outcome.cupsWanted, yesterday.cupsMade ?? yesterday.cupsSold),
+    rival: atShare(shareToday) - atShare(shareYesterday),
   };
 }
 
 /**
  * What made today different, or null when nothing much did.
  *
- * The biggest of the four changes. Each option is a claim that is either true
+ * The biggest change of the four, or five where there is a rival. Each option
+ * is a claim that is either true
  * or false of the two days in front of the child, rather than a judgement about
  * them.
  */
@@ -170,15 +226,17 @@ export function diagnose(outcome: DayOutcome, history: readonly DayRecord[]): Di
   const yesterday = history[history.length - 1];
   if (!yesterday) return null;
 
+  const params = resolveDayParams(outcome.params);
   const moved = changesSince(outcome, yesterday);
   /*
    * Ties broken in a fixed order, so the same two days always get the same
    * answer. The order is by how much a child can *do* about it, which is the
    * right tie-break for a stage whose job is teaching that decisions matter:
    * the sign and the jug are theirs today, the lemons are theirs a day late,
-   * and the sky is nobody's.
+   * the rival is theirs only by being worth more than him, and the sky is
+   * nobody's.
    */
-  const ranked = (['price', 'batch', 'quality', 'weather'] as Cause[]).sort(
+  const ranked = (['price', 'batch', 'quality', 'rival', 'weather'] as Cause[]).sort(
     (a, b) => Math.abs(moved[b]) - Math.abs(moved[a]),
   );
   const cause = ranked[0];
@@ -188,26 +246,42 @@ export function diagnose(outcome: DayOutcome, history: readonly DayRecord[]): Di
   const up = moved[cause] > 0;
 
   /*
-   * All four options, in the same order, every time.
+   * Every option that could be true here, in the same order, every time.
    *
    * Fixed order so the *position* of the right answer is never the thing a
-   * child learns — the only way to answer is to read the two days. And all four
-   * every time so a child meets the complete set of things that make one day
-   * differ from another, which is the shape of the whole stage in four lines.
+   * child learns — the only way to answer is to read the two days. And the
+   * whole set every time so a child meets the complete list of things that
+   * make one day differ from another, which is the shape of the stage in four
+   * or five lines.
    *
-   * Four options is one decision, which is what §13 says to bound; the deal
-   * board asks the same of a child with three.
+   * The rival is the one conditional option, and the condition is the world
+   * rather than a difficulty dial: Stage 1 has no competitor at all —
+   * FRAMEWORK.md §1 says its demand is "driven only by price + quality ... No
+   * weather, competition, location" and `advanceRival` refuses to run below
+   * Stage 2 — so offering it there would be an answer that can never be true
+   * for a whole stage. Once somebody is across the road it goes in and stays
+   * in, including on the days he did not move, exactly as "you changed what
+   * you charged" stays in on a day the sign did not move.
+   *
+   * Five options is still one decision, which is what §13 says to bound.
    */
   const wording: Record<Cause, string> = {
     price: 'You changed what you charged',
     batch: 'You made a different number of cups',
     quality: 'You used a different kind of lemon',
+    rival: 'Somebody else was selling lemonade',
     weather: 'The weather was different',
   };
-  const answers: Answer[] = (['price', 'batch', 'quality', 'weather'] as Cause[]).map((id) => ({
-    cause: id,
-    label: wording[id],
-  }));
+  /*
+   * Contested if the street was ever shared, today or yesterday. Read off the
+   * share itself rather than off a rival flag, because the share is what the
+   * arithmetic above actually used.
+   */
+  const contested = params.marketShare < 1 || (yesterday.marketShare ?? 1) < 1;
+  const offered: Cause[] = contested
+    ? ['price', 'batch', 'quality', 'rival', 'weather']
+    : ['price', 'batch', 'quality', 'weather'];
+  const answers: Answer[] = offered.map((id) => ({ cause: id, label: wording[id] }));
 
   const because: Record<Cause, string> = {
     price: `${money(yesterday.price)} yesterday, ${money(outcome.price)} today. That alone ${
@@ -216,6 +290,14 @@ export function diagnose(outcome: DayOutcome, history: readonly DayRecord[]): Di
     batch: `You made ${plural(yesterday.cupsMade ?? yesterday.cupsSold, 'cup')} yesterday and ${outcome.cupsMakeable} today — ${cups} ${up ? 'more' : 'fewer'} to sell.`,
     quality: `The lemons ${up ? 'brought' : 'cost you'} about ${plural(cups, 'customer')} against yesterday's. Yesterday's kind still counts today — that is word of mouth.`,
     weather: `${WEATHER_COPY[yesterday.weather]} yesterday. ${WEATHER_COPY[outcome.weather]} today. About ${plural(cups, 'person', 'people')} ${up ? 'more' : 'fewer'} wanted a cup, and you chose none of it.`,
+    /*
+     * The same two figures the stand shows when the rival is tapped — "Share
+     * of the street coming to you" — so the two screens cannot disagree about
+     * what happened. §62: one fact, and both homes read it off `marketShare`.
+     */
+    rival: `${Math.round((yesterday.marketShare ?? 1) * 100)}% of the street came to you yesterday, ${Math.round(params.marketShare * 100)}% today. That ${
+      up ? 'brought' : 'cost you'
+    } about ${plural(cups, 'customer')}. You do not have to be cheaper than him.`,
   };
 
   const correction: Record<Cause, string> = {
@@ -223,6 +305,7 @@ export function diagnose(outcome: DayOutcome, history: readonly DayRecord[]): Di
     batch: 'The jug moved more than anything else:',
     quality: 'The lemons moved more than anything else:',
     weather: 'The sky moved more than anything else:',
+    rival: 'The stand across the road moved more than anything else:',
   };
 
   return {
