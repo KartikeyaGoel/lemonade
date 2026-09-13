@@ -6164,3 +6164,197 @@ The honest summary has moved, and it is worth saying exactly how far. §78 said
 five classes gated and four holes named. This says eleven gated and four holes
 named — but the four are different holes, each a genuine step narrower than the
 one it replaced, and six shipped defects came out of closing the old ones.
+
+## 81. The rest of it, including the key having nowhere to live
+
+§80 closed four holes and named four smaller ones. The customer's reply named
+the first thing to fix and it was not on my list:
+
+> I dont see a .env to add an api key for alpha vantage, also fix the above, i
+> told you to be proactive in fixing everything and making the app perfect no?
+
+Right, and the missing `.env` is the more interesting half, because it was a
+**§40 defect in configuration**: a setting the code reads that no document
+mentions is a setting nobody will ever set. §79 and §80 both said "setting the
+secret is the real fix and needs somebody with an account" — and neither of them
+said *where a person would put it*. The answer was nowhere. Next loads
+`.env.local` for the app and never for these scripts, and Node's `--env-file`
+throws when the file is absent, so it cannot go in an npm script that has to
+work on a fresh clone.
+
+`scripts/env.mjs` is twenty lines, `.env.example` is committed and names every
+setting without holding a value, and a test scans `process.env.X` out of the
+scripts to make sure the example still names all of them. The key is now a
+repository secret as well, so the cron uses the official feed.
+
+### The bug that was waiting in the template
+
+Copying `.env.example` and filling in one line leaves the rest blank, and
+`process.env.X ?? fallback` **does not fall back on an empty string**. That is
+not a local inconvenience:
+
+> GitHub Actions substitutes an empty string for a secret that does not exist.
+
+The workflow passes `SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}`, that secret
+had never been created, and `fetch-market-data.mjs` read it with `??`. So **every
+scheduled run since the workflow was written sent the SEC an empty
+User-Agent** — the one thing they ask you not to do, and the reason they give for
+refusing a request.
+
+Which forces a correction to §79. That section concluded the 403s were the
+runner's IP address, on the evidence that the same request returned 200 from a
+laptop. The laptop was sending the default agent and the runner was sending
+nothing, so **the comparison never held the header constant and the conclusion
+was not established.** It may still be the address; it is no longer demonstrated,
+and the first run with a real User-Agent from this laptop got all twenty-four
+companies' filings. The graceful carry-forward built in §79 is still right for
+its own reasons — one source failing must not take the refresh down — but the
+diagnosis behind it was sloppier than it read.
+
+The same blank-value shape would have set both staleness limits to `Number('')`,
+which is zero: "fail if the prices are over a fortnight old" becomes "fail if
+they are not from today". `envOr` treats blank as absent, and a test reads the
+scripts to make sure nothing goes back to `??`.
+
+### And the allowance does not fit
+
+The first real run with a key found the docstring's arithmetic was stale too. It
+said the free tier's 25 requests a day "covers eight tickers", written when there
+were eight. There are twenty-four. It also asks for no more than one request a
+second and got twenty-four as fast as the loop went round, so four came back
+refused — with a **200 carrying prose**, not a 429.
+
+So: paced at 1.3 seconds, and the fallback is now **per ticker** rather than per
+run, which is §79's principle applied to prices instead of filings. A refresh
+uses 24 of the 25, one scheduled run a day fits exactly, and any extra run that
+day falls back to Yahoo per company rather than writing nothing.
+
+Mixing the two sources is safe and that is measured rather than assumed. Aligned
+by week — Alpha Vantage stamps the last trading day, Yahoo the first — across the
+whole five-year window: **261 weeks, worst disagreement 0.011%, none over 1%**,
+including Walmart, which split three-for-one inside the window. The regenerated
+file confirms it from the other side: 6,288 settled weekly closes shared with the
+last commit, **zero rewritten**.
+
+`pricesFellBack` names the companies the keyed source did not serve. The gate
+prints it and never fails on it: the outcome that matters is the prices going
+stale, which is already gated, and failing a build because a provider
+rate-limited us today is how a gate gets switched off.
+
+### Four-way, because the number was measurable
+
+`tests/ui/combos.test.tsx` was pairwise and §80's residue was "a defect needing
+three specific choices at once still gets through". Once the covering array was
+general in `WAYS`, the trade was one line to measure:
+
+| | combinations | saves booted | wall time |
+|---|---|---|---|
+| 2-way | 268 | 21 | 0.3s |
+| 3-way | 1,628 | 66 | 2.7s |
+| **4-way** | **6,199** | **197** | **8.2s** |
+| 5-way | 15,367 | 527 | 21.5s |
+
+Four: where the cost stops being free and is still inside the noise of the soak
+next door. Greedy search alone left exactly one of 6,199 uncovered, so the array
+now finishes **by construction** — anything the search misses is built from the
+combination itself, which makes it exact at any `WAYS` rather than almost exact
+at the one that happened to be tried.
+
+### One figure is not unfalsifiable
+
+§80's residue: *"a false claim in a sentence with one figure in it. 'You sold
+most of them' is unfalsifiable by arithmetic and always will be."* True of
+arithmetic. A single figure still has to **agree with its noun** — "1 people kept
+walking", "You sold 2 cup", "1 days to go" are all false and all checkable from
+the text alone.
+
+So the allowlist threshold came down to one figure, and the size of what had been
+outside it is the point: **twenty more shapes against thirty existing ones.** The
+larger half of the game's figure-carrying copy had never been classified.
+
+Widening the fuzz to reach them — six prices, four batch sizes — found four more
+shapes, two of which assert arithmetic nothing had checked. One was live:
+
+> **"You made 28 cups yesterday and 72 today — 40 more to sell."**
+
+Seventy-two less twenty-eight is forty-four. `changesSince().batch` is capped by
+today's demand on purpose, and its comment explains why at length — a bare
+difference claims a day was decided by cups nobody was ever going to buy. So the
+attributed figure is not the change in the jug, and the sentence printed it as
+though it were. Both facts are worth having, so the sentence says both, and the
+second half only appears on the days the cap actually bit.
+
+Two of my own checks were wrong, both found by the wider fuzz, and both worth
+recording because in each case the code was right:
+
+- the lunchtime line asserted that sending out costs more than the morning did.
+  That is the lesson the line exists for and it is **false on a one-cup batch**,
+  where a whole lemon gets cut for one cup. I came within a commit of "fixing"
+  working copy to satisfy a false premise.
+- the agreement check flagged seventy-one correct sentences, every one
+  attributive — "on a 10 cup day" takes the singular. A check that fires
+  seventy-one times on good copy is a check somebody switches off, so it now
+  reads the determiner in front of the number rather than guessing from the noun
+  behind it.
+
+### And the one that cannot be closed, attempted properly
+
+*Nothing here measures whether it is any good.* Still true. But "is it any good"
+has a neighbour that is decidable and the pilot feedback keeps circling it: **is
+this a game or a slideshow?** Two attempts failed first, and both failed the same
+way.
+
+- *Taps to the first decision, and words read before it.* Both came out at
+  **zero** on every run — the title screen offers five things, so the first
+  screen is already a choice. A metric that is zero every time is not a bound.
+- *The share of screens offering a choice.* 95% to 100%, because "choice" was
+  read off the DOM as "two or more enabled buttons" and the day screen's
+  customer faces count. Measuring the fingerprint rather than the app, which is
+  the same error the soak's coverage number made twice before it settled.
+
+What works is narrower and needs no guess about what a decision is: **a screen
+with exactly one thing to press is an interstitial.** `tests/ui/engagement.test.tsx`
+is an allowlist over screen *kinds* — every screen that only ever offers one
+control has to be named with the reason, and word cards are read off `GLOSSARY`
+so a new word needs no entry and a new screen does.
+
+Measured over five walks and 750 taps: **37 screen kinds, five that only ever
+offer one thing** — two verdicts on a choice already made, the live screen's two
+honest "nothing has happened" states, and the blank first frame — and **14% of
+taps** on a one-control screen. The opening from a cleared save reaches a
+decision before the fourth screen.
+
+It would have failed on the opening §71 found by hand: four unlock cards between
+a child and their second day, each with one "Got it", three of which were cut
+with nothing to stop them coming back. Two more things it taught while being
+written, both about the instrument rather than the app: the longest run of
+one-button screens *anywhere* was thirteen, and all thirteen were the walk
+opening the projection sheet and closing it again — a fact about the walk, so the
+assertion moved to the opening, which is a path every child takes exactly once.
+And counting only `<button>` made the lemon screen look like a card, because its
+batch is set with a slider; it was one commit from being written into the
+allowlist as one.
+
+### The state of it
+
+Thirteen gated classes. Five defects in this pass, every one of them shipped:
+the empty User-Agent, the blank-value staleness limits, the rate limit nobody
+had noticed, the stale "eight tickers", and the batch sentence that did not
+subtract. Plus a correction to §79's diagnosis.
+
+What is still not guaranteed:
+
+- **A defect needing five particular choices at once.** Four-way is covered;
+  five is a measured 21 seconds away rather than an unreachable one, and the
+  exhaustive answer is about five minutes, which is the right thing to run by
+  hand and the wrong thing to put in front of every commit.
+- **A screen kind the walk never reaches**, and a state dimension nobody
+  thought to name. There are nine dimensions rather than thousands of states,
+  which is a smaller thing to be wrong about than it was.
+- **A figure that is simply wrong** inside a classified shape. The sweep checks
+  what a sentence *claims*; whether the number handed to it is the right number
+  is the producer's own test's job.
+- **Whether a child enjoys it.** Unchanged, and unchangeable here. The nearest
+  measurable neighbours now exist — repetition, and whether it is a game or a
+  slideshow — and both would pass on something dull in a way nobody has thought
+  of yet.

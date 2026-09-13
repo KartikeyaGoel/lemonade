@@ -87,7 +87,37 @@ the app covered.
 Never write "bulletproof". Write what is gated, what is not, and the measurement
 for each.
 
-## 7. The world is not in the repo
+## 7. `??` is the wrong operator for an environment variable
+
+GitHub Actions substitutes an **empty string** for a secret that does not exist,
+and `process.env.X ?? fallback` does not fall back on `''`. That sent the SEC an
+empty User-Agent on every scheduled run for months, and would have turned both
+data-staleness limits into `Number('')`, which is zero.
+
+Use `envOr` from `scripts/env.mjs`, which treats blank as absent. A test reads
+the scripts to make sure nothing goes back to `??`.
+
+More generally: **a tolerance is a place to hide a bug.** Three fixes in three
+sessions had a defect inside them that the fix's own gate caught only once the
+gate was made exact — the `?? data.fetchedAt` fallback in §79, a guard on a
+field that did not exist in §80, and a claim check with a one-penny tolerance
+that was exactly the width of the defect it let through. Default to exact.
+
+## 8. Measure the instrument, not just the thing
+
+Half the metrics in this project were wrong the first time, and always in the
+same direction — measuring the harness and reporting it as a fact about the app.
+The soak's coverage number was 57%, then 33%, before the unit of coverage was
+right. An engagement metric came out at 100% because "a choice" was read off the
+DOM. A covering array reported full coverage of dimensions whose mutators were
+silently declining to apply.
+
+So: when a number comes out suspiciously clean or suspiciously bad, suspect the
+instrument first. And make every generated fixture **assert that it actually
+took** — a mutator that quietly does nothing is worse than no fixture, because
+it reports coverage.
+
+## 9. The world is not in the repo
 
 Every other gate checks the code. The refresh workflow failed silently on every
 weekday for a fortnight while `npm run check` stayed green, because nothing read
@@ -99,7 +129,7 @@ marking holdings against dead prices. §79.
 - A deployed bundle ages after the gate has passed. `dataAge` puts that on the
   screen, because a check in CI cannot reach a phone.
 
-## 8. Conventions
+## 10. Conventions
 
 - **"Push" means commit and push to `main`.** No PRs, no branches.
 - **Write it up.** A decision or a defect worth remembering goes in PRODUCT.md as
