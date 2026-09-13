@@ -595,10 +595,23 @@ export function CloseScreen({
               outcome.nextState.honeyServings > 0 ||
               outcome.nextState.cupsInStock > 0) && (
               <p className="mt-1 font-body text-[11px] font-bold text-ink/55">
+                {/* Only what is actually there. The list used to name all three
+                    whatever they were, so a pantry with no lemons left in it
+                    still opened with "0 lemons" — a line about what you have
+                    that begins by naming what you have not. */}
                 Still in the pantry for tomorrow:{' '}
-                {plural(outcome.nextState.lemonLots.reduce((s, l) => s + l.lemons, 0), 'lemon')},{' '}
-                {outcome.nextState.honeyServings} honey,{' '}
-                {plural(outcome.nextState.cupsInStock, 'cup')}.
+                {[
+                  {
+                    count: outcome.nextState.lemonLots.reduce((s, l) => s + l.lemons, 0),
+                    word: 'lemon',
+                  },
+                  { count: outcome.nextState.honeyServings, word: 'honey serving' },
+                  { count: outcome.nextState.cupsInStock, word: 'cup' },
+                ]
+                  .filter((item) => item.count > 0)
+                  .map((item) => plural(item.count, item.word))
+                  .join(', ')}
+                .
               </p>
             )}
           </div>
@@ -828,17 +841,40 @@ function Compare({
  * One sentence on why the day landed where it did. Names the cause, never the
  * fix — the kid works out the fix themselves on the next day's dials.
  */
-function describeGap(outcome: DayOutcome, planned: DayProjection): string {
+export function describeGap(outcome: DayOutcome, planned: DayProjection): string {
   const unsold = outcome.cupsAvailable - outcome.cupsSold;
 
   if (outcome.turnedAwaySoldOut > 0) {
-    return `You sold every cup and ${outcome.turnedAwaySoldOut} more people still wanted one. You could have made more.`;
+    /*
+     * `plural`, because one person turned away is one person.
+     *
+     * "You sold every cup and **1 more people** still wanted one" — found on
+     * day two of a browser playthrough. The claim sweep was already reading
+     * this sentence and its fuzz never produced a sell-out one cup short, which
+     * is why the fuzz now aims for that boundary deliberately.
+     */
+    return `You sold every cup and ${plural(outcome.turnedAwaySoldOut, 'more person', 'more people')} still wanted one. You could have made more.`;
   }
   if (unsold > 0 && outcome.walkedAwayOnPrice > outcome.cupsSold) {
     return `${plural(unsold, 'cup')} went unsold and most people walked past without stopping. More people said no than yes.`;
   }
   if (unsold > 0) {
-    return `You made ${plural(outcome.cupsAvailable, 'cup')} and sold ${outcome.cupsSold}. The ${unsold} you did not sell were already paid for.`;
+    /*
+     * "The 1 you did not sell **were** already paid for."
+     *
+     * `plural` fixes nouns and nothing fixes verbs, so a count of one landed in
+     * a sentence built for many. Found on the close screen of day one, in a
+     * browser, on the first playthrough after a fortnight of gate-building —
+     * which is its own small lesson about what gates do not cover.
+     *
+     * Written out both ways rather than patched with a conditional verb,
+     * because "the one" reads better than "the 1" whatever follows it.
+     */
+    const leftOver =
+      unsold === 1
+        ? 'The one you did not sell was already paid for.'
+        : `The ${unsold} you did not sell were already paid for.`;
+    return `You made ${plural(outcome.cupsAvailable, 'cup')} and sold ${outcome.cupsSold}. ${leftOver}`;
   }
   if (outcome.cupsSold === planned.cupsMakeable) {
     return 'Everything you made, you sold. Exactly the good case.';

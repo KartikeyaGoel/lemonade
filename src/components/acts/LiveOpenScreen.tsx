@@ -199,7 +199,7 @@ export function LiveOpenScreen({
  * not missed a week. Saying "0 weeks went by" over a number that moved would
  * be the sort of small wrongness that makes a child stop reading the words.
  */
-function sinceYouWereHere(days: number, weeks: number): string {
+export function sinceYouWereHere(days: number, weeks: number): string {
   if (weeks >= 2) return `${plural(weeks, 'week')} went by.`;
   if (weeks === 1) return 'A week went by.';
   if (days === 1) return 'A day went by.';

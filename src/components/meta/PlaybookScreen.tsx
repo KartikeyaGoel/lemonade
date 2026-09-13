@@ -303,7 +303,7 @@ function Figure({
  * better, it is a different trade, and saying otherwise would undo the whole
  * point of showing the distribution in the first place.
  */
-function verdict(mine: number, theirs: number, myWorst: number, theirWorst: number): string {
+export function verdict(mine: number, theirs: number, myWorst: number, theirWorst: number): string {
   if (Math.abs(mine - theirs) < 0.03) {
     return 'Almost the same hit rate by completely different routes. Look at the worst stretches — that is where the two of you actually differ.';
   }

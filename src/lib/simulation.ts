@@ -1918,7 +1918,7 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     found.push({
       id: 'capacity',
       term: 'Capacity',
-      evidence: `You sold out. ${outcome.turnedAwaySoldOut} more people wanted a cup, which is about ${money(lost)} of profit you could not collect.`,
+      evidence: `You sold out. ${plural(outcome.turnedAwaySoldOut, 'more person', 'more people')} wanted a cup, which is about ${money(lost)} of profit you could not collect.`,
       carriesForward: 'Demand you cannot serve is invisible on a P&L. Growing companies spend money to stop leaving it behind.',
     });
   }

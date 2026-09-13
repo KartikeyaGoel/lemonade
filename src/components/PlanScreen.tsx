@@ -853,7 +853,7 @@ function nudge(current: number, delta: number): number {
 }
 
 /** "cooler · sign", or the honest version when there is nothing on it yet. */
-function describeKit(business: BusinessState): string {
+export function describeKit(business: BusinessState): string {
   const owned = [
     ...Object.values(UPGRADES)
       .filter((u) => business.upgrades[u.id])

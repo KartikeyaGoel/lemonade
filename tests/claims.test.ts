@@ -84,6 +84,7 @@ import {
   createInitialState,
   deriveInsights,
   orderForTargetCups,
+  projectDay,
   runDay,
   type DayOutcome,
   type GameState,
@@ -95,6 +96,22 @@ import { act2Progress, deriveAct2Insights, deriveAct3Insights } from '../src/lib
 import { shopProgress } from '../src/lib/retail';
 import { act1Progress } from '../src/lib/progress';
 import { createBusinessState } from '../src/lib/business';
+/*
+ * The four copy producers that live in components rather than in `src/lib`.
+ *
+ * The sweep's premise is "every copy producer", and it swept `src/lib` only —
+ * so `describeGap` in `CloseScreen.tsx` was outside it, and `describeGap` is
+ * where **"The 1 you did not sell were already paid for"** came from. Found by
+ * playing day one in a browser, which is not a thing to rely on.
+ *
+ * Exported for this, which `check-dead-code.mjs` tolerates and the note above
+ * `SUPERSEDED` justifies: copy is the thing this file is about, and where it is
+ * written is not a reason to leave it unswept.
+ */
+import { describeGap } from '../src/components/CloseScreen';
+import { describeKit } from '../src/components/PlanScreen';
+import { sinceYouWereHere } from '../src/components/acts/LiveOpenScreen';
+import { verdict } from '../src/components/meta/PlaybookScreen';
 
 /* ------------------------------------------------------------------ *
  * The claim shapes
@@ -168,10 +185,20 @@ export function badClaims(text: string): string[] {
    * day streak" take the singular. The first version of this check flagged
    * seventy-one of them and would have been switched off inside a day.
    */
+  /*
+   * `MODIFIER` is why this had to be widened, and the widening found two live
+   * defects on the second day of a browser playthrough.
+   *
+   * The first version matched a number immediately followed by a noun, so
+   * "1 people" was caught and **"1 more people"** was not — one word in between
+   * and the rule went blind. The copy said "You sold every cup and 1 more
+   * people still wanted one", and `simulation.ts` said "1 more people wanted a
+   * cup" a few lines away.
+   */
   for (const m of text.matchAll(
-    new RegExp(`(?<![$\\d.])\\b(\\d+)\\s+${COUNTABLE}\\b`, 'gi'),
+    new RegExp(`(?<![$\\d.])\\b(\\d+)\\s+(?:${MODIFIER}\\s+)?${COUNTABLE}\\b`, 'gi'),
   )) {
-    const noun = m[2].toLowerCase();
+    const noun = (m[2] ?? '').toLowerCase();
     const plural = noun.endsWith('s') || noun === 'people';
     /*
      * Attributive uses take the singular and are correct: "a 10 cup day", "a 3
@@ -189,6 +216,23 @@ export function badClaims(text: string): string[] {
     if ((Number(m[1]) === 1) === plural) {
       bad.push(`${m[0]} — ${Number(m[1]) === 1 ? 'one of those is singular' : 'more than one is plural'}`);
     }
+  }
+
+  /*
+   * "The 1", which is a count of one written as a figure in prose.
+   *
+   * The close screen said **"The 1 you did not sell were already paid for"** —
+   * `plural` had fixed every noun in the game and nothing had ever looked at a
+   * verb. The agreement check above cannot see it, because there is no noun
+   * after the number for it to disagree with.
+   *
+   * So the rule is about the register rather than the grammar: a count of one
+   * inside a sentence is written "one". That is narrow enough to have no false
+   * positives — a figure of speech like "the 1 in ten" does not appear in a
+   * game for nine-year-olds — and it catches the whole family, verb or no verb.
+   */
+  for (const m of text.matchAll(/\b[Tt]he 1\b(?!\d)/g)) {
+    bad.push(`${m[0]} — a count of one reads as "the one" in a sentence`);
   }
 
   /*
@@ -215,6 +259,12 @@ export function badClaims(text: string): string[] {
 
 /** Every figure a sentence can carry, in the forms the copy writes them. */
 const FIGURE = /\$-?\d+(?:\.\d+)?|-?\d+(?:\.\d+)?%|-?\d+(?:\.\d+)?/g;
+
+/**
+ * Words that can sit between a count and its noun without changing the
+ * agreement. "1 more people" is as wrong as "1 people".
+ */
+const MODIFIER = '(?:more|fewer|other|extra|new|whole|further)';
 
 /** The nouns the game counts, for the number-agreement check. */
 const COUNTABLE =
@@ -423,6 +473,35 @@ const KNOWN_SHAPES: Shape[] = [
     why: 'how many of the extra cups found a buyer; the sentence it qualifies is the one before it',
   },
 
+  /* ---- the component-local producers, brought into the sweep ---- */
+  {
+    shape: 'You made # cups and sold #.',
+    checks: ([made, sold]) => (sold <= made ? null : `sold ${sold} of ${made}`),
+  },
+  {
+    shape: 'The # you did not sell were already paid for.',
+    /*
+     * Locks in the fix as well as the arithmetic. One left over is written
+     * "The one you did not sell **was**"; if this shape ever sees a 1 again,
+     * the singular branch has gone.
+     */
+    checks: ([left]) => (left >= 2 ? null : `${left} left over should read "the one ... was"`),
+  },
+  {
+    shape: '# cups went unsold and most people walked past without stopping.',
+    why: 'a count of what was left, with the reason in the same sentence and nothing to divide',
+  },
+  {
+    shape: 'You sold every cups and # more people still wanted one.',
+    why: 'the people turned away after a sell-out; the cups they wanted are not in the sentence',
+  },
+  {
+    shape: '# cups sold today.',
+    why: 'the plainest of the close screen\'s summaries, used when nothing else about the day stands out',
+  },
+  { shape: '# days went by.', why: 'how long a live account was left alone, in days under a week' },
+  { shape: '# weeks went by.', why: 'the same, once it is a week or more' },
+
   /* ---- one figure, which can still disagree with its noun ---- *
    *
    * §78 called these unfalsifiable, and they are unfalsifiable by *arithmetic*.
@@ -524,6 +603,24 @@ const BY_SHAPE = new Map(KNOWN_SHAPES.map((entry) => [entry.shape, entry]));
 /** Batch sizes, cycled through the fuzz: sold out, nearly empty, plenty. */
 const TARGETS = [1, 4, 28, 60];
 
+/**
+ * The batch that sells out by exactly one cup, for a day's demand.
+ *
+ * A fixed grid of batch sizes is a grid, and the interesting values are at the
+ * boundaries — one left over, one turned away, none of either. Playing a day
+ * and then replaying it one cup short of what the street wanted lands on that
+ * boundary on purpose rather than by luck.
+ *
+ * This exists because a browser playthrough found what the grid missed. Day two
+ * sold out with a single person turned away and the screen said **"You sold
+ * every cup and 1 more people still wanted one"** — a plural the grid never
+ * produced, in a sentence the sweep was already reading.
+ */
+function oneShortOfDemand(state: GameState, price: number): number {
+  const probe = runDay(state, { ...orderForTargetCups(state, 80), price });
+  return Math.max(1, probe.cupsWanted - 1);
+}
+
 /** Which shapes the sweep actually produced, so dead entries can be found. */
 const produced = new Set<string>();
 
@@ -579,7 +676,31 @@ function sentencesFor(outcome: DayOutcome, before: GameState['history']): Sample
   }
   add('wordOfMouth', wordOfMouth(outcome, before));
 
+  /*
+   * The component-local producers, swept with everything else.
+   *
+   * `projectDay` rather than a hand-built projection: §49's rule, and the first
+   * attempt at this was a literal that `tsc` rejected for missing four fields —
+   * which is the cheap version of the same lesson.
+   */
+  add(
+    'describeGap',
+    describeGap(outcome, projectDay(outcome.nextState, outcome.cupsAvailable, outcome.price)),
+  );
+
   const business = createBusinessState();
+  add('describeKit', describeKit(business));
+  for (const days of [0, 1, 3, 8, 15, 60, 400]) {
+    add(`sinceYouWereHere.${days}`, sinceYouWereHere(days, Math.floor(days / 7)));
+  }
+  for (const [mine, theirs, myWorst, theirWorst] of [
+    [0.12, 0.05, -0.2, -0.3],
+    [-0.08, 0.11, -0.35, -0.1],
+    [0.01, 0.01, -0.02, -0.02],
+  ]) {
+    add(`verdict.${mine}`, verdict(mine, theirs, myWorst, theirWorst));
+  }
+
   for (const insight of [
     ...deriveInsights(outcome, outcome.nextState.history),
     ...deriveAct2Insights(outcome, business, outcome.nextState.history),
@@ -616,6 +737,12 @@ describe('the claim shapes catch the claims that shipped', () => {
     expect(badClaims('1 people kept walking today.')).toHaveLength(1);
     expect(badClaims('You sold 2 cup.')).toHaveLength(1);
     expect(badClaims('1 days to go.')).toHaveLength(1);
+    /* The close screen's defect: a count of one, with a plural verb and no
+       noun in between for the agreement rule to catch. */
+    /* Two complaints, both right: the "The 1" rule and the shape's own check
+       that a figure of one should have taken the singular branch. */
+    expect(badClaims('The 1 you did not sell were already paid for.').length).toBeGreaterThan(0);
+    expect(badClaims('The one you did not sell was already paid for.')).toEqual([]);
 
     expect(badClaims('1 person kept walking today.')).toEqual([]);
     expect(badClaims('You sold 2 cups.')).toEqual([]);
@@ -691,9 +818,15 @@ describe('no sentence about a day claims arithmetic that does not close', () => 
          * the sentences a sensible day produces.
          */
         for (const price of [0.5, 0.75, 1, 1.5, 2.5, 3]) {
+          /*
+           * Four sizes off the grid plus the one that sells out by a single
+           * cup, which is where the singular/plural boundary lives.
+           */
+          const sizes = [TARGETS[d % TARGETS.length], oneShortOfDemand(state, price)];
+          for (const size of sizes) {
           for (const afternoon of [undefined, 1, 2.75]) {
             for (const topUp of [0, ECON.TOPUP_CUPS]) {
-              const order = orderForTargetCups(state, TARGETS[d % TARGETS.length]);
+              const order = orderForTargetCups(state, size);
               const outcome = runDay(state, {
                 ...order,
                 price,
@@ -717,6 +850,7 @@ describe('no sentence about a day claims arithmetic that does not close', () => 
                 checked += 1;
               }
             }
+          }
           }
         }
         state = runDay(state, { ...orderForTargetCups(state, 28), price: 1.5 }).nextState;
