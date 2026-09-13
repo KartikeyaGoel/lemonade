@@ -263,9 +263,11 @@ export function middayResult(outcome: DayOutcome): string | null {
         : ` You also moved the sign to ${money(outcome.afternoonPrice)}.`;
     return (
       `You sent out for ${plural(outcome.afternoonTopUp, 'more cup')} at lunchtime, ` +
+      /* "against the $0.21 the morning's cost" — the first draft of this line
+         was not a sentence. The reading gate scores syllables, not grammar. */
       `which cost ${money(outcome.topUpCost)} — about ${money(
         round2(ECON.TOPUP_COST_PER_CUP),
-      )} a cup against the ${money(round2(outcome.ingredients.perCup))} the morning's cost.${sign}`
+      )} a cup, against ${money(round2(outcome.ingredients.perCup))} a cup in the morning.${sign}`
     );
   }
   if (outcome.afternoonPrice === outcome.price) return null;

@@ -23,9 +23,31 @@
  * anything about the day that produced them.
  *
  * So this file holds the claim shapes, and sweeps **every copy producer** over
- * a fuzz of days rather than the one module a bug was last found in. When the
- * next shape of false claim turns up, it goes in `badClaims` and the whole
- * sweep gets it at once.
+ * a fuzz of days rather than the one module a bug was last found in.
+ *
+ * ## And why the shapes are an allowlist
+ *
+ * The first version of this file knew three bad shapes and passed everything
+ * else. §78 named the hole in its own words: *"a false claim in an unknown
+ * shape ships. A percentage that does not divide, a count of people against a
+ * count of cups, a date — all pass."* A gate that fails on the known-bad closes
+ * one bug; a gate that fails on the **unclassified** closes a class, which is
+ * the whole argument of `check-one-day.mjs`.
+ *
+ * So every sentence the game can say about a day that carries **two or more
+ * numbers** is normalised to a shape — figures replaced by `#` and `$#`,
+ * singulars folded into plurals — and that shape has to be in `KNOWN_SHAPES`.
+ * There are thirty of them across every producer in the game. Each one either
+ * carries a `checks` function that does the arithmetic, or a sentence saying
+ * why there is nothing to check.
+ *
+ * Writing the list out is what found the next five false-claim shapes, and they
+ * were not the ones §78 guessed at: `$A in, $B out, so you kept $C` was never
+ * checked against `A - B = C`; `you keep $A of every $B cup, because each one
+ * costs $C` was never checked against `A + C = B`; a best/worst/average line was
+ * never checked for the average being between them. None of those was a bug
+ * today. All three were one copy edit away from being one, and nothing would
+ * have said so.
  *
  * `tests/midday.test.ts` has the narrower version of the product check, kept
  * because it is about the two-price day specifically. This is the general one.
@@ -110,7 +132,241 @@ export function badClaims(text: string): string[] {
     }
   }
 
+  /*
+   * And then every shape in the allowlist that carries a `checks`.
+   *
+   * The three regexes above stay as they are, because each of them is a
+   * *class* of sentence rather than one shape — a product claim is wrong in
+   * any wording — and because the two defects they were written for are quoted
+   * verbatim in a test below. The allowlist catches the rest, one exact shape
+   * at a time, and is the half that grows without anybody having to guess.
+   */
+  for (const sentence of claimingSentences(text)) {
+    const entry = BY_SHAPE.get(shapeOf(sentence));
+    const wrong = entry?.checks?.(figuresIn(sentence));
+    if (wrong) bad.push(`${sentence.trim()} — ${wrong}`);
+  }
+
   return bad;
+}
+
+/* ------------------------------------------------------------------ *
+ * The allowlist
+ * ------------------------------------------------------------------ */
+
+/** Every figure a sentence can carry, in the forms the copy writes them. */
+const FIGURE = /\$-?\d+(?:\.\d+)?|-?\d+(?:\.\d+)?%|-?\d+(?:\.\d+)?/g;
+
+/**
+ * A sentence with its figures taken out, so one entry can stand for thousands.
+ *
+ * Singulars are folded into plurals because `plural()` writes "1 cup" and
+ * "2 cups", and a registry that had to carry both of every shape would be
+ * twice as long and no safer. Everything else is left exactly as written: a
+ * comma moving is a copy change, and a copy change is the moment somebody
+ * should look at the claim again.
+ */
+function shapeOf(sentence: string): string {
+  return sentence
+    .replace(FIGURE, (m) => (m.startsWith('$') || m.startsWith('-$') ? '$#' : m.endsWith('%') ? '#%' : '#'))
+    .replace(/\b(cup|cups)\b/g, 'cups')
+    .replace(/\b(day|days)\b/g, 'days')
+    .replace(/\b(person|people)\b/g, 'people')
+    .replace(/\bcups sold, and # still\b/, 'cups sold, and # still')
+    .trim();
+}
+
+/** The figures a sentence carries, in order, as numbers. */
+function figuresIn(sentence: string): number[] {
+  return (sentence.match(FIGURE) ?? []).map((raw) => Number(raw.replace(/[$%]/g, '')));
+}
+
+/** Sentences, split on terminators, that carry enough figures to make a claim. */
+function claimingSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => (sentence.match(FIGURE) ?? []).length >= 2);
+}
+
+/** Within a cent, which is as close as two rounded figures can be asked to be. */
+const closes = (a: number, b: number) => Math.abs(a - b) <= 0.011;
+/** Within a cent a cup, for the lines that divide a total by a count. */
+const divides = (total: number, count: number, each: number) =>
+  count > 0 && Math.abs(total / count - each) <= 0.011;
+
+interface Shape {
+  /** The normalised sentence. */
+  shape: string;
+  /** The arithmetic it asserts, or undefined when it asserts none. */
+  checks?: (n: number[]) => string | null;
+  /** Why there is nothing to check. Required when `checks` is absent. */
+  why?: string;
+}
+
+/**
+ * Every two-figure sentence the game can say about a day.
+ *
+ * Grouped by what they are: the ones that do arithmetic a child could add up,
+ * and the ones that merely put two true figures side by side. The second group
+ * is the larger one and is not a weakness — "$# yesterday, $# today" asserts
+ * nothing beyond the two numbers being right, which is the producer's problem
+ * and not the sentence's.
+ */
+const KNOWN_SHAPES: Shape[] = [
+  /* ---- arithmetic that closes, checked ---- */
+  {
+    shape: '# cups x $# and # cups x $# = $#.',
+    checks: ([n1, p1, n2, p2, total]) =>
+      closes(n1 * p1 + n2 * p2, total) ? null : `the terms come to $${(n1 * p1 + n2 * p2).toFixed(2)}`,
+  },
+  {
+    shape: '# cups x $# = $#.',
+    checks: ([n, p, total]) => (closes(n * p, total) ? null : `the term comes to $${(n * p).toFixed(2)}`),
+  },
+  {
+    shape: '$# in, $# out, so you kept $#.',
+    /*
+     * Never checked before, and it is the plainest §4 sentence in the game:
+     * three figures, one subtraction, on the close screen.
+     */
+    checks: ([inn, out, kept]) =>
+      closes(inn - out, kept) ? null : `$${inn} less $${out} is $${(inn - out).toFixed(2)}`,
+  },
+  {
+    shape: 'You keep $# of every $# cups, because each one costs $# to make.',
+    /* Also never checked: what you keep plus what it costs is what it sold for.
+       It did not close on any day with two prices — see `margin` in
+       `simulation.ts` for the four figures it used to print. */
+    checks: ([keep, price, cost]) =>
+      closes(keep + cost, price) ? null : `$${keep} and $${cost} is $${(keep + cost).toFixed(2)}, not $${price}`,
+  },
+  {
+    shape: 'You keep $# on an average cups: it sold for $# and cost $# to make.',
+    /* The two-price wording of the line above, and the same arithmetic. */
+    checks: ([keep, price, cost]) =>
+      closes(keep + cost, price) ? null : `$${keep} and $${cost} is $${(keep + cost).toFixed(2)}, not $${price}`,
+  },
+  {
+    shape: 'Your best days was $# and your worst $#, but your average across # days is $#.',
+    /* An average outside its own range is the sort of thing a child spots. */
+    checks: ([best, worst, , average]) =>
+      average <= best + 0.011 && average >= worst - 0.011
+        ? null
+        : `an average of $${average} is not between $${worst} and $${best}`,
+  },
+  {
+    shape: 'Split across # cups, the $# fee cost you $# a cups.',
+    checks: ([cups, fee, each]) =>
+      divides(fee, cups, each) ? null : `$${fee} across ${cups} cups is $${(fee / cups).toFixed(2)}`,
+  },
+  {
+    shape: 'On a # cups days it would be $# a cups.',
+    /* The fee is named in the sentence before this one, so the division cannot
+       be checked from here. What can be: a bigger day cannot cost more a cup. */
+    why: 'the fee it divides is in the previous sentence; the division itself is checked in tests/pnl.test.ts',
+  },
+  {
+    shape: 'You sent out for # more cups at lunchtime, which cost $# — about $# a cups, against $# a cups in the morning.',
+    checks: ([cups, cost, each, morning]) => {
+      if (!divides(cost, cups, each)) return `$${cost} for ${cups} cups is $${(cost / cups).toFixed(2)} a cup`;
+      return each > morning ? null : 'sending out at lunchtime is meant to cost more than the morning did';
+    },
+  },
+  {
+    shape: 'You made # cups yesterday and # today — # more to sell.',
+    /* The §74 sentence, in the module where the third instance of that bug was
+       found. The subtraction it claims was never checked. */
+    checks: ([yesterday, today, more]) =>
+      closes(today - yesterday, more) ? null : `${today} less ${yesterday} is ${today - yesterday}`,
+  },
+  {
+    shape: 'You made # cups and sold # of them.',
+    checks: ([made, sold]) => (sold <= made ? null : 'sold more than were made'),
+  },
+  {
+    shape: 'You made # cups and could have sold #.',
+    why: 'demand can exceed what was made — that is the whole point of the sentence',
+  },
+  {
+    shape: '# cups sold, and # still in the jug.',
+    why: 'the two add to what the day had, which is not in the sentence; the sum is asserted in tests/pnl.test.ts',
+  },
+  {
+    shape: '# cups went at the first price and # cups at the higher one.',
+    why: 'the two add to the cups sold, which the sentence does not carry',
+  },
+  {
+    shape: '# cups went at the first price and # cups at the lower one.',
+    why: 'as above, with the sign reversed',
+  },
+
+  /* ---- two true figures, side by side, asserting nothing between them ---- */
+  {
+    shape: 'Practice # of #: pick any price and watch.',
+    checks: ([day, of]) => (day <= of ? null : `practice day ${day} of ${of}`),
+  },
+  {
+    shape: 'The lemons, honey and cups came to $# for # cups.',
+    why: 'a total and a count, with no rate claimed between them',
+  },
+  {
+    shape: 'At $# a cups you keep $#, so # cups is the point where today stops losing money.',
+    why: 'the breakeven needs the fixed costs, which the sentence does not carry; asserted in tests/pnl.test.ts',
+  },
+  {
+    shape: '# cups brought in $#.',
+    why: 'the price that connects them is not in the sentence — it can be two prices on a top-up day',
+  },
+  {
+    shape: 'You asked $#, then $#, and # paid one or the other.',
+    why: 'two prices and a headcount, with nothing claimed between them',
+  },
+  { shape: '$# yesterday, $# today.', why: 'two figures from two days' },
+  { shape: '# people read $# and kept walking.', why: 'a headcount and the price they read' },
+  { shape: '# people looked at $# and kept walking.', why: 'as above' },
+  {
+    shape: 'You changed the sign at lunchtime: $# in the morning, $# after.',
+    why: 'the two prices, which is the whole content',
+  },
+  { shape: 'Buy # more cups — $#', why: 'a button: a count and what it costs' },
+  {
+    shape: '# more people wanted a cups, which is about $# of profit you could not collect.',
+    why: 'the margin that connects them is not in the sentence',
+  },
+  { shape: '# people wanted one and you had #.', why: 'demand against supply, and either may be larger' },
+  {
+    shape: 'Today you put $# into the stand and got $# back.',
+    why: 'money out and money in; the difference is said in the next sentence and checked there',
+  },
+  {
+    shape: 'The $# stand fee was the same today as on any days, whether you sold # cups or a hundred.',
+    why: 'a fee and an illustrative count — the point is that they are unrelated',
+  },
+  {
+    shape: 'Your cups made $#, and the costs you owe anyway were $#.',
+    why: 'revenue and fixed costs, with the comparison left to the child',
+  },
+  {
+    shape: 'Each cups sold for $# and cost $# to make.',
+    why: 'a price and a unit cost; the margin between them is a different sentence',
+  },
+];
+
+const BY_SHAPE = new Map(KNOWN_SHAPES.map((entry) => [entry.shape, entry]));
+
+/**
+ * Sentences carrying figures in a shape nobody has classified.
+ *
+ * The failure prints the shape ready to paste into `KNOWN_SHAPES`, because a
+ * gate that is annoying to satisfy is a gate somebody deletes.
+ */
+export function unclassifiedClaims(text: string): string[] {
+  const out: string[] = [];
+  for (const sentence of claimingSentences(text)) {
+    const shape = shapeOf(sentence);
+    if (!BY_SHAPE.has(shape)) out.push(`${shape}\n    (from: "${sentence}")`);
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ *
@@ -164,10 +420,42 @@ function sentencesFor(outcome: DayOutcome, before: GameState['history']): Sample
 
 describe('the claim shapes catch the claims that shipped', () => {
   it('fails on both real defects, or it guards nothing', () => {
-    /* §72 and §74, verbatim. A guard that cannot fail guards nothing. */
-    expect(badClaims('28 cups x $1.00 = $29.50. That is revenue')).toHaveLength(1);
+    /*
+     * §72 and §74, verbatim. A guard that cannot fail guards nothing.
+     *
+     * Non-empty rather than exactly one: the general regex and the exact shape
+     * in `KNOWN_SHAPES` both cover the product claim now, so it is reported
+     * twice. The overlap is deliberate — the regex catches the claim in any
+     * wording, the shape catches it in this one — and a guard that reports a
+     * real defect twice is not a problem worth removing coverage for.
+     */
+    expect(badClaims('28 cups x $1.00 = $29.50. That is revenue').length).toBeGreaterThan(0);
     expect(badClaims('40 of 28 cups sold')).toHaveLength(1);
     expect(badClaims('You made 28 cups and sold 40')).toHaveLength(1);
+  });
+
+  it('fails on the three the allowlist found, which had never been checked', () => {
+    /*
+     * Each of these is a sentence the game produces, in a shape nothing looked
+     * at until every figure-carrying sentence had to be classified. Two of the
+     * three were live defects when the list was written.
+     */
+    expect(badClaims('$20.25 in, $10.39 out, so you kept $4.46.')).toHaveLength(1);
+    expect(badClaims('$20.25 in, $15.79 out, so you kept $4.46.')).toEqual([]);
+
+    expect(
+      badClaims('You keep $0.69 of every $0.75 cup, because each one costs $0.16 to make.'),
+    ).toHaveLength(1);
+    expect(
+      badClaims('You keep $0.59 of every $0.75 cup, because each one costs $0.16 to make.'),
+    ).toEqual([]);
+
+    expect(
+      badClaims('Your best day was $12.00 and your worst $3.00, but your average across 4 days is $20.00.'),
+    ).toHaveLength(1);
+    expect(
+      badClaims('Your best day was $12.00 and your worst $3.00, but your average across 4 days is $7.00.'),
+    ).toEqual([]);
   });
 
   it('does not fire on the true versions', () => {
@@ -198,8 +486,19 @@ describe('no sentence about a day claims arithmetic that does not close', () => 
                 afternoonTopUp: topUp,
               });
               for (const { where, text } of sentencesFor(outcome, before)) {
-                const bad = badClaims(text);
-                expect(bad, `seed ${seed} day ${d} @${price}/${afternoon}+${topUp} · ${where}: "${text}"`).toEqual([]);
+                const at = `seed ${seed} day ${d} @${price}/${afternoon}+${topUp} · ${where}`;
+                expect(badClaims(text), `${at}: "${text}"`).toEqual([]);
+                /*
+                 * And the allowlist half: a sentence carrying figures in a
+                 * shape nobody has classified is the §78 hole, so it fails
+                 * here rather than shipping unread.
+                 */
+                expect(
+                  unclassifiedClaims(text),
+                  `${at} says something with figures in it that nothing has classified. ` +
+                    `Add the shape to KNOWN_SHAPES with either the arithmetic it asserts or a ` +
+                    `sentence saying why there is none:`,
+                ).toEqual([]);
                 checked += 1;
               }
             }
@@ -239,13 +538,16 @@ describe('no sentence about a day claims arithmetic that does not close', () => 
     for (const shape of shapes) {
       for (const stageDay of [1, 5, 12]) {
         expect(badClaims(act2Progress(shape, stageDay).nextStep)).toEqual([]);
+        expect(unclassifiedClaims(act2Progress(shape, stageDay).nextStep)).toEqual([]);
         expect(badClaims(shopProgress(shape.shop).goal)).toEqual([]);
+        expect(unclassifiedClaims(shopProgress(shape.shop).goal)).toEqual([]);
       }
     }
     for (const seed of [1, 2026]) {
       let state = createInitialState(seed);
       for (let d = 0; d < ECON.TOTAL_DAYS; d += 1) {
         expect(badClaims(act1Progress(state).goal)).toEqual([]);
+        expect(unclassifiedClaims(act1Progress(state).goal)).toEqual([]);
         state = runDay(state, { ...orderForTargetCups(state, 28), price: 1.5 }).nextState;
         if (state.status === 'finished') break;
       }

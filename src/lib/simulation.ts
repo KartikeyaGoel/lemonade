@@ -1765,7 +1765,29 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     found.push({
       id: 'profit',
       term: 'Profit',
-      evidence: `${money(outcome.revenue)} in, ${money(outcome.ingredients.total + outcome.standFee + outcome.spoilageCost)} out, so you kept ${money(outcome.profit)}.`,
+      /*
+       * "Out" is derived from the two figures either side of it, not summed.
+       *
+       * It was `ingredients.total + standFee + spoilageCost`, written when
+       * those were every cost a day could have. Then the lunchtime top-up
+       * shipped, and the card teaching a child what profit *is* read
+       * "$20.25 in, $10.39 out, so you kept $4.46" — out by exactly the
+       * $5.40 of cups sent for at lunchtime. Same root cause as §74's "40 of
+       * 28 cups sold": a sentence written against the costs that existed at
+       * the time, in a module where nothing recomputes it.
+       *
+       * Re-summing it with `topUpCost` added would fix today and leave the
+       * next cost term to find the same way. Defining the middle figure as
+       * *everything that is not what you kept* makes the sentence close by
+       * construction, for every cost this day has or ever gains — including
+       * the investor's slice, which is money out of the child's hands and
+       * belongs in the subtraction that explains what they kept.
+       *
+       * Found by the allowlist half of `tests/claims.test.ts`, on the first
+       * run after it learned to require that every figure-carrying sentence be
+       * classified. Nothing had ever checked this one.
+       */
+      evidence: `${money(outcome.revenue)} in, ${money(round2(outcome.revenue - outcome.profit))} out, so you kept ${money(outcome.profit)}.`,
       carriesForward: 'Revenue is what a business collects. Profit is what it keeps. They are not the same, and the second one is the one that matters.',
     });
   }
@@ -1841,10 +1863,35 @@ export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insig
     (h) => h.cupsSold > outcome.cupsSold && h.profit < outcome.profit,
   );
   if (outcome.cupsSold >= 30 || soldMoreEarnedLess) {
+    /*
+     * The price in this sentence is derived from the margin, not read off the
+     * sign.
+     *
+     * `grossMarginPerCup` is deliberately computed from what was *actually
+     * taken* per cup rather than from the list price — its own comment says
+     * why: "with punch cards in play the two prices blend ... otherwise the
+     * margin would not tie back". The computation was fixed for that. This
+     * sentence was not, and went on naming `outcome.price`, so on any day with
+     * two prices or a punch card it read **"You keep $0.69 of every $0.75 cup,
+     * because each one costs $0.16 to make"** — three figures that do not close,
+     * on the card teaching a child what margin is.
+     *
+     * Same class as §74 and the `profit` card above: copy written when a day
+     * had one price, left behind by the change that gave it two. Deriving the
+     * middle figure from the other two makes it close by construction.
+     *
+     * And when the realised price is not the sign price, the sentence says so
+     * rather than quietly averaging — the same branch the `revenue` card makes
+     * a few lines up, for the same reason.
+     */
+    const perCupTaken = round2(outcome.grossMarginPerCup + outcome.ingredients.perCup);
     found.push({
       id: 'margin',
       term: 'Gross margin',
-      evidence: `You keep ${money(outcome.grossMarginPerCup)} of every ${money(outcome.price)} cup, because each one costs ${money(outcome.ingredients.perCup)} to make.`,
+      evidence:
+        centsApart(perCupTaken, outcome.price) > 0
+          ? `You keep ${money(outcome.grossMarginPerCup)} on an average cup: it sold for ${money(perCupTaken)} and cost ${money(outcome.ingredients.perCup)} to make.`
+          : `You keep ${money(outcome.grossMarginPerCup)} of every ${money(perCupTaken)} cup, because each one costs ${money(outcome.ingredients.perCup)} to make.`,
       carriesForward: soldMoreEarnedLess
         ? 'You have now had a day where you sold more cups and made less money. Volume is not the goal. Margin times volume is.'
         : 'Two businesses can sell the same amount and one keeps far more of it. That gap is margin.',
