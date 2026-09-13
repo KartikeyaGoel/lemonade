@@ -7,7 +7,7 @@ argued with, plus an honest audit of the shipped game against it.
 deliver** and marks, concept by concept, whether the code delivers it.
 
 > **Status: built.** This document was written as a gap analysis against a
-> four-stage arc, and the gaps it found are now closed — five stages, twelve
+> four-stage arc, and the gaps it found are now closed — four stages, twelve
 > concepts with mechanics, and the listing as the Level 1 endpoint. §10 records
 > what shipped against each finding, and `PRODUCT.md §44` is the account of
 > doing it, including the eleven defects the restructure surfaced in parts of
@@ -272,20 +272,35 @@ into a decision the kid makes, and it is the natural home for the word *shares*.
 
 ```
 Stage 1  Single stand    price · cost · margin · revenue · profit
-Stage 2  Multiple stands capital · competition · growth · marketing
-Stage 3  Retail          fixed cost · operating leverage · debt vs equity
-Stage 4  IPO             value · ownership · shares · stock price
+Stage 2  A real business  capital · competition · growth · marketing
+         ├─ more stands   ...then
+         └─ a shop        fixed cost · operating leverage · debt vs equity
+Stage 3  IPO             value · ownership · shares · stock price
                                                             ↓
 Level 2  The market      real companies, same four numbers
 ```
 
-Each stage exists because the previous one hit a wall the kid can feel:
+This analysis wrote the stands and the shop as two stages and they shipped as
+one, with the shop as the fourth rung of the business stage. The reasoning is in
+§16's ladder table; the short version is that Retail's concepts are real and its
+*shape* was not — its objective completed on day five of every run, careful and
+careless alike, and all of its teaching is in the one funding screen.
+
+**Nothing about the wall order changes**, which is why the merge is safe: a wall
+is a thing the child feels, and it does not care whether a stage boundary sits
+on top of it. Each rung still exists because the one before it hit a wall:
 
 - **Stage 1 → 2.** Best price found, and still capped at thirty cups by one pair
   of hands. Built, and the wall is real ([`BASE_SERVICE_CAPACITY`](src/lib/business.ts)).
-- **Stage 2 → 3.** Several stands, and every one of them shuts when it rains.
-  Weather owns you. A room with a door does not care about weather.
-- **Stage 3 → 4.** The shop works, and the next one costs more than the business
+- **One table → more.** A manager is the only way to be in two places at once,
+  and the second table is the only thing worth doing with the hands it buys.
+- **More stands → a door.** Several stands, and every one of them shuts when it
+  rains. Weather owns you. A room with a door does not care about weather. This
+  was the Stage 2 → 3 boundary and is now a gate inside Stage 2, enforced in
+  [yard.ts](src/lib/yard.ts): the shop is visible from the first day and cannot
+  be bought until there are two stands, because a child with one stand has not
+  met the wall.
+- **Stage 2 → 3.** The shop works, and the next one costs more than the business
   makes in a season. You cannot get there out of profit. Somebody else's money
   is the only way up, and there is more of it in public than in one buyer's
   pocket.
@@ -557,10 +572,32 @@ Written after building it. §2–§9 above are the analysis; this is the outcome
 | Framework stage | Shipped as | How it ends |
 |---|---|---|
 | Single Stand | **Act 1 — One stand** | Seven days, and a chart of their own price against profit |
-| Multiple Stands | **Act 2 — More stands** | Two pitches, one price, both paying for two days ([business.ts](src/lib/business.ts)) |
-| Retail | **Act 3 — The shop** | Five good days with the door open ([retail.ts](src/lib/retail.ts)) |
-| IPO | **Act 4 — Go public** | Listed, and one week lived through it ([listing.ts](src/lib/listing.ts)) |
-| — (Level 2) | **Act 5 — Markets** | Unchanged. Twelve weeks, then the live market with no last week. |
+| Multiple Stands + Retail | **Act 2 — A real business** | Four rungs — a cooler, a manager, a second table, a door — ending on three good days with the rent paid ([business.ts](src/lib/business.ts), [retail.ts](src/lib/retail.ts)) |
+| IPO | **Act 3 — Go public** | Listed, and one week lived through it ([listing.ts](src/lib/listing.ts)) |
+| — (Level 2) | **Act 4 — Markets** | Unchanged. Twelve weeks, then the live market with no last week. |
+
+**Two framework stages, one shipped stage, and it took a second pilot to see
+why.** "Multiple Stands" and "Retail" were built as separate acts and the split
+did not survive measurement:
+
+- Retail contradicted its own lesson. It teaches that a big rent makes a quiet
+  week dangerous, and the shop was so profitable that the objective completed
+  **on day five of every run**, careful and careless alike — cold days measured
+  $124, $127, $127.
+- It ran five or six days for two words, `break-even` and `interest`, and
+  `interest` only fires for a child who chose to borrow.
+- All of its teaching is in one screen. The funding decision — pay cash, borrow,
+  or sell a slice — is the genuinely new idea and happens on `FundingScreen`
+  before the stage's days start. The trading days after it were the stands
+  stage with a bigger rent line.
+- And the two stages proved the same thing twice: two profitable days with both
+  stands open, then five with the door open. Seven days for one idea.
+
+What did *not* change is the concept order, because the ladder's own rule — no
+concept before the wall that motivates it — applies within a stage as readily as
+across two. The door is still gated on two stands, for exactly the wall §6 names
+("every one of them shuts when it rains"), and [yard.ts](src/lib/yard.ts)
+enforces it rather than a stage boundary doing it by accident.
 
 ### The twelve concepts
 
@@ -571,7 +608,7 @@ All twelve have a mechanic now. The four that did not:
 | **shares** | Missing | The company cut into 1,000 pieces, some of them sold, at a price the kid divided out themselves |
 | **stock price** | Missing | `value / shares` on their own company, then re-rated once a week against what the market expected — with both causes printed |
 | **marketing** | A one-off sign with no word behind it | Same sign, and the word arrives with the number of extra people it put in front of the stand |
-| **ownership** | A fixed 20% on a card | A dial, twice: the investor's slice in Act 3 and the float in Act 4, each with cash-today against profit-given-up-forever |
+| **ownership** | A fixed 20% on a card | A dial, twice: the investor's slice that pays for the door in Act 2 and the float in Act 3, each with cash-today against profit-given-up-forever |
 
 ### The four open questions, answered
 
@@ -579,23 +616,35 @@ All twelve have a mechanic now. The four that did not:
    Sell the lot to one buyer at 8x, or a slice to a thousand people at 11x. Both
    endings are supported end to end, including the finale, the parent report and
    what the market gets seeded with.
-2. **How long is Level 1?** Act 2 runs to 16 days and Act 3 to 6, both with a
-   condition that ends them sooner and a clock that ends them regardless — an
-   arc with only one exit is an arc somebody gets stuck in. Walked by a player
-   who buys nothing: reachable, and the fallbacks fire.
+2. **How long is Level 1?** Act 2 runs to 12 days, with a condition that ends it
+   sooner and a clock that ends it regardless — an arc with only one exit is an
+   arc somebody gets stuck in.
 
-   Worst case is **36 days**: 7 + 16 + 6 + a week lived through as a listed
-   company. It was 42 when this section was first written, and the caps were
-   cut after the customer read "Start day 41" off a sweep and asked whether
-   forty days was a long time to spend before the part the game is actually
-   about. See §11 — the cut was measured against the vocabulary rather than
-   guessed, and one of the two proposed cuts was reverted for costing a word.
+   | | days to the market |
+   |---|---|
+   | hits every goal | **23** — 7 + 6-9 + a week as a listed company |
+   | hits none of them | **26** — 7 + the 12-day cap + the same week |
+
+   It was 42 when this section was first written, then 36, then 32. The cuts
+   since were not pacing preferences: every measurement of the stands stage had
+   been taken with the competitor switched off, because the harness that played
+   days was missing `advanceRival` while the app had it. Re-measured honestly,
+   every cap from six to sixteen cost careless play the same words — so the ten
+   days beyond six were buying ten more identical losing days, which is exactly
+   what the second pilot reported. See §11 and PRODUCT.md §75.
+
+   The part worth keeping in view: **the cap is not what makes the runway long.
+   The objectives are.**
 3. **Does "Retail" mean a shop?** A shop. One location, a fit-out paid once, a
    rent owed on the day nobody comes, staff at a wage, and a demand floor under
    the weather — which is the mechanic that makes the rent worth owing.
-4. **Is Level 2 still the same Act 4?** Yes, and it is Act 5 now. The market,
-   the live weekly account, the club, the playbook, the thesis engine, the
-   reckoning and seasons are all untouched apart from the gate number.
+4. **Is Level 2 still the same Act 4?** Yes, and it is Act 4 again. It became
+   Act 5 when the shop was split out of the stands stage and went back to Act 4
+   when the two were merged. The market, the live weekly account, the club, the
+   playbook, the thesis engine, the reckoning and seasons are all untouched
+   apart from the gate number — and [storage.ts](src/lib/storage.ts) migrates
+   both hops, so nobody is sent back through a stage they earned their way out
+   of.
 
 ### The Level 1 endpoint
 
@@ -764,12 +813,11 @@ a different thing to be at each rung:
 | Refinement | Shipped as |
 |---|---|
 | Owner/operator | **One stand** — "Find the price that actually makes money." |
-| Business builder | **More stands** — "Spend money to make money. Then be in two places at once." |
-| Founder/CEO | **The shop** — a fit-out, a rent, staff at a wage |
+| Business builder → Founder/CEO | **A real business** — spend money to make money, be in two places at once, then get a door with a rent behind it. Two identities on one ladder, which is how it shipped: see §16 |
 | CEO + shareholder | **Go public**, then **Markets** — the float carries into the market, so a kid who stayed a founder invests *as* one |
 
 That last one is the refinement's sharpest observation and the game already
-turns on it: `beginAct5` carries the float across, so an Act 5 kid holds
+turns on it: `beginAct4` carries the float across, so a kid in the market holds
 shares in their own company while buying shares in Apple. §10 records the same
 thing from the other direction — the parent report and the market seed both
 support either ending.

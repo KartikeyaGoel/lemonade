@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createBusinessState, serviceCapacity, STAFF, UPGRADES } from '../src/lib/business';
+import {
+  createBusinessState,
+  openStand,
+  serviceCapacity,
+  toggleStaff,
+  STAFF,
+  UPGRADES,
+} from '../src/lib/business';
 import {
   capacityAdded,
   cupsToCoverWage,
@@ -64,7 +71,40 @@ describe('the plot of land', () => {
      */
     const broke = plots(bare, 5).filter((p) => p.id !== 'shop');
     expect(broke.every((p) => !p.affordable)).toBe(true);
-    expect(plots(bare, 5).find((p) => p.id === 'shop')?.affordable).toBe(true);
+
+    /*
+     * The door is still the exception about *money*, and is now gated on the
+     * rung before it instead. `bare` has one stand, so it reads as blocked —
+     * with two, a broke child can still tap it and reach the funding screen,
+     * which is the whole point.
+     */
+    expect(plots(bare, 5).find((p) => p.id === 'shop')?.affordable).toBe(false);
+    expect(plots(bare, 5).find((p) => p.id === 'shop')?.what).toMatch(/two stands first/i);
+
+    const twoStands = openStand(toggleStaff(bare, 'manager'), 'park', 500).business;
+    expect(plots(twoStands, 5).find((p) => p.id === 'shop')?.affordable).toBe(true);
+  });
+
+  it('will not sell a door to somebody who has never needed one', () => {
+    /*
+     * The rung order, which the yard is the only place that can enforce.
+     *
+     * While the shop was its own stage a child could not reach it early. It is
+     * the fourth rung of the business stage now, and `act2Progress` completes
+     * that stage on `shopProgress` — so a child with $600 on the first morning
+     * could have bought a door, finished the stage, and never hired a manager
+     * or opened a second stand. That skips `delegation` and the replication
+     * lesson entirely, and breaks the ladder's own rule: no concept before the
+     * wall that motivates it. The wall is two pitches both shutting in the
+     * rain.
+     */
+    const rich = plots(bare, 5000).find((p) => p.id === 'shop')!;
+    expect(rich.affordable, 'a door was for sale to a child with one stand').toBe(false);
+    expect(rich.owned).toBe(false);
+    // Visible, though. A padlock you can read is what makes the rung ahead feel
+    // like progress rather than an absence.
+    expect(rich.name).toBeTruthy();
+    expect(rich.cost).toBeGreaterThan(0);
     // And a wage they can cover for exactly one day still counts as affordable:
     // the game does not get to refuse a decision, only to show its cost.
     expect(plots(bare, STAFF.helper.wage).find((p) => p.id === 'helper')?.affordable).toBe(true);

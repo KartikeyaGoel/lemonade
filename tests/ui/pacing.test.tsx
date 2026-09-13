@@ -191,7 +191,7 @@ describe('one card at a time, however many were earned at once', () => {
    */
   it('hands over one word for a float that earned several', async () => {
     seed({
-      act: 4,
+      act: 3,
       ownership: {
         ...createOwnershipState(),
         comparisonAnswered: true,
@@ -477,7 +477,7 @@ describe('the real market, which is a different account', () => {
     portfolio = { ...portfolio, week: 12, status: 'closed' };
     seed(
       {
-        act: 5,
+        act: 4,
         portfolio,
         learned: GLOSSARY.map((w) => w.id),
         ownership: {
@@ -533,7 +533,7 @@ describe('the real market, which is a different account', () => {
     live = bought.portfolio;
     seed(
       {
-        act: 5,
+        act: 4,
         portfolio: { ...createPortfolio(1500, 4242), week: 12, status: 'closed' },
         learned: GLOSSARY.map((w) => w.id),
       },
@@ -565,7 +565,7 @@ describe('the market a child arrives at, from either ending', () => {
    */
   async function finishAct4(how: 'list' | 'sell'): Promise<void> {
     seed({
-      act: 4,
+      act: 3,
       learned: GLOSSARY.map((w) => w.id),
       ownership: {
         ...createOwnershipState(),

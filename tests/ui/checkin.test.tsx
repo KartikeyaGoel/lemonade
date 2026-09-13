@@ -44,7 +44,7 @@ function inTheMarket(weeks: number): Game {
   return {
     ...base,
     version: SAVE_VERSION,
-    act: 5,
+    act: 4,
     portfolio: { ...portfolio, week: weeks - 1, priceHistory },
   };
 }
@@ -269,7 +269,7 @@ describe('reaching the check-in', () => {
 
     window.localStorage.setItem(
       'lemonade.save.v2',
-      JSON.stringify({ ...base, version: SAVE_VERSION, act: 5, portfolio }),
+      JSON.stringify({ ...base, version: SAVE_VERSION, act: 4, portfolio }),
     );
     window.localStorage.setItem('lemonade.career.v1', JSON.stringify(createCareer('Ada')));
 

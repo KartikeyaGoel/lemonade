@@ -37,7 +37,7 @@ function withAThesis(): Game {
   return {
     ...base,
     version: SAVE_VERSION,
-    act: 5,
+    act: 4,
     portfolio,
     theses: [
       buildThesis({
@@ -90,7 +90,7 @@ describe('messages, through the app', () => {
     const base = createGame(4242);
     window.localStorage.setItem(
       'lemonade.save.v2',
-      JSON.stringify({ ...base, version: SAVE_VERSION, act: 5, portfolio: createPortfolio(500) }),
+      JSON.stringify({ ...base, version: SAVE_VERSION, act: 4, portfolio: createPortfolio(500) }),
     );
     window.localStorage.setItem('lemonade.career.v1', JSON.stringify(createCareer('Ada')));
     render(<Page />);

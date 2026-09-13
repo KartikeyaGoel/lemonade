@@ -4,6 +4,25 @@ Read this before writing code. It is the source of truth for what we are
 building and why. If a request conflicts with **Non-negotiables**, say so
 instead of quietly complying.
 
+### A note on stage numbers
+
+The ladder has been renumbered twice and this document is chronological, so
+entries below say whatever was true when they were written. Rewriting them
+would falsify the record. The key:
+
+| | acts 1–4 (original) | acts 1–5 (§56 onward) | acts 1–4 (§76 onward, current) |
+|---|---|---|---|
+| one stand | 1 | 1 | **1** |
+| more stands | 2 | 2 | **2** |
+| a shop | — (part of 2) | 3 | **2** — its fourth rung |
+| go public | 3 | 4 | **3** |
+| the market | 4 | 5 | **4** |
+
+So "Act 5" in an entry written before §76 means the market, and "Act 3" means
+the shop. `ACT_TITLES` in [progress.ts](src/lib/progress.ts) is always current,
+and `migrateAct` in [storage.ts](src/lib/storage.ts) carries a save across both
+hops.
+
 ---
 
 ## 1. The one-line version
@@ -5217,3 +5236,233 @@ false rather than the symptom that was visible.
 
 Found, fixed, tested and browser-verified before the commit; there was never a
 pushed build with it in.
+
+## 75. Four copies of a day, and the fortnight of bugs they explain
+
+The customer named a pattern rather than a bug, and the naming was the useful
+part:
+
+> every time I ask you to [act on] user feedback, we end up changing the game,
+> which is fine, but then after that I have multiple consecutive sessions where
+> you keep finding bugs progressively over the course of two weeks ... and then
+> I tell you to test every single path in the browser and you're like, oh yeah,
+> I've tested every single path and it works and everything is bulletproof, and
+> then two weeks later you're still finding bugs as a result of the previous
+> redesign.
+
+That is a fair description of this project's history, including §74, which was
+written in the same session as a completeness claim. So the question worth
+answering is not "which bug is next" but **why a redesign here reliably leaks
+bugs for a fortnight afterwards.**
+
+It had one cause. **A day advanced the game in four places.**
+
+| | what it did |
+|---|---|
+| `page.tsx` → `settleDay` | the word queue and three counters |
+| `page.tsx` → `closeDay` | the stand, the competitor, the day count |
+| `page.tsx` → `settledGame` memo | a partial copy, for the badge pass |
+| `demo.ts` → `playDay` | all of it again — and this is the copy `tests/arc.test.ts` walks to prove the game is finishable |
+
+Each redesign added a term to whichever copy was in front of it, and the others
+drifted. The fourth copy was missing `advanceRival`.
+
+### What one missing line was hiding
+
+Everything below was found in a single pass, once the harness ran the same day
+the app runs.
+
+**Stage 2 was close to unwinnable.** Measured over ten seeds, with the rival
+live: buy only the cooler — which is exactly what the goal strip asks for — and
+the stage finishes **3 times in 10**, takes 13.9 of its 16 days and ends $56
+down, at *every* price from $1.20 to $3.00. Buy the $55 of kit that answers him
+and it is **10 in 10, in 5.1 days, +$192**, every day profitable. That is the
+design working as `business.ts` wrote it — *"the way out is to be different, not
+cheaper"* — and it is a cliff, not a curve.
+
+**The close screen blamed the weather for it.** `diagnose` split a day into
+four causes and market share was not one of them, though it is a plain
+multiplicative factor in `cupsWantedWith` exactly like the other three. On the
+day the rival opens:
+
+| seed | yesterday | today | what the game said |
+|---|---|---|---|
+| 1 | $33.82 | $6.11 | *the weather was different* — on 4.4 cups of weather |
+| 99 | $32.92 | $5.11 | *you made a different number of cups* |
+| 2026 | $17.22 | $5.61 | nothing at all |
+
+The rival is the fifth cause now, exact rather than estimated, offered only
+where there is a rival — Stage 1 has none, and an option that can never be true
+for a whole stage teaches a child the options are decoration. It reconciles with
+the share the stand shows when the rival is tapped, because both read
+`marketShare`.
+
+The batch term was wrong in the same way and was hiding it: a bare difference
+of two jugs claims a day was decided by cups that were never going to sell. A
+jug cut from 44 to 24 on a day sixteen people wanted a cup changed nothing and
+reported twenty, which beat the nineteen the rival really took. It is capped by
+demand now.
+
+**`ACT2_DAYS = 16` rested on the same broken harness.** `wordbudget.test.ts`
+had its own fifth copy of the day loop, written deliberately and commented as
+"copied from `page.tsx`". Re-measured through the real one: **every cap from six
+to sixteen costs careless play the same words**, and careless play always runs
+this stage to its clock — so sixteen was never a fallback that only the
+struggling child spent. It was the number of days a struggling child actually
+played, every single time. Which is precisely what the second pilot said:
+*sixteen rounds still felt repetitive.*
+
+**The weekly fork was reachable only by playing badly.** It fired on
+`stageDay % 7 === 0` and nowhere else, and nobody thought that was a problem
+because the stage was believed to take eleven days. It takes five or six. So the
+fork, the savings account and the *entire round* — `ROUND`, `signUpRegulars`,
+the recurring-revenue word, twenty tests in `tests/round.test.ts` — were shown
+to the careless child and hidden from the careful one. A stage does not end
+without offering its fork now.
+
+**"Let your manager run it" replayed the day already on screen.** The stand was
+advanced in `closeDay` alone, so at a close screen it still sat on that
+morning; handing over from there ran the day again on the same seed, discarded
+the day the child had just played, and moved the hands-off streak twice for one
+calendar day.
+
+**Two stands on one pitch gave the ledger two rows labelled "Your sidewalk
+pitch"**, and both screens that render those rows key them by `line.label`. Two
+siblings, one React key, on the one screen in the game whose whole job is adding
+up. Grouped as `×2` now, the same shape this function already used for minders.
+
+### The fix, and the part that is not a fix
+
+`src/lib/day.ts` holds `settleDay` and `paramsForDay` — the only two answers to
+"what does a day change" and "what are today's rules". `page.tsx`, `demo.ts` and
+every test call them. `afterDay` came out too, so the post-day routing can be
+tested without playing to the day in question.
+
+Unifying once does not stop a fifth copy appearing next time, so
+`scripts/check-one-day.mjs` fails the build if any of ten day-advance
+primitives is called from outside `day.ts`. Mutation-checked in both directions.
+
+PRODUCT.md §62 already had the rule that would have caught all of this — *a fact
+with more than one home disagrees with itself.* It had only ever been applied to
+figures on screens. This is the same rule applied to **behaviour**.
+
+### What is honestly still uncertain
+
+The gate closes one bug class completely and says nothing about the others. It
+cannot see a fact with two homes in *copy*, which is what §74 was; it cannot see
+a mechanic wired to a screen that never shows it, which is what
+`tests/guide.test.ts` now checks for Pip's beats after two of them turned out to
+be dead; and it cannot see a number that is right everywhere and wrong in the
+world, which is what `ACT2_DAYS` was. Those needed reading the screen, and one
+of them needed a second pilot.
+
+## 76. One stage instead of two, and what the merge cost
+
+The customer asked the question the measurements had been circling:
+
+> whats the difference between more stands and a shop, i feel like intuitively
+> those stages could be combined
+
+They are genuinely different mechanically — $75 a day owed before opening
+against a $5 pitch fee, a loan, and an `indoorShare` of 0.75 that drops the
+hot-to-cold demand spread from 2.50× to 1.74×, so a cold day goes from $35 to
+$124. The shop delivers on the wall the ladder promised it would answer.
+
+Its *shape* was wrong, in three ways measurement made plain:
+
+1. **It contradicted its own lesson.** It teaches that a big rent makes a quiet
+   week dangerous, and the objective completed **on day five of every single
+   run**, careful and careless alike.
+2. **Five or six days for two words** — `break-even` and `interest` — against
+   the stands stage's eight, and `interest` only fires for a child who chose to
+   borrow.
+3. **All of its teaching is in one screen.** The funding decision is the
+   genuinely new idea and it happens before the stage's days start.
+
+And the two stages proved the same thing twice: two profitable days with both
+stands open, then five with the door open. Seven days of "it was not a fluke"
+for one idea.
+
+So the shop is the fourth rung of the business stage, the two proof streaks are
+one, and the ladder is four stages. `Act` is `1 | 2 | 3 | 4`, the road has four
+stops, and `storage.ts` migrates both hops — v3's insertion and v5's removal —
+because a migration must never send a child back through a stage they earned
+their way out of. The row worth checking is the middle one: a save standing in
+the old shop stage lands in the business stage with the door already up and the
+goal strip already counting their good days, which works because the merged
+`act2Progress` reads its goal straight off `shopProgress`.
+
+### What it bought, measured
+
+| | before | after |
+|---|---|---|
+| days to the market, hits every goal | 26 | **23** |
+| days to the market, hits none | 32 | **26** |
+| words delivered to careful play | 17–19 | **20–21** |
+| words careful play is owed and never told | 1–3 | **0** |
+
+The word count went **up** while the arc got shorter, which is not a paradox:
+the old arc was long enough to earn words it was then too slow to hand over, at
+one a day with no escape valve. Two changes fixed that and both were needed —
+the drain doubles while the queue is backed up, and a stage no longer hands over
+owing words, because the door is the last rung and the door is what earns
+`break-even`.
+
+### The bill, and it is not zero
+
+A child who reads the sky loses no word on any seed and finishes in six to nine
+days. A child who buys the kit but never touches the price is timed out by the
+twelve-day cap and loses `break-even`, `delegation` and `interest` on seven
+seeds in ten. That is worse than the same profile saw before the merge, and the
+reason is arithmetic rather than attention: **$45 of rent and $25 of loan a day
+cannot be covered at a dollar a cup, at any volume.** No reachable cap fixes it —
+that profile needs 13 to 33 days — so the answer is not a longer clock. It is
+that the rent has to be legible before it bites, which is what
+`shopBreakEvenCups` on the plan screen and `shopProgress`'s goal line are for.
+
+**The one number to watch in the next pilot:** whether a child who opens the
+shop ever has a day where the rent frightens them into moving the price. If not,
+the rent is decoration and the last rung needs re-tuning rather than the cap.
+
+### Three defects the merge introduced, and how each was caught
+
+Worth recording because the customer's complaint in §75 is precisely that
+redesigns leak, and these leaked inside the same session rather than a fortnight
+later.
+
+- **The door was for sale on day one.** The yard offers every plot
+  unconditionally, and while the shop was its own stage that was safe. Merged,
+  a child with $600 could buy a door on the first morning, complete the stage
+  on `shopProgress`, and never hire a manager or open a second stand — skipping
+  `delegation` and the whole replication lesson. Gated in `yard.ts` on two
+  stands, the same way a second stand is gated on somebody minding the first.
+  Found by asking what the yard now offers that it could not before.
+- **`act2Progress` sent children backwards.** It walked the rungs forwards, so a
+  migrated save standing at the door was told "3 more good days run by your
+  manager" — a rung cleared a week earlier, and the streak decays, so the number
+  was real and the instruction was nonsense. It reads from the last rung
+  backwards now: if the door is up, everything that gates the door happened.
+  Found by the migration test written for the merge.
+- **Two of Pip's beats were wired to nothing.** `nextBeat` picks one line and
+  each screen opts in to the beats that belong on it; those two lists had
+  nothing keeping them in agreement. `act2-rival` was never listed by any
+  screen, and `act2-shop` was listed on the act intro, which is not on screen
+  when it now fires. Worse than silent: a beat that is chosen and then dropped
+  swallows every beat behind it. `tests/guide.test.ts` reads the opt-in lists
+  out of the source and fails on any orphan — which immediately found a third,
+  `act4-open-sold`, pre-existing, so a child who *sold* their company arrived at
+  the market with nothing said.
+
+### The gate that says education survived
+
+Every argument above is about days and words, and neither is the point. The
+point is that a child can read a real company and commit money sensibly, and
+this product already has an operational definition of that which does not
+mention vocabulary: `readiness`, four criteria, each read off something the
+child did with money at stake and nobody prompting them.
+
+Nothing asserted that shortening the arc left it intact. `tests/readiness.test.ts`
+does now, and the answer is all four criteria, on every seed, at all three levels
+of play. The two deal-board criteria are the ones a shorter stage could
+plausibly have cost, because they are read off a screen the listing stage has to
+reach — and it does.

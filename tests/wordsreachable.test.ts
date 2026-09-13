@@ -231,7 +231,7 @@ function everyWordTheGameCanHandOver(): Set<string> {
    * the same way `recurring-revenue` does: through its real producer, with an
    * offer priced off a real week.
    *
-   * It used to be tagged `act: 4` and so fell outside this file's remit
+   * It used to be tagged `act: 3` and so fell outside this file's remit
    * entirely. See PRODUCT.md and FRAMEWORK.md §12.
    */
   const slice = equityOffer(seedWeek().history, 0.2);
@@ -282,7 +282,7 @@ const KNOWN_UNEARNABLE: string[] = [];
      * each of them.
      */
     const produced = everyWordTheGameCanHandOver();
-    const owed = GLOSSARY.filter((word) => word.act <= 3).map((word) => word.id);
+    const owed = GLOSSARY.filter((word) => word.act <= 2).map((word) => word.id);
     const unreachable = owed.filter((id) => !produced.has(id));
 
     expect(

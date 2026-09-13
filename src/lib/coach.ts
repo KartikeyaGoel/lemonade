@@ -200,7 +200,7 @@ export const YARD_TOUR: Tour = {
  * every future profit.
  */
 export const FUNDING_TOUR: Tour = {
-  act: 3,
+  act: 2,
   id: 'the-funding',
   steps: [
     {
@@ -229,7 +229,7 @@ export const FUNDING_TOUR: Tour = {
  * cards look like reading rather than deciding.
  */
 export const MARKET_TOUR: Tour = {
-  act: 5,
+  act: 4,
   id: 'the-market',
   steps: [
     {
@@ -274,7 +274,7 @@ export const MARKET_TOUR: Tour = {
  * introduced them properly the user would be confused".
  */
 export const LISTING_TOUR: Tour = {
-  act: 4,
+  act: 3,
   id: 'the-listing',
   steps: [
     {

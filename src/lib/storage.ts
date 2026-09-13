@@ -259,11 +259,46 @@ function migrateAct(game: Game): Act {
    * progress intact is the least destructive answer.
    */
   const raw = Number(game.act);
-  const act = Number.isFinite(raw) ? Math.min(5, Math.max(1, Math.round(raw))) : 1;
-  if ((game.version ?? 0) >= 4) return act as Act;
+  const version = game.version ?? 0;
+
+  /*
+   * Normalised to the old five-stage numbering first, whatever the save
+   * thought it was, and then mapped down to the four there are now. Two
+   * migrations compose here, and folding them into one step got the middle
+   * case wrong the first time it was tried.
+   */
+  let five = Number.isFinite(raw) ? Math.min(5, Math.max(1, Math.round(raw))) : 1;
   // v3 and earlier: 1 and 2 stay, 3 (ownership) becomes 4, 4 (market) becomes 5.
-  if (act >= 3) return Math.min(5, act + 1) as Act;
-  return act as Act;
+  if (version < 4 && five >= 3) five = Math.min(5, five + 1);
+
+  /*
+   * v4 and earlier had a separate shop stage. It is the last rung of the
+   * business stage now — see the note on `Act` — so:
+   *
+   * | was | is | why |
+   * |---|---|---|
+   * | 1 one stand | 1 | unchanged |
+   * | 2 more stands | 2 | unchanged, and the door is ahead of them |
+   * | 3 the shop | **2** | the same stage, at its fourth rung |
+   * | 4 go public | 3 | |
+   * | 5 the market | 4 | |
+   *
+   * The third row is the interesting one, and it is safe for a reason worth
+   * writing down rather than trusting: a save in the old shop stage already
+   * carries `business.shop`, and the merged `act2Progress` reads its goal
+   * straight off `shopProgress(business.shop)`. So a child mid-shop lands in
+   * stage 2 with the door already up and the goal strip already counting their
+   * good days. Nothing is repeated and nothing is skipped.
+   *
+   * A migration must never send a child back through a stage they have earned
+   * their way out of, which is why 4 and 5 shift down rather than clamp.
+   */
+  if (version < 5) {
+    if (five >= 4) return (five - 1) as Act;
+    if (five === 3) return 2;
+    return five as Act;
+  }
+  return Math.min(4, Math.max(1, five)) as Act;
 }
 
 /**

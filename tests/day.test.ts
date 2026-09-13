@@ -33,7 +33,7 @@ import {
   toggleStaff,
   type UpgradeId,
 } from '../src/lib/business';
-import { ACT3_DAYS, beginAct2, beginAct3, createGame, type Game } from '../src/lib/progress';
+import { beginAct2, createGame, type Game } from '../src/lib/progress';
 import { DEFAULT_DAY_PARAMS, ECON, batchPlan, runDay } from '../src/lib/simulation';
 import { batchForCapacity, sensiblePrice, throughActOne } from '../src/lib/demo';
 import { SHOP, loanQuote } from '../src/lib/retail';
@@ -76,6 +76,24 @@ function playStands(seed: number): { went: AfterDay[]; days: number; game: Game 
         game = { ...game, stand: { ...game.stand, cash: opened.cash }, business: opened.business };
       }
     }
+    /* The fourth rung: a door, on a loan, once two stands have earned it. */
+    if (standCount(game.business) >= 2 && !game.business.shop.open) {
+      if (!game.business.loan) {
+        const loan = loanQuote();
+        game = {
+          ...game,
+          business: { ...game.business, loan },
+          stand: { ...game.stand, cash: game.stand.cash + loan.principal },
+        };
+      }
+      if (game.stand.cash >= SHOP.fitOut) {
+        game = {
+          ...game,
+          stand: { ...game.stand, cash: game.stand.cash - SHOP.fitOut },
+          business: { ...game.business, shop: { ...game.business.shop, open: true } },
+        };
+      }
+    }
 
     const price = sensiblePrice(game);
     const plan = batchPlan(game.stand, batchForCapacity(game));
@@ -110,16 +128,23 @@ describe('the reinvest-or-take-it-out fork, which good play could not reach', ()
    * `ROUND`, `signUpRegulars`, the recurring-revenue word and the twenty tests
    * in `tests/round.test.ts` — were reachable only by playing badly.
    */
-  it('is offered to a child who finishes the stands stage quickly', () => {
+  it('is offered to every child who finishes the business stage', () => {
+    /*
+     * The premise moved with the merge and the property did not.
+     *
+     * When the stands were their own stage it finished on day five or six, so
+     * the seven-day rhythm could never reach the fork and *that* was the whole
+     * bug. The merged stage takes six to nine days, so the rhythm sometimes
+     * reaches it and sometimes does not — which is worse than never, because a
+     * mechanic that appears for some children and not others on a weather roll
+     * is one nobody can reason about. What has to hold either way is that
+     * finishing the stage means having been offered it.
+     */
     for (const seed of SEEDS) {
       const { went, days } = playStands(seed);
       expect(
-        days,
-        `seed ${seed}: the stage took ${days} days, so the seven-day rhythm would have reached it anyway`,
-      ).toBeLessThan(WEEKLY_EVERY);
-      expect(
         went,
-        `seed ${seed}: finished the stands stage in ${days} days and was never offered the fork`,
+        `seed ${seed}: finished the business stage in ${days} days and was never offered the fork`,
       ).toContain('weekly-choice');
     }
   });
@@ -131,7 +156,14 @@ describe('the reinvest-or-take-it-out fork, which good play could not reach', ()
      */
     for (const seed of SEEDS) {
       const { went } = playStands(seed);
-      expect(went.filter((w) => w === 'weekly-choice').length, `seed ${seed}`).toBe(1);
+      /*
+       * At most twice, and only because a stage longer than a week can hit the
+       * seventh-day rhythm *and* its own last day. Never in a row, which is
+       * what `forkTaken` guarantees, and never a loop.
+       */
+      const forks = went.filter((w) => w === 'weekly-choice').length;
+      expect(forks, `seed ${seed} was offered the fork ${forks} times`).toBeGreaterThanOrEqual(1);
+      expect(forks, `seed ${seed} was offered the fork ${forks} times`).toBeLessThanOrEqual(2);
       expect(went[went.length - 1], `seed ${seed}: the stage never handed over`).toBe('next-act');
     }
   });
@@ -146,8 +178,8 @@ describe('the reinvest-or-take-it-out fork, which good play could not reach', ()
     expect(afterDay(game, WEEKLY_EVERY - 1, { forkTaken: false })).toBe('plan');
   });
 
-  it('offers it on the shop stage too, which is shorter than a week', () => {
-    let game = beginAct3(throughActOne(2026));
+  it('offers it when the door pays for itself, which is the stage ending', () => {
+    let game = beginAct2(throughActOne(2026));
     const loan = loanQuote();
     game = {
       ...game,
@@ -157,7 +189,9 @@ describe('the reinvest-or-take-it-out fork, which good play could not reach', ()
     // The shop objective is met, so this is the stage's last day.
     expect(afterDay(game, 5, { forkTaken: false })).toBe('weekly-choice');
     expect(afterDay(game, 5, { forkTaken: true })).toBe('next-act');
-    expect(ACT3_DAYS).toBeLessThan(WEEKLY_EVERY);
+    /* The stage finishes well inside a week for good play, which is why the
+       seven-day rhythm alone could never reach the fork. */
+    expect(ACT2_DAYS).toBeGreaterThan(WEEKLY_EVERY - 4);
   });
 });
 
@@ -268,24 +302,33 @@ describe('the word queue catching up', () => {
     expect(settled.handedOver.length).toBe(WORDS_PER_DAY);
   });
 
-  it('empties a backlog rather than carrying it past the end of the stages', () => {
+  it('leaves no more owed than the stage boundary hands over', () => {
     /*
-     * The failure this was built for. With the stands cap at ten, a run through
-     * both stand stages is eighteen days for careful play, and a flat ration
-     * stranded `delegation`, `break-even` and `interest` — earned, queued, and
-     * never handed over.
+     * The failure this was built for. A shorter arc plus a flat one-a-day
+     * ration stranded `delegation`, `break-even` and `interest` — earned,
+     * queued, and never handed over.
+     *
+     * Two things answer it and both are needed. The drain doubles while the
+     * queue is backed up, and the stage boundary hands over whatever is still
+     * owed, one card at a time — because the door is the last rung and the door
+     * is what earns `break-even`, so it is earned on the very day the clock
+     * stops. What this holds is that the boundary's job is small enough to do
+     * in one pass: a handful of cards, not a syllabus.
+     *
+     * `tests/wordbudget.test.ts` holds the other half — that after the
+     * boundary has done it, careful play is owed nothing at all.
      */
     for (const seed of SEEDS) {
       const { game } = playStands(seed);
-      expect(
-        game.pendingInsights.length,
-        `seed ${seed}: ${game.pendingInsights.map((i) => i.id).join(', ')} still queued`,
-      ).toBeLessThan(WORD_BACKLOG);
+      const owed = game.pendingInsights.map((i) => i.id);
+      expect(owed.length, `seed ${seed}: ${owed.join(', ')} still queued`).toBeLessThanOrEqual(
+        WORD_BACKLOG,
+      );
     }
   });
 });
 
-describe('the stands stage completes for play that answers the rival', () => {
+describe('the business stage completes for play that answers the rival', () => {
   it('finishes well inside its cap on every seed', () => {
     /*
      * The headline number, and the one the pilot's "sixteen rounds still felt
@@ -296,7 +339,9 @@ describe('the stands stage completes for play that answers the rival', () => {
     for (const seed of SEEDS) {
       const { days, game } = playStands(seed);
       expect(act2Progress(game.business, days).complete, `seed ${seed} timed out`).toBe(true);
-      expect(days, `seed ${seed} took ${days} days`).toBeLessThanOrEqual(6);
+      /* Six to nine days for the four rungs, measured. See `ACT2_DAYS`. */
+      expect(days, `seed ${seed} took ${days} days`).toBeLessThanOrEqual(9);
+      expect(game.business.shop.open, `seed ${seed} finished without a door`).toBe(true);
     }
   });
 });

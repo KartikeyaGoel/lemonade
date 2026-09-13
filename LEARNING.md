@@ -13,9 +13,9 @@ and what has to be true of the game before we're allowed to say it.
 | **Act 2** | Capacity, capex vs opex, compounding, opportunity cost, ownership without labour — and why a firm hires at all, because a wage is the only way to be in two places at once. | Valuation. They know how to *run* a business, not how to *price* one. |
 | **Act 3** | What a fixed cost owed on a bad day feels like. Break-even as a number of cups. That the two ways of raising money cost two different things. | Valuation, still. They can run something big and cannot yet say what it is worth. |
 | **Act 4** | Multiples. Why a growing business costs more per dollar of profit. Comparison shopping. **A share price, arrived at by dividing their own company by a thousand — and watched moving, once, for a reason they can name.** | Diversification. Behavioural discipline over more than one week. |
-| **Act 5** | How to read a real company the way they read their own stand. | Nothing structural — *if* the three gaps in section 4 are closed. |
+| **Act 4** | How to read a real company the way they read their own stand. | Nothing structural — *if* the three gaps in section 4 are closed. |
 
-So: **Act 1 alone, no.** The full five-stage ladder, yes — but only with the
+So: **Act 1 alone, no.** The full ladder, yes — but only with the
 additions in section 4.
 
 The fifth row used to be the fourth, and the gap that closed is worth naming
@@ -121,7 +121,7 @@ Act 4   Someone offers $270 for your stand.
         374 / 1000 pieces = $0.37 a piece.
         That is a share price, and it is theirs.
 
-Act 5   Chipotle costs $X a share.
+Act 4   Chipotle costs $X a share.
         Chipotle earns $Y a share per year.
         X / Y = 25.     "Twenty-five times yearly profit."
 
@@ -167,7 +167,7 @@ product: the lock is what makes the unlock feel earned.
 
 ## 7. Status
 
-**Built and tested — all five stages.**
+**Built and tested — all four stages.**
 
 | Act | Mechanics shipped |
 |---|---|
@@ -176,7 +176,7 @@ product: the lock is what makes the unlock feel earned.
 | 3 | A **shop**: fit-out paid once, rent owed on the day nobody comes, staff at a wage, and a demand floor under the weather. Break-even printed in cups. Three ways to pay for it — wait, borrow at 25%, or sell a slice on a dial — with a repayment line owed whatever the day was like |
 | 4 | Equity dial with visible payback, three stands for sale at different multiples, buyout priced on trailing weekly profit with a growth premium, PE bridge from the kid's own sale — and a **listing**: a thousand shares, a price that is `value / 1000`, a float dial showing cash raised against ownership given up, and a week lived as a public company with the price move attributed to the two numbers that caused it |
 | 5 | Real-company research cards, 35% position cap, 12 weeks of price movement with a scripted market scare, drawdown/panic-sale bookkeeping, finale |
-| — | Parent view, readiness gate, save migration (v3 → v4: the ownership act became Act 4 and the market became Act 5; nobody is sent back to do the shop) |
+| — | Parent view, readiness gate, save migration across both hops (v3 → v4 split the shop out of the stands stage; v5 folded it back in as that stage's last rung, so the ownership act is Act 3 again and the market is Act 4 — nobody is sent back through a stage they finished) |
 | Meta | Trophy case (40 badges, all state-derived), earned-word glossary (36 words), rank ladder, career record across seasons, Same-Sky Challenge, investment club, thesis engine, reckoning screen, seasons |
 
 **Gaps 1 and 2 from section 4 are now closed** (position cap in the market;
@@ -194,7 +194,7 @@ document used to describe.
 
 ## 8. The retention question, which is a learning question
 
-Nothing durable is learned in forty-five minutes. The five stages are about an
+Nothing durable is learned in forty-five minutes. The four stages are about an
 hour, so the first build could teach a kid something on a Tuesday and have no
 answer at all for why they would open it again on Thursday — which means the
 concept never got the repetition that turns it into an instinct. A kid who
@@ -532,10 +532,12 @@ I trusted the number instead of reading the output, I would have spent an hour
 rewriting copy that was already fine. A measurement you have not sanity-checked
 against its own worst cases is not evidence.
 
-## 18. What the five-stage arc changed about all of this
+## 18. What splitting and re-merging the arc changed about all of this
 
-Everything above section 7 was written for a four-act arc. What actually moved,
-in the terms this document cares about:
+Everything above section 7 was written for a four-act arc. It grew to five when
+the shop was split out, and is four again now that the shop is the last rung of
+the business stage rather than a stage of its own — see PRODUCT.md §76. What
+actually moved, in the terms this document cares about, survived both:
 
 - **Shares and share price stopped being somebody else's.** They were the two
   concepts on the customer's list with no mechanic anywhere in the game, and

@@ -172,7 +172,7 @@ describe('what a parent is told, run by run', () => {
       'a child who borrowed for the shop',
       {
         ...createGame(5),
-        act: 3,
+        act: 2,
         stand: { ...createGame(5).stand, history },
         business: {
           ...createBusinessState(),
@@ -185,7 +185,7 @@ describe('what a parent is told, run by run', () => {
       'a child who cleared the loan',
       {
         ...createGame(6),
-        act: 3,
+        act: 2,
         stand: { ...createGame(6).stand, history },
         business: {
           ...createBusinessState(),
@@ -199,7 +199,7 @@ describe('what a parent is told, run by run', () => {
       'a child who sold a slice to an investor',
       {
         ...createGame(7),
-        act: 3,
+        act: 2,
         stand: { ...createGame(7).stand, history },
         ownership: {
           ...createOwnershipState(),
@@ -213,7 +213,7 @@ describe('what a parent is told, run by run', () => {
       'a child who sold the whole business',
       {
         ...createGame(8),
-        act: 5,
+        act: 4,
         stand: { ...createGame(8).stand, history },
         ownership: {
           ...createOwnershipState(),
@@ -229,11 +229,11 @@ describe('what a parent is told, run by run', () => {
     ],
     [
       'a child whose share price went up',
-      { ...createGame(9), act: 5, stand: { ...createGame(9).stand, history }, listing: listedFor(200) },
+      { ...createGame(9), act: 4, stand: { ...createGame(9).stand, history }, listing: listedFor(200) },
     ],
     [
       'a child whose share price went down',
-      { ...createGame(10), act: 5, stand: { ...createGame(10).stand, history }, listing: listedFor(40) },
+      { ...createGame(10), act: 4, stand: { ...createGame(10).stand, history }, listing: listedFor(40) },
     ],
     [
       'a child holding real companies',
@@ -244,7 +244,7 @@ describe('what a parent is told, run by run', () => {
         for (let week = 0; week < 6; week++) p = advanceWeek(p).portfolio;
         return {
           ...createGame(11),
-          act: 5,
+          act: 4,
           stand: { ...createGame(11).stand, history },
           portfolio: p,
           listing: listedFor(150),
@@ -265,7 +265,7 @@ describe('what a parent is told, run by run', () => {
         noPoison(`${label} (career ${career ? career.name || 'blank' : 'none'})`, text);
         expect(report.headline.length, label).toBeGreaterThan(5);
         expect(report.conversationStarter.length, label).toBeGreaterThan(10);
-        expect(report.ladder.length, label).toBe(5);
+        expect(report.ladder.length, label).toBe(4);
         // Never a grade and never a percentage: §36's rule for this screen.
         expect(report.ladderLine, label).not.toMatch(/\b\d+%/);
       }
@@ -376,7 +376,7 @@ describe('the Saturday stand, which outlives the business', () => {
   it('takes a float out of the account and puts the takings back', () => {
     let p = createPortfolio(500, 4242);
     p = { ...p, standWeek: -1 };
-    const game: Game = { ...createGame(1), act: 5, portfolio: p };
+    const game: Game = { ...createGame(1), act: 4, portfolio: p };
 
     const opened = beginWeekend(game);
     expect(opened.weekend).toBe(true);
@@ -414,7 +414,7 @@ describe('a new season, and what it keeps', () => {
   it('carries the career and throws away the run', () => {
     const played: Game = {
       ...createGame(1),
-      act: 5,
+      act: 4,
       stand: { ...createGame(1).stand, history, cash: 800 },
       learned: GLOSSARY.slice(0, 6).map((w) => w.id),
       listing: listedFor(150),

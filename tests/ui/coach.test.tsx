@@ -187,7 +187,7 @@ describe('every tour, not just the first one', () => {
      * fails here instead of shipping a room nobody explains.
      */
     const covered = new Set(ALL_TOURS.map((tour) => tour.act));
-    const missing = ([1, 2, 3, 4, 5] as const).filter((act) => !covered.has(act));
+    const missing = ([1, 2, 3, 4] as const).filter((act) => !covered.has(act));
     expect(missing, `stages with no first-run tour: ${missing.join(', ')}`).toEqual([]);
   });
 

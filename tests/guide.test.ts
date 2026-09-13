@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   GUIDE_NAME,
   LEDGER_OPEN_DAYS,
@@ -143,7 +144,7 @@ describe('the thread', () => {
   });
 
   it('closes the loop at the market with the thesis the product rests on', () => {
-    const line = nextBeat(context({ act: 4, inMarket: true }), ['welcome']);
+    const line = nextBeat(context({ act: 3, inMarket: true }), ['welcome']);
     expect(line?.id).toBe('market');
     expect(line?.says.join(' ')).toMatch(/lemonade stand/i);
   });
@@ -155,9 +156,9 @@ describe('the thread', () => {
       context({ daysPlayed: 0 }),
       context({ act: 2, act2Day: 1 }),
       context({ act: 2, act2Day: 11 }),
+      context({ act: 2 }),
       context({ act: 3 }),
-      context({ act: 4 }),
-      context({ act: 4, inMarket: true }),
+      context({ act: 3, inMarket: true }),
     ];
     for (let pass = 0; pass < 3; pass += 1) {
       for (const ctx of contexts) {
@@ -181,6 +182,39 @@ describe('the thread', () => {
     const seen = ['welcome', 'act2-open'];
     expect(nextBeat(context({ act: 2, act2Day: STALL_DAY - 1 }), seen)).toBeNull();
     expect(nextBeat(context({ act: 2, act2Day: 12, hasManager: true }), seen)).toBeNull();
+  });
+
+  it('has every beat opted into by some screen, or it is wired to nothing', () => {
+    /*
+     * The defect class, closed generally instead of one beat at a time.
+     *
+     * `nextBeat` chooses the one line worth saying; each screen then opts in to
+     * the beats that belong on it, via `guideOn(...)` in `page.tsx`. Those two
+     * lists have to agree, and nothing made them.
+     *
+     * They did not. `act2-rival` was written, tested, chosen by `nextBeat` —
+     * and never listed by any screen, so the most valuable thing Pip can say in
+     * the business stage was said to nobody. `act2-shop` then broke the same
+     * way in the other direction: it was listed on the act-intro screen, which
+     * was right while the shop was a stage of its own and wrong the moment it
+     * became a mid-stage rung.
+     *
+     * Worse than silent, in both cases: `nextBeat` returns *one* line, so a
+     * beat that is chosen and then dropped by the screen also swallows every
+     * beat behind it.
+     *
+     * This reads the opt-in lists straight out of the source, which is ugly and
+     * is the only way to check a wiring that lives in JSX. PRODUCT.md §40.
+     */
+    const page = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
+    const optedIn = new Set<string>();
+    for (const call of page.matchAll(/guideOn\(([^)]*)\)/g)) {
+      for (const id of call[1].matchAll(/'([^']+)'/g)) optedIn.add(id[1]);
+    }
+
+    expect(optedIn.size, 'no guideOn calls found — has the wiring moved?').toBeGreaterThan(3);
+    const orphaned = allBeats().filter((beat) => !optedIn.has(beat));
+    expect(orphaned, `beats no screen ever shows: ${orphaned.join(', ')}`).toEqual([]);
   });
 
   it('names the rival the day he starts costing money, not four days later', () => {
@@ -272,22 +306,28 @@ describe('the thread', () => {
     // Two doors lead into the market and they are not the same story. Telling
     // a kid who sold up "your company has a price now" is a line about a run
     // they did not have.
-    const sold = nextBeat(context({ act: 5, listed: false }), ['welcome']);
-    const kept = nextBeat(context({ act: 5, listed: true }), ['welcome']);
-    expect(sold!.id).toBe('act5-open-sold');
-    expect(kept!.id).toBe('act5-open');
+    const sold = nextBeat(context({ act: 4, listed: false }), ['welcome']);
+    const kept = nextBeat(context({ act: 4, listed: true }), ['welcome']);
+    expect(sold!.id).toBe('act4-open-sold');
+    expect(kept!.id).toBe('act4-open');
     expect(sold!.says.join(' ')).toMatch(/sold/i);
     expect(kept!.says.join(' ')).toMatch(/price/i);
   });
 
   it('gives every act after the first a handoff', () => {
     // Every stage after the first, and the market twice — once for each door.
+    /*
+     * Three act openers, because there are four stages and the first one opens
+     * with `welcome`. `act2-shop` is deliberately absent: the shop stopped
+     * being a stage and became the last rung of stage 2, so its beat now waits
+     * for the wall that motivates it — two stands, and the rain shutting both
+     * — rather than for a stage boundary. It is tested on its own below.
+     */
     for (const [act, beat] of [
       [2, 'act2-open'],
       [3, 'act3-open'],
-      [4, 'act4-open'],
-      [5, 'act5-open-sold'],
-    ] as Array<[2 | 3 | 4 | 5, Beat]>) {
+      [4, 'act4-open-sold'],
+    ] as Array<[2 | 3 | 4, Beat]>) {
       expect(nextBeat(context({ act }), ['welcome'])?.id).toBe(beat);
     }
   });

@@ -377,7 +377,7 @@ const history = Array.from({ length: 24 }, (_, i) =>
 );
 
 /** A save parked at a given stage, built by the real modules. */
-function saveAt(act: 1 | 2 | 3 | 4 | 5, over: Record<string, unknown> = {}) {
+function saveAt(act: 1 | 2 | 3 | 4, over: Record<string, unknown> = {}) {
   const game = createGame(4242);
   return {
     ...game,
@@ -526,7 +526,7 @@ describe('each stage of the arc, resumed from a save', () => {
     let portfolio = createPortfolio(1200, 4242);
     portfolio = buy(portfolio, SNAPSHOT[0].ticker, 300).portfolio;
     seed(
-      saveAt(5, {
+      saveAt(4, {
         portfolio,
         ownership: {
           ...createGame(1).ownership,
@@ -579,7 +579,7 @@ describe('every door out of the title screen', () => {
     portfolio = buy(portfolio, SNAPSHOT[0].ticker, 300).portfolio;
     portfolio = { ...portfolio, week: 12, status: 'closed' };
     seed(
-      saveAt(5, { portfolio, club: createClub('Lemons', 'Ada', 300, 7) }),
+      saveAt(4, { portfolio, club: createClub('Lemons', 'Ada', 300, 7) }),
       { 'lemonade.live.v1': JSON.stringify({ ...createPortfolio(500, 99), live: true }) },
     );
   });
@@ -696,7 +696,7 @@ describe('the app when the device is hostile', () => {
 /**
  * Each of these seeds a save parked one step short of a stage boundary, then
  * takes the step. The boundaries are where `page.tsx` does its real work —
- * `beginAct3`, `beginAct4`, `beginAct5`, the save-version bump, the goal strip
+ * `beginAct3`, `beginAct3`, `beginAct4`, the save-version bump, the goal strip
  * changing over — and they are unreachable in a test that just plays forwards
  * because getting to them honestly takes forty days.
  */
@@ -781,7 +781,7 @@ describe('crossing from one stage into the next', () => {
     expect(await playADay()).toBe(true);
     const act = await advanceUntilStageChanges(3);
     clean('crossing into the listing stage');
-    expect(act, 'never left the shop stage').toBeGreaterThanOrEqual(4);
+    expect(act, 'never left the business stage').toBeGreaterThanOrEqual(3);
   }, 30_000);
 
   /*
@@ -903,7 +903,7 @@ describe('putting money into a real company', () => {
   function marketSave() {
     let portfolio = createPortfolio(1500, 4242);
     portfolio = { ...portfolio, researched: SNAPSHOT.slice(0, 3).map((c) => c.ticker) };
-    return saveAt(5, {
+    return saveAt(4, {
       portfolio,
       ownership: {
         ...createGame(1).ownership,
@@ -984,7 +984,7 @@ describe('putting money into a real company', () => {
     portfolio = buy(portfolio, SNAPSHOT[0].ticker, 300).portfolio;
     portfolio = { ...portfolio, week: 11 };
     seed(
-      saveAt(5, {
+      saveAt(4, {
         portfolio,
         ownership: {
           ...createGame(1).ownership,
@@ -1023,7 +1023,7 @@ describe('the real market, which outlives every season', () => {
   it('opens the live account, catches up, and trades in it', async () => {
     let portfolio = createPortfolio(1500, 4242);
     portfolio = { ...portfolio, week: 12, status: 'closed' };
-    seed(saveAt(5, { portfolio }), {
+    seed(saveAt(4, { portfolio }), {
       'lemonade.live.v1': JSON.stringify({ ...createPortfolio(600, 99), live: true }),
     });
     render(<Page />);

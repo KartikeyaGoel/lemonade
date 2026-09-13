@@ -15,6 +15,7 @@ import { loadGame, saveGame } from '../src/lib/storage';
 import { SAVE_VERSION, createGame, type Game } from '../src/lib/progress';
 import { createListing } from '../src/lib/listing';
 import { createShopState } from '../src/lib/retail';
+import { act2Progress } from '../src/lib/business';
 import { ECON } from '../src/lib/simulation';
 
 const KEY = 'lemonade.save.v2';
@@ -71,17 +72,23 @@ describe('a save from the four-stage arc', () => {
   });
 
   it('moves the ownership act up rather than sending a kid back to the shop', () => {
+    /*
+     * Two migrations compose here. A v3 save in act 3 was the ownership stage;
+     * v4 renumbered that to 4 when the shop was inserted, and v5 renumbered it
+     * back to 3 when the shop stopped being a stage of its own. The child ends
+     * up where they were, which is the only thing that matters.
+     */
     const loaded = load(v3Save(3));
-    expect(loaded.act).toBe(4);
+    expect(loaded.act).toBe(3);
     expect(loaded.business.shop.open).toBe(false);
   });
 
   it('moves a save already in the market up to the market', () => {
-    expect(load(v3Save(4)).act).toBe(5);
+    expect(load(v3Save(4)).act).toBe(4);
   });
 
   it('never sends anybody past the last stage', () => {
-    expect(load({ ...v3Save(4), act: 5 }).act).toBe(5);
+    expect(load({ ...v3Save(4), act: 4 }).act).toBe(4);
   });
 
   it('fills in every field the new stages need, at "has not done that yet"', () => {
@@ -109,12 +116,44 @@ describe('a save from the four-stage arc', () => {
     expect(load(v3Save(1)).stageStartDay).toBe(0);
   });
 
+  it('lands a save mid-shop in the stage the shop now belongs to', () => {
+    /*
+     * The v4 -> v5 hop, and the one row of the table worth a test of its own.
+     *
+     * The shop was act 3 and is now the fourth rung of act 2. A child who was
+     * standing in the old shop stage has to arrive in the business stage with
+     * the door *already up* and the goal strip already counting their good
+     * days — not sent back to hire a manager they hired a week ago.
+     *
+     * It works because the merged `act2Progress` reads its goal straight off
+     * `shopProgress(business.shop)`, which the save already carries.
+     */
+    const base = v3Save(3) as Record<string, unknown>;
+    const midShop = {
+      ...base,
+      version: 4,
+      act: 3,
+      business: {
+        ...(base.business as Record<string, unknown>),
+        staff: { helper: false, manager: true },
+        stands: [{ id: 1, location: 'park', runBy: 'you' }],
+        shop: { open: true, staff: 0, goodDays: 2 },
+      },
+    };
+    const loaded = load(midShop as never);
+    expect(loaded.act, 'a child mid-shop was moved out of their own stage').toBe(2);
+    expect(loaded.business.shop.open, 'the door was taken away').toBe(true);
+    expect(loaded.business.shop.goodDays, 'their good days were reset').toBe(2);
+    /* And the goal they are shown is the one they were already working on. */
+    expect(act2Progress(loaded.business, 8).nextStep).toMatch(/rent paid/i);
+  });
+
   it('leaves a save already on the new version alone', () => {
     const current = createGame(7);
-    const listed: Game = { ...current, act: 4, stageStartDay: 19 };
+    const listed: Game = { ...current, act: 3, stageStartDay: 19 };
     saveGame(listed);
     const loaded = loadGame()!;
-    expect(loaded.act).toBe(4);
+    expect(loaded.act).toBe(3);
     expect(loaded.stageStartDay).toBe(19);
   });
 
@@ -129,7 +168,7 @@ describe('a save from the four-stage arc', () => {
     const save = {
       ...v3Save(4),
       version: 4,
-      act: 4,
+      act: 3,
       listing: {
         listed: true,
         shares: 1000,
@@ -163,7 +202,7 @@ describe('a save from the four-stage arc', () => {
     const save = {
       ...v3Save(4),
       version: 4,
-      act: 4,
+      act: 3,
       listing: { ...createListing(), listed: true, multiple: 11, expected: 0, ipoPrice: 4 },
     };
     expect(load(save).listing.ipoMultiple).toBe(11);
@@ -173,7 +212,7 @@ describe('a save from the four-stage arc', () => {
     const current = createGame(7);
     const listed: Game = {
       ...current,
-      act: 4,
+      act: 3,
       listing: {
         ...createListing(),
         listed: true,

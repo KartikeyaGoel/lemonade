@@ -25,6 +25,7 @@ import {
 } from './simulation';
 import {
   SHOP,
+  shopProgress,
   createShopState,
   shopBreakEvenCups,
   shopCapacity,
@@ -198,19 +199,44 @@ export const ROUND = {
  * this stage to its clock, so sixteen was the number of days a struggling child
  * actually played, every time.
  *
- * ## Why ten and not six
+ * ## Why twelve
  *
- * Six is the arithmetic floor and it has no margin: the slowest sensible run
- * measured takes six days, so a cap of six would time out the next run that is
- * a day unluckier with the weather. Ten is the floor plus four, which is the
- * same policy `ACT3_DAYS` states — worst observed run plus margin — with more
- * margin because this stage's worst run varies with the sky and the shop's does
- * not.
+ * The stage grew a fourth rung when the shop stopped being a stage of its own,
+ * so the figures above were re-measured against the merged objective — manager,
+ * hands-off streak, second stand, a door, then three days with the rent paid.
+ * Over ten seeds and three levels of play:
+ *
+ * | | days to finish, uncapped | goal reached |
+ * |---|---|---|
+ * | reads the sky | **6–9** | 10/10 |
+ * | buys the kit, never moves the price | 13–33 | 10/10 |
+ * | reads nothing | 19–97 | 10/10 |
+ *
+ * Nine is the arithmetic floor and twelve is nine plus three, which is the same
+ * policy the shop's own cap used to state: the worst run that is *promised* to
+ * finish, plus margin. The margin is three rather than one because this stage's
+ * length moves with the weather — a cold week delays the second stand, which
+ * delays the door, which delays the streak.
+ *
+ * ## What twelve costs, measured and not hidden
+ *
+ * A child who reads the sky loses no word on any seed. A child who buys the kit
+ * but never touches the price is timed out, and loses `break-even`,
+ * `delegation` and `interest` on seven seeds in ten.
+ *
+ * That is a real cost and it is worse than the same profile saw before the
+ * merge, because the last rung is a genuine economic bar: $45 of rent and $25
+ * of loan a day cannot be covered at a dollar a cup, at any volume. No
+ * reachable cap fixes it — that profile needs 13 to 33 days — so the answer is
+ * not a longer clock, it is that the rent has to be legible *before* it bites.
+ * `shopProgress` states it in the goal strip and `shopBreakEvenCups` puts the
+ * number on the plan screen. PRODUCT.md §76 records it as the thing to watch in
+ * the next pilot.
  *
  * The caveat that survives all of it, restated because it is still true: the
  * cap is not what makes the runway long. The objectives are.
  */
-export const ACT2_DAYS = 10;
+export const ACT2_DAYS = 12;
 /** Profitable manager-run days needed to prove it runs without the kid. */
 export const HANDS_OFF_DAYS_REQUIRED = 3;
 
@@ -974,41 +1000,76 @@ export interface Act2Progress {
   /** Stands trading today, the first one included. */
   stands: number;
   twoStandDays: number;
+  /** The door, which is the last rung of this stage. */
+  shopOpen: boolean;
+  shopGoodDays: number;
 }
 
 /**
- * Three steps, in the order the wall arrives.
+ * Four rungs, in the order the wall arrives.
  *
- * A ceiling of thirty cups a day, then a manager so the first stand does not
- * need the kid, then a second stand for the kid to go and stand at. Each step
- * only makes sense once the one before it has happened, which is the whole of
+ * A ceiling of thirty cups a day; then a manager, so the first stand does not
+ * need the child; then a second stand, for the child to go and stand at; then a
+ * door, because two pitches still both shut when it rains. Each step only makes
+ * sense once the one before it has happened, which is the whole of
  * PRODUCT.md §4's rule about not teaching a concept before its wall — nobody
  * wonders why companies hire people until they personally cannot be in two
  * places at once.
  */
 export function act2Progress(business: BusinessState, _standDay: number): Act2Progress {
   const stands = standCount(business);
-  const complete = stands >= 2 && business.twoStandDays >= TWO_STAND_DAYS_REQUIRED;
+  const shop = shopProgress(business.shop);
+
+  /*
+   * Read from the *last* rung backwards, not the first forwards.
+   *
+   * Forwards looks natural and is wrong, because the rungs are gates rather
+   * than a checklist and a child can be past one whose counter reads low. The
+   * case that found it is a migrated save: a v4 child standing in the old shop
+   * stage has a door up and two good days banked, and a forwards walk asked
+   * them for "3 more good days run by your manager" — a rung they cleared a
+   * week ago, and the hands-off streak decays, so the number was real and the
+   * instruction was nonsense. `tests/migration.test.ts` holds it.
+   *
+   * Backwards, the invariant is simply true: if the door is up then everything
+   * that gates the door happened. Nothing can send a child to a rung they are
+   * standing above.
+   */
   let nextStep: string;
-  if (!business.staff.manager) {
-    nextStep = 'Hire a manager so the first stand runs without you.';
-  } else if (business.handsOffDays < HANDS_OFF_DAYS_REQUIRED) {
-    nextStep = `${HANDS_OFF_DAYS_REQUIRED - business.handsOffDays} more good days run by your manager.`;
-  } else if (stands < 2) {
+  if (business.shop.open) {
+    nextStep = shop.goal;
+  } else if (stands >= 2) {
+    /*
+     * The fourth rung. The wall that motivates it — two pitches, and the rain
+     * still shuts both — is FRAMEWORK.md's old Stage 2 to 3 wall, and it is
+     * Pip's `act2-shop` line rather than this one.
+     *
+     * Deliberately terse, because it sits directly under that bubble on the
+     * day it is said, and the first draft repeated it almost word for word:
+     * "Two stands, and the rain shuts both. A door would not care — the
+     * fit-out is $600." under "Two stands, and the rain still shuts both. A
+     * door would not care." One fact, one home. The goal strip's job is the
+     * objective and the figure, every day; Pip's is the reason, once.
+     */
+    nextStep = `A door of your own. The fit-out is $${SHOP.fitOut}.`;
+  } else if (business.staff.manager && business.handsOffDays >= HANDS_OFF_DAYS_REQUIRED) {
     nextStep = 'Your hands are free. Open a second stand.';
-  } else if (business.twoStandDays < TWO_STAND_DAYS_REQUIRED) {
-    const left = TWO_STAND_DAYS_REQUIRED - business.twoStandDays;
-    nextStep = `${left} more good ${left === 1 ? 'day' : 'days'} with both stands open.`;
+  } else if (business.staff.manager) {
+    const left = HANDS_OFF_DAYS_REQUIRED - business.handsOffDays;
+    nextStep = `${left} more good ${left === 1 ? 'day' : 'days'} run by your manager.`;
   } else {
-    nextStep = 'Two stands, one price, and both of them paying.';
+    nextStep = 'Hire a manager so the first stand runs without you.';
   }
+
   return {
     handsOffDays: business.handsOffDays,
     required: HANDS_OFF_DAYS_REQUIRED,
-    complete,
+    complete: shop.complete,
     nextStep,
     stands,
     twoStandDays: business.twoStandDays,
+    shopOpen: business.shop.open,
+    shopGoodDays: business.shop.goodDays,
   };
 }
 

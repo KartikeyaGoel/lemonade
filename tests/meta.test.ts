@@ -285,8 +285,8 @@ describe('words you earned', () => {
     expect(progress.total).toBe(GLOSSARY.length);
     // `pe-ratio` belongs to the listing stage, which is Act 4 in the
     // five-stage arc — the market is Act 5 and has nothing earned here.
-    expect(progress.byAct.find((a) => a.act === 4)!.earned).toBe(1);
-    expect(progress.byAct.find((a) => a.act === 5)!.earned).toBe(0);
+    expect(progress.byAct.find((a) => a.act === 3)!.earned).toBe(1);
+    expect(progress.byAct.find((a) => a.act === 4)!.earned).toBe(0);
     expect(progress.byAct.reduce((sum, a) => sum + a.total, 0)).toBe(GLOSSARY.length);
   });
 
@@ -465,7 +465,7 @@ describe('what to do next', () => {
   });
 
   it('leads with the nearest act, not the furthest', () => {
-    const game = { ...createGame(1), act: 4 as const };
+    const game = { ...createGame(1), act: 3 as const };
     const titles = whatsNext(game, createCareer()).map((s) => s.title);
     expect(titles[0]).toBe('Open for business');
   });
@@ -487,7 +487,7 @@ describe('what to do next', () => {
 
 describe('a new season', () => {
   it('is a genuinely new stand', () => {
-    const game = { ...createGame(1), act: 4 as const, learned: ['margin'] };
+    const game = { ...createGame(1), act: 3 as const, learned: ['margin'] };
     const next = newSeason(game, 99);
     expect(next.act).toBe(1);
     expect(next.learned).toEqual([]);

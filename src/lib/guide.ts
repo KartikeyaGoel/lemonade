@@ -94,10 +94,10 @@ export type Beat =
   | 'act2-open'
   | 'act2-rival'
   | 'act2-stall'
+  | 'act2-shop'
   | 'act3-open'
   | 'act4-open'
-  | 'act5-open'
-  | 'act5-open-sold'
+  | 'act4-open-sold'
   | 'market';
 
 export interface GuideLine {
@@ -171,12 +171,12 @@ const LINES: Record<Beat, GuideLine> = {
       'The wages are the same either way.',
     ],
   },
-  'act3-open': {
-    id: 'act3-open',
+  'act2-shop': {
+    id: 'act2-shop',
     says: ['Two stands, and the rain still shuts both.', 'A door would not care.'],
   },
-  'act4-open': {
-    id: 'act4-open',
+  'act3-open': {
+    id: 'act3-open',
     says: ['The shop pays for its own door now.', 'So what is the whole thing worth?'],
   },
   /*
@@ -186,12 +186,12 @@ const LINES: Record<Beat, GuideLine> = {
    * A founder who sold up has cash and no company, and telling them "your
    * company has a price now" is a line about a run they did not have.
    */
-  'act5-open': {
-    id: 'act5-open',
+  'act4-open': {
+    id: 'act4-open',
     says: ['Your company has a price now.', 'So does everybody else’s.'],
   },
-  'act5-open-sold': {
-    id: 'act5-open-sold',
+  'act4-open-sold': {
+    id: 'act4-open-sold',
     says: ['You sold your company.', 'Now you can buy a piece of somebody else’s.'],
   },
   market: {
@@ -231,6 +231,14 @@ export interface GuideContext {
   marketShare?: number;
   /** Whether either of the two things that answer a rival has been bought. */
   differentiated?: boolean;
+  /**
+   * Stands trading, and whether the door is up.
+   *
+   * Both optional and both defaulting to "not yet", so Stage 1 — which has
+   * neither — reads as a child who has not got there, which is true.
+   */
+  stands?: number;
+  shopOpen?: boolean;
   /** True on the market screen itself. */
   inMarket: boolean;
   /**
@@ -258,11 +266,10 @@ export function nextBeat(context: GuideContext, seen: readonly string[]): GuideL
 
   if (context.daysPlayed === 0 && unseen('welcome')) return LINES.welcome;
 
-  if (context.act === 5) {
-    const beat: Beat = context.listed ? 'act5-open' : 'act5-open-sold';
+  if (context.act === 4) {
+    const beat: Beat = context.listed ? 'act4-open' : 'act4-open-sold';
     if (unseen(beat)) return LINES[beat];
   }
-  if (context.act === 4 && unseen('act4-open')) return LINES['act4-open'];
   if (context.act === 3 && unseen('act3-open')) return LINES['act3-open'];
   if (context.act === 2 && unseen('act2-open')) return LINES['act2-open'];
 
@@ -291,6 +298,19 @@ export function nextBeat(context: GuideContext, seen: readonly string[]): GuideL
    * early never sees this, which is correct.
    */
   if (context.act === 2) {
+    /*
+     * The door, once two stands have taught the lesson that motivates it.
+     *
+     * This was the act-3 opening beat, said on the screen that introduced the
+     * shop stage. The shop is the fourth rung of this stage now, so the beat
+     * has to arrive where the wall does: the child has two pitches, the rain
+     * has just shut both, and the goal strip is about to mention a door. It
+     * waits for the second stand for the same reason every other beat waits —
+     * no concept before the wall that motivates it.
+     */
+    if ((context.stands ?? 1) >= 2 && !context.shopOpen && unseen('act2-shop')) {
+      return LINES['act2-shop'];
+    }
     /*
      * The rival beat is not on the clock, and that is the point.
      *

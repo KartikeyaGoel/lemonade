@@ -84,7 +84,7 @@ Keep these short. Answer, then stop.
 - **Don't say "financial literacy."** It's the phrase on every product they've
   already deleted.
 - **Don't say "gamified."** Same problem.
-- **Don't list the five stages.** Show the screen instead.
+- **Don't list the stages.** Show the screen instead.
 - **Don't claim kids love it.** No kid has played it yet. Saying so out loud
   is worth more than the claim would be.
 
@@ -220,7 +220,7 @@ over it. No stage teaches a word before the kid has already done the thing.
 | Stage | The kid's question | What it actually is |
 |---|---|---|
 | **1. One stand** | *What is a cup worth to them?* | Price, cost and margin |
-| **2. More stands** | *How do I sell more than my own two hands can?* | Capacity, capital, hiring, competition |
+| **2. A real business** | *How do I grow it without breaking it?* | Capacity, capital, hiring, competition, fixed costs, debt against equity |
 | **3. The shop** | *What do I owe on a day nobody comes?* | Fixed costs, operating leverage, debt against equity |
 | **4. Go public** | *What is one piece of my company worth?* | Valuation, ownership, shares, share price |
 | **5. Markets** | *Whose business do I want a piece of?* | Public markets, reading a filing |
@@ -349,7 +349,7 @@ the concept name the kid never sees. On day zero it says, honestly:
   amount of engineering substitutes for it.
 - 24 tickers, not a few hundred (needs a data key, not a redesign)
 - Weekly price granularity, not daily
-- Three of the five stages still lack a closing recap. Act 1 ends on
+- Two of the four stages still lack a closing recap. Act 1 ends on
   `week-end`, a real look back with a chart; the run ends on `finale`. Stages
   2, 3 and 4 hand over through `act-intro`, which introduces what is next
   rather than closing what just happened.

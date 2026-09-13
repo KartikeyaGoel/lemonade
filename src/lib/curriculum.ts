@@ -44,7 +44,7 @@ export interface Stage {
   outOf: number;
 }
 
-const ACTS: Act[] = [1, 2, 3, 4, 5];
+const ACTS: Act[] = [1, 2, 3, 4];
 
 /**
  * Where the kid is on the ladder, and what each rung has actually produced.

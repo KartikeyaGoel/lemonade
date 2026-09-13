@@ -82,16 +82,13 @@ import {
   beginWeekend,
   endWeekend,
   WEEKEND_FLOAT,
-  ACT3_DAYS,
-  act3Progress,
-  act4Complete,
+  act3Complete,
   actDay,
   badgeContext,
   badgesHeld,
   beginAct2,
   beginAct3,
   beginAct4,
-  beginAct5,
   act1Progress,
   heldThroughWorstDay,
   createChallengeGame,
@@ -797,9 +794,6 @@ export default function Page() {
       };
     }
     if (game.act === 3) {
-      return { goal: act3Progress(game.business).goal, day: stageDay, total: ACT3_DAYS };
-    }
-    if (game.act === 4) {
       if (game.listing.listed) {
         return {
           goal: `Trade the week out. One piece of you is $${game.listing.price.toFixed(2)}.`,
@@ -821,7 +815,7 @@ export default function Page() {
 
   const start = useCallback(() => {
     if (!game) return;
-    if (game.act === 5) {
+    if (game.act === 4) {
       // A Saturday left half-finished is still a Saturday: the float is sitting
       // in the cash box, so send them back to the stand rather than stranding
       // it there.
@@ -845,7 +839,7 @@ export default function Page() {
      * deal board is a game-design question, recorded in PRODUCT.md rather than
      * decided here.
      */
-    if (game.act === 4) {
+    if (game.act === 3) {
       setPhase('plan');
       return;
     }
@@ -1066,7 +1060,33 @@ export default function Page() {
           setPhase('weekly-choice');
           return;
         case 'next-act':
-          setGame(game.act === 2 ? beginAct3(game) : beginAct4(game));
+          /*
+           * One boundary, because there is one day-capped stage left.
+           *
+           * `afterDay` only ever returns this from act 2 — the listing stage
+           * ends on the deal board and the float rather than on a day count,
+           * and it routes through 'deals', 'listing' and 'mark-week' instead.
+           * This was a ternary against act 3 while the shop was its own stage.
+           *
+           * **A stage does not hand over owing words.** The last rung of the
+           * business stage is the door, and the door is what earns
+           * `break-even` — so it is earned on the day the stage ends, queued
+           * behind the one-a-day ration, and then there are no more days. That
+           * is the same shape of bug as the weekly fork being unreachable:
+           * something the child demonstrated, withheld because the clock ran
+           * out. Measured over ten seeds, careful play finished the stage with
+           * one or two words still owed.
+           *
+           * `queueWords` shows them one full-screen card at a time with a
+           * count, which is what §26 asks for — the rule is one card at a
+           * time, not one word ever.
+           */
+          setGame(
+            queueWords(
+              { ...beginAct3(game), pendingInsights: [] },
+              game.pendingInsights,
+            ),
+          );
           setPhase('act-intro');
           return;
         case 'deals':
@@ -1082,7 +1102,7 @@ export default function Page() {
           setPhase('plan');
       }
     },
-    [markTheWeek],
+    [markTheWeek, queueWords],
   );
 
   /**
@@ -1370,11 +1390,11 @@ export default function Page() {
    *
    * Two doors arrive here: the listing, once a week has been lived through, and
    * the buyout, which still exists and is still a respectable ending. Both hand
-   * over what the kid actually walked out with — see `beginAct5`.
+   * over what the kid actually walked out with — see `beginAct4`.
    */
   const handleLeaveForMarket = useCallback(() => {
     if (!game) return;
-    setGame(beginAct5({ ...game, stand: { ...game.stand, cash: 0 } }));
+    setGame(beginAct4({ ...game, stand: { ...game.stand, cash: 0 } }));
     setPhase('act-intro');
   }, [game]);
 
@@ -1453,8 +1473,8 @@ export default function Page() {
        */
       const rightNow = judgeDealChoice(choiceId).correct;
       const firstGo = dealRoundsTaken(game.ownership) === 0;
-      if (game.act === 4 && !rightNow && firstGo) return;
-      setPhase(game.act === 5 ? 'gate' : 'listing');
+      if (game.act === 3 && !rightNow && firstGo) return;
+      setPhase(game.act === 4 ? 'gate' : 'listing');
     },
     [game, queueWords, noteDeed],
   );
@@ -1477,7 +1497,7 @@ export default function Page() {
       }
 
       setGame(
-        queueWords(beginAct5({ ...sold, stand: { ...sold.stand, cash: 0 } }), words),
+        queueWords(beginAct4({ ...sold, stand: { ...sold.stand, cash: 0 } }), words),
       );
       setPhase('act-intro');
     },
@@ -2059,6 +2079,9 @@ export default function Page() {
             marketShare: dayParams.marketShare,
             differentiated:
               game.business.upgrades.freshSqueeze || game.business.upgrades.bigSign,
+            /* The last rung of the business stage: two stands, then a door. */
+            stands: standCount(game.business),
+            shopOpen: game.business.shop.open,
             inMarket: phase === 'market',
             listed: game.listing.listed,
           },
@@ -2445,9 +2468,16 @@ export default function Page() {
       return (
         <ActIntroScreen
           act={game.act}
-          guide={guideOn('act2-open', 'act3-open', 'act4-open', 'act5-open')}
-          wall={game.act === 5 ? marketWall(game) : (ACT_WALLS[game.act] ?? '')}
-          cash={game.act === 5 ? (game.portfolio?.cash ?? 0) : game.stand.cash}
+          /*
+             Both market beats, not just one. `act4-open-sold` is the line for a
+             founder who sold up rather than listing — two doors lead here and
+             they are not the same story — and it was never in this list, so
+             half of them arrived at the market with nothing said. Found by the
+             beat-reachability test in `tests/guide.test.ts`.
+          */
+          guide={guideOn('act2-open', 'act3-open', 'act4-open', 'act4-open-sold')}
+          wall={game.act === 4 ? marketWall(game) : (ACT_WALLS[game.act] ?? '')}
+          cash={game.act === 4 ? (game.portfolio?.cash ?? 0) : game.stand.cash}
           /*
            * Every stage opens on the screen where its first decision lives.
            *
@@ -2459,8 +2489,8 @@ export default function Page() {
            * against.
            */
           onBegin={() => {
-            if (game.act === 2 || game.act === 3) setPhase('invest');
-            else if (game.act === 4) {
+            if (game.act === 2) setPhase('invest');
+            else if (game.act === 3) {
               setPhase(game.ownership.comparisonAnswered ? 'listing' : 'deals');
             } else setPhase('market');
           }}
@@ -2541,7 +2571,16 @@ export default function Page() {
              a real kid ground to day eighteen and quit three days short. Act
              2's line is the same string the shop has always shown — it was
              just only on the shop. */
-          guide={guideOn('act2-stall')}
+          /*
+             The beats that belong on the stand, which is where the child can
+             act on them. `act2-shop` moved here from the act-intro list when
+             the shop stopped being a stage: it now fires on the day two stands
+             have taught the lesson a door answers, and an act intro is not on
+             screen then. Left where it was, it was a beat wired to nothing
+             — and worse, `nextBeat` would pick it and so swallow the rival and
+             stall beats behind it. §40, introduced and caught in the same pass.
+          */
+          guide={guideOn('act2-shop', 'act2-rival', 'act2-stall')}
           stage={stage}
           note={
             game.weekend
@@ -2556,7 +2595,7 @@ export default function Page() {
              and a kid watching a rent bleed with no way to reach the controls is
              a dead end rather than a lesson.
           */
-          onInvest={game.act >= 2 && game.act <= 4 ? () => setPhase('invest') : undefined}
+          onInvest={game.act >= 2 && game.act <= 3 ? () => setPhase('invest') : undefined}
           onOpen={(cups, price, grade) => {
             setTargetCups(cups);
             openStand(price, cups, false, grade);
@@ -2672,7 +2711,7 @@ export default function Page() {
              the business it was sold out of. */
           business={game.weekend ? undefined : game.business}
           managerAvailable={
-            game.act >= 2 && game.act <= 4 && game.business.staff.manager && !game.weekend
+            game.act >= 2 && game.act <= 3 && game.business.staff.manager && !game.weekend
           }
           onManagerRuns={letManagerRun}
           nextUp={
@@ -2817,9 +2856,9 @@ export default function Page() {
           stands={nextDealBoard(game.ownership) ?? boardForRound(0)}
           round={dealRoundsTaken(game.ownership)}
           againLabel={
-            game.act === 4 && dealRoundsTaken(game.ownership) === 0
+            game.act === 3 && dealRoundsTaken(game.ownership) === 0
               ? 'Try another three →'
-              : game.act === 5
+              : game.act === 4
                 ? 'Back to the list →'
                 : 'Next →'
           }
@@ -2829,7 +2868,7 @@ export default function Page() {
            * them "Back to your own stand →", which is both the wrong
            * destination and a sentence about a business they no longer have.
            */
-          doneLabel={game.act === 5 ? 'Back to the list →' : 'Back to your own stand →'}
+          doneLabel={game.act === 4 ? 'Back to the list →' : 'Back to your own stand →'}
           onChoose={(choiceId) => handleDealChoice(choiceId)}
         />
       );
@@ -2856,7 +2895,7 @@ export default function Page() {
             // A week lived through is what ends the stage. Before that, back to
             // the shop — being public is something that happens while you are
             // still running the business, and the day loop is where that is.
-            if (act4Complete(game.ownership, game.listing)) {
+            if (act3Complete(game.ownership, game.listing)) {
               handleLeaveForMarket();
               return;
             }

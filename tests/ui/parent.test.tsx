@@ -68,8 +68,8 @@ describe('what a parent finds there before their kid has played', () => {
 
   it('shows the stages ahead rather than hiding them', () => {
     render(<ParentScreen report={cold} onBack={() => {}} />);
-    // Five stages: one they are standing in, four still ahead.
-    expect(screen.getAllByText('Ahead')).toHaveLength(4);
+    // Four stages: one they are standing in, three still ahead.
+    expect(screen.getAllByText('Ahead')).toHaveLength(3);
     expect(screen.getByText('Here now')).toBeInTheDocument();
   });
 
@@ -82,7 +82,7 @@ describe('what a parent finds there before their kid has played', () => {
 
   it('lists the skills of a locked stage without pretending they were missed', () => {
     render(<ParentScreen report={cold} onBack={() => {}} />);
-    const act4 = cold.ladder.find((stage) => stage.act === 4)!;
+    const act4 = cold.ladder.find((stage) => stage.act === 3)!;
     for (const skill of act4.skills) {
       expect(screen.getByText(skill.grownUpName)).toBeInTheDocument();
     }
@@ -223,13 +223,13 @@ describe('skipping ahead, for a demo', () => {
     await userEvent.click(screen.getByRole('button', { name: /skip ahead to a stage/i }));
     expect(onJump).not.toHaveBeenCalled();
 
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(ACT_TITLES[5].name, 'i') }));
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(ACT_TITLES[4].name, 'i') }));
     expect(onJump).not.toHaveBeenCalled();
 
     await userEvent.click(
-      screen.getByRole('button', { name: new RegExp(`start at ${ACT_TITLES[5].name}`, 'i') }),
+      screen.getByRole('button', { name: new RegExp(`start at ${ACT_TITLES[4].name}`, 'i') }),
     );
-    expect(onJump).toHaveBeenCalledWith(5);
+    expect(onJump).toHaveBeenCalledWith(4);
   });
 
   it('does not offer the stage already on screen', async () => {
@@ -242,7 +242,7 @@ describe('skipping ahead, for a demo', () => {
     expect(
       screen.queryByRole('button', { name: new RegExp(`1\\. ${ACT_TITLES[1].name}`) }),
     ).not.toBeInTheDocument();
-    for (const act of [2, 3, 4, 5] as const) {
+    for (const act of [2, 3, 4] as const) {
       expect(
         screen.getByRole('button', { name: new RegExp(`${act}\\. ${ACT_TITLES[act].name}`) }),
       ).toBeInTheDocument();
@@ -252,7 +252,7 @@ describe('skipping ahead, for a demo', () => {
   it('says what it costs before it does it', async () => {
     render(<ParentScreen report={report()} onJump={() => {}} onBack={() => {}} />);
     await userEvent.click(screen.getByRole('button', { name: /skip ahead to a stage/i }));
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(ACT_TITLES[5].name, 'i') }));
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(ACT_TITLES[4].name, 'i') }));
 
     // Names what is replaced, and offers the way out. The wording matters: a
     // demo-er should know the save is a played week rather than a finished

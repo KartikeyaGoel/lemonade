@@ -33,7 +33,6 @@ import {
   type OwnershipState,
 } from './ownership';
 import { createListing, listingComplete, type Listing } from './listing';
-import { shopProgress, type ShopProgress } from './retail';
 import { createPortfolio, summarisePortfolio, type PortfolioState } from './market';
 import { BADGES, earnedBadges, type BadgeContext } from './achievements';
 import { GLOSSARY, wordProgress } from './glossary';
@@ -56,7 +55,42 @@ import type { ChallengeSpec, RunResult } from './challenge';
  * — because a chain of pitches that all shut when it rains is the wall a door
  * answers — and the ownership stage now ends at a listing.
  */
-export type Act = 1 | 2 | 3 | 4 | 5;
+export type Act = 1 | 2 | 3 | 4;
+
+/**
+ * Four, and it was five.
+ *
+ * "More stands" and "The shop" were separate stages, and holding them against
+ * each other with the numbers in hand did not survive the comparison. The shop
+ * is mechanically distinct — a $45 rent against a $5 pitch fee, a loan, and an
+ * `indoorShare` of 0.75 that drops the hot-to-cold demand spread from 2.50x to
+ * 1.74x, which is exactly the wall the ladder promised it would answer. But its
+ * *shape* was wrong in three ways that measurement made plain:
+ *
+ *  1. It contradicted its own lesson. It teaches that a big rent makes a quiet
+ *     week dangerous, and then the shop was so profitable that the objective
+ *     completed **on day five of every single run**, careful and careless
+ *     alike. Cold days measured $124, $127, $127.
+ *  2. Five or six days for two words — `break-even` and `interest` — against
+ *     the business stage's eight. And `interest` only fires for a child who
+ *     chose to borrow, so half of them got one.
+ *  3. All of its teaching is in one screen. The funding decision — pay cash,
+ *     borrow, or sell a slice — is the genuinely new idea, and it happens on
+ *     `FundingScreen` before the stage's days even start. The trading days
+ *     after it were the stands stage with a bigger rent line.
+ *
+ * And the two stages proved the same thing twice: two profitable days with
+ * both stands open, then five profitable days with the door open. Seven days
+ * of "it was not a fluke", for one lesson.
+ *
+ * So the shop is now the fourth rung *inside* the business stage, where the
+ * cooler, the manager and the second stand already are. Nothing about the
+ * teaching sequence moves: every rung still arrives when the previous one's
+ * wall bites — FRAMEWORK.md's own rule, applied within a stage instead of
+ * across two — and the words still arrive one at a time, attached to the rung
+ * that earned them. What goes is a stage boundary, a duplicated proof streak,
+ * and the days they cost.
+ */
 
 /**
  * Bumped from 3 for the five-stage arc.
@@ -68,7 +102,7 @@ export type Act = 1 | 2 | 3 | 4 | 5;
  * have already earned their way out of is the one thing a migration must never
  * do.
  */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /**
  * A same-sky challenge in progress: the seed both kids are playing, and the
@@ -224,23 +258,24 @@ export const ACT_TITLES: Record<
     grownUpWhy:
       'Unit economics before anything else. A child who can say what they keep from a dollar can read every business that follows.',
   },
+  /*
+   * One stage, four rungs: a cooler, a manager, a second table, a door.
+   *
+   * The question is deliberately singular. Two stages asked "how do I sell
+   * more than my own two hands can?" and "what do I owe on a day nobody
+   * comes?", and the second is not a different question — it is what the answer
+   * to the first one costs. See the note on `Act`.
+   */
   2: {
-    name: 'More stands',
-    promise: 'Spend money to make money. Then be in two places at once.',
-    question: 'How do I sell more than my own two hands can?',
-    grownUpConcept: 'Capacity, capital, hiring and competition',
+    name: 'A real business',
+    promise: 'Spend money to make money, be in two places at once, then get a door.',
+    question: 'How do I grow it without breaking it?',
+    grownUpConcept:
+      'Capacity, capital, hiring, competition, fixed costs and how growth gets paid for',
     grownUpWhy:
-      'The difference between buying a thing once and paying a wage every day, and then the reason firms hire at all: a second site needs somebody at the first one. Growth as arithmetic rather than magic.',
+      'The difference between buying a thing once and paying a wage every day; the reason firms hire at all, which is that a second site needs somebody at the first one; and then a rent owed whatever happened, which is what makes a quiet week dangerous and a busy one enormous. The door is also the first thing they cannot buy out of profit, which is where borrowing and selling a slice stop being words.',
   },
   3: {
-    name: 'The shop',
-    promise: 'Get a door, so the rain stops deciding how your day goes.',
-    question: 'What do I owe on a day nobody comes?',
-    grownUpConcept: 'Fixed costs, operating leverage, debt against equity',
-    grownUpWhy:
-      'A big rent owed whatever happened is what makes a quiet week dangerous and a busy one enormous. It is also the first thing they cannot buy out of profit, which is where borrowing and selling a slice become two real answers.',
-  },
-  4: {
     name: 'Go public',
     promise: 'Cut the whole thing into a thousand pieces and sell some.',
     question: 'What is one piece of my company worth?',
@@ -248,7 +283,7 @@ export const ACT_TITLES: Record<
     grownUpWhy:
       'That a business has a value separate from its cash, that the value is a multiple of what it earns, and that dividing it by a share count is where a share price comes from. They watch their own price move before they see anybody else\'s.',
   },
-  5: {
+  4: {
     name: 'Markets',
     promise: 'Other people\'s lemonade stands, at a much bigger scale.',
     question: 'Whose business do I want a piece of?',
@@ -369,21 +404,27 @@ export function act1Complete(stand: GameState, lastDay: number = ECON.TOTAL_DAYS
 }
 
 /**
- * Act 2 ends when the kid is running two stands at a profit, or time is up.
+ * Act 2 ends when the shop has paid for its own door, or time is up.
  *
- * It used to end at "a manager has run it profitably", which proved the manager
- * worked and stopped there. The manager is the *unlock*, not the finish: what a
- * manager buys is the kid's own hands back, and the thing to do with a spare
- * pair of hands is stand behind a second table. So the act now ends where the
- * lesson does, with two pitches and one price.
+ * It has moved twice, and both moves were the same correction. It used to end
+ * at "a manager has run it profitably", which proved the manager worked and
+ * stopped there — but the manager is the *unlock*, not the finish, because what
+ * a manager buys is the child's own hands back and the thing to do with a spare
+ * pair of hands is stand behind a second table. Then it ended at two stands.
+ *
+ * It now ends at the door, because the shop is the last rung of this stage
+ * rather than a stage of its own — see the note on `Act`. The rungs before it
+ * are gates rather than endings: `act2Progress` will not offer the shop until
+ * there are two stands, exactly as it would not offer a second stand until
+ * somebody was minding the first.
+ *
+ * The two-stand proof streak went with the merge. It asked for two profitable
+ * days with both pitches open and the shop asks for three with the rent owed,
+ * which is the same lesson at lower stakes — and paying for it twice is seven
+ * days of the arc for one idea.
  */
 export function act2Complete(business: BusinessState, act2DaysPlayed: number): boolean {
   return act2Progress(business, act2DaysPlayed).complete || act2DaysPlayed >= ACT2_DAYS;
-}
-
-/** Stage 3 ends when the shop has paid for its own door for a working week. */
-export function act3Complete(business: BusinessState, act3DaysPlayed = 0): boolean {
-  return shopProgress(business.shop).complete || act3DaysPlayed >= ACT3_DAYS;
 }
 
 /**
@@ -395,32 +436,8 @@ export function act3Complete(business: BusinessState, act3DaysPlayed = 0): boole
  * company has a share price to watch and a reason to care what a share price
  * *is*.
  */
-export function act4Complete(ownership: OwnershipState, listing: Listing): boolean {
+export function act3Complete(ownership: OwnershipState, listing: Listing): boolean {
   return ownership.buyoutAccepted || listingComplete(listing);
-}
-
-/**
- * Days the shop stage runs before it hands over regardless.
- *
- * Six, and this one is free. Measured in `tests/wordbudget.test.ts` over ten
- * seeds and two levels of play: the objective — fit the shop out, then five
- * good days — completes on **day five in every single run**, careless play
- * included, because the shop's capacity makes a good day easy once the door is
- * open. Words delivered are byte-identical at caps twelve, eight, six and
- * five.
- *
- * So the twelve it started at, and the eight it passed through, were six spare
- * days and two spare days that no child ever spent well. Six is the worst
- * observed run plus one day of margin.
- *
- * Contrast `ACT2_DAYS`, where the same measurement says the opposite and the
- * cap is deliberately *not* cut to the floor.
- */
-export const ACT3_DAYS = 6;
-
-/** The one line the goal strip shows in the shop stage. */
-export function act3Progress(business: BusinessState): ShopProgress {
-  return shopProgress(business.shop);
 }
 
 /* ------------------------------------------------------------------ *
@@ -577,20 +594,11 @@ export function beginAct2(game: Game): Game {
   };
 }
 
-/** Stage 3 keeps the stands. The shop goes up beside them. */
+/** The listing stage. The stands and the shop keep trading underneath it. */
 export function beginAct3(game: Game): Game {
   return {
     ...game,
     act: 3,
-    stageStartDay: game.stand.history.length,
-    stand: { ...game.stand, status: 'playing' },
-  };
-}
-
-export function beginAct4(game: Game): Game {
-  return {
-    ...game,
-    act: 4,
     stageStartDay: game.stand.history.length,
     stand: { ...game.stand, status: 'playing' },
   };
@@ -605,11 +613,11 @@ export function beginAct4(game: Game): Game {
  * books and in the report rather than being quietly converted into pocket money
  * the market can spend.
  */
-export function beginAct5(game: Game): Game {
+export function beginAct4(game: Game): Game {
   const proceeds = seededWith(game) + game.business.savings + game.stand.cash;
   return {
     ...game,
-    act: 5,
+    act: 4,
     portfolio: createPortfolio(round2(proceeds), game.stand.seed),
   };
 }
@@ -625,7 +633,7 @@ export function beginAct5(game: Game): Game {
  * report computed its gain against nothing, and the career record banked the
  * wrong number.
  *
- * One place now. `beginAct5` seeds the account from this, so anything asking
+ * One place now. `beginAct4` seeds the account from this, so anything asking
  * "what did they start with" is asking the same function that decided it.
  */
 export function seededWith(game: Game): number {
@@ -740,7 +748,7 @@ export function standing(game: Game): GameStanding {
     cash: game.stand.cash,
     savings: game.business.savings,
     netWorth: round2(
-      (game.act === 5 ? portfolioValue : game.stand.cash) + game.business.savings,
+      (game.act === 4 ? portfolioValue : game.stand.cash) + game.business.savings,
     ),
     weeklyProfit: trailingWeeklyProfit(game.stand.history),
     daysTraded: game.stand.history.length,

@@ -52,7 +52,24 @@ export const SHOP = {
 } as const;
 
 /** Profitable days with the shop open that end the stage. */
-export const SHOP_DAYS_REQUIRED = 5;
+/**
+ * Profitable days with the door open that end the business stage.
+ *
+ * **Three**, and it was five.
+ *
+ * Five was never a measured number — the objective completed on day five in
+ * every single run, careful and careless alike, so all five days were spent
+ * waiting rather than deciding. And the stage used to ask for the same proof
+ * twice: two profitable days with both stands open, and then five with the rent
+ * owed. Seven days of "it was not a fluke" for one idea.
+ *
+ * Merging the stages collapsed that into one streak, and this is it. Three,
+ * because two could be a warm Tuesday and a warm Wednesday, and the rent is
+ * the point: a child has to see it covered on a day that was not a gift. The
+ * two-stand streak is gone entirely — the second stand is still required,
+ * because it gates the door, but it no longer has to be proved separately.
+ */
+export const SHOP_DAYS_REQUIRED = 3;
 
 export interface ShopState {
   open: boolean;
@@ -154,7 +171,10 @@ export function shopProgress(shop: ShopState): ShopProgress {
     goodDays: shop.goodDays,
     required: SHOP_DAYS_REQUIRED,
     complete: shop.goodDays >= SHOP_DAYS_REQUIRED,
-    goal: left === 0 ? 'The shop pays for itself.' : `${left} more good days at the shop.`,
+    goal:
+      left === 0
+        ? 'The shop pays for itself.'
+        : `${left} more good ${left === 1 ? 'day' : 'days'} with the rent paid.`,
   };
 }
 

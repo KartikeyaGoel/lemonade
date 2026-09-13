@@ -66,7 +66,7 @@ import {
   type DayParams,
   type Insight,
 } from './simulation';
-import { act1Complete, act2Complete, act3Complete, type Game } from './progress';
+import { act1Complete, act2Complete, type Game } from './progress';
 import { listingOffer } from './listing';
 
 /* ------------------------------------------------------------------ *
@@ -159,7 +159,7 @@ export const WORDS_PER_DAY = 1;
  * self-limiting — the queue drains until it is short again and the pace goes
  * back to one.
  */
-export const WORD_BACKLOG = 3;
+export const WORD_BACKLOG = 2;
 
 /**
  * How many words to hand over today, given how many were **already waiting**.
@@ -216,7 +216,7 @@ function wordsEarned(game: Game, outcome: DayOutcome): Insight[] {
    * Break-even and interest, and only for a child who has a rent or a
    * repayment to be taught them by.
    */
-  const act3 = game.act >= 3 ? deriveAct3Insights(outcome, game.business) : [];
+  const act3 = game.act >= 2 ? deriveAct3Insights(outcome, game.business) : [];
   /*
    * The round earns its word the first day somebody on it is served, and the
    * copy leans on a cold day if that is what happened — because turning up
@@ -394,18 +394,16 @@ export function afterDay(
       : 'plan';
   }
 
-  if (game.act === 2 || game.act === 3) {
-    const ending =
-      game.act === 2
-        ? act2Complete(game.business, stageDay)
-        : act3Complete(game.business, stageDay);
+  if (game.act === 2) {
+    const ending = act2Complete(game.business, stageDay);
 
     /*
      * The fork: on the rhythm, or on the way out, whichever comes first.
      *
-     * A shop makes the same choice sharper rather than redundant — the rent is
-     * owed either way, so money taken out of a business with a lease is money
-     * it may need on Tuesday.
+     * The shop makes the same choice sharper rather than redundant — the rent
+     * is owed either way, so money taken out of a business with a lease is
+     * money it may need on Tuesday. That is now the same stage as the stands,
+     * so one branch covers both.
      */
     if (!forkTaken && (ending || stageDay % WEEKLY_EVERY === 0)) return 'weekly-choice';
     return ending ? 'next-act' : 'plan';
@@ -425,7 +423,7 @@ export function afterDay(
    * being public is — you keep running the shop and somebody re-prices it
    * while you do.
    */
-  if (game.act === 4) {
+  if (game.act === 3) {
     if (!game.ownership.comparisonAnswered) return 'deals';
     if (!game.listing.listed) {
       // Nothing to price yet. The goal strip says why, and the day loop

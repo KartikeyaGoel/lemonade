@@ -25,7 +25,7 @@ import { buy, createPortfolio, markResearched, maxSpendOn } from '../src/lib/mar
 import { GLOSSARY } from '../src/lib/glossary';
 import { SHARES } from '../src/lib/listing';
 import type { DayRecord } from '../src/lib/simulation';
-import { beginAct5, createGame, seededWith, type Game } from '../src/lib/progress';
+import { beginAct4, createGame, seededWith, type Game } from '../src/lib/progress';
 import { mastery, type SkillId } from '../src/lib/mastery';
 import type { Thesis, ThesisScore } from '../src/lib/thesis';
 
@@ -204,7 +204,7 @@ function everythingGame(): Game {
   const base = createGame(11);
   return {
     ...base,
-    act: 5,
+    act: 4,
     stand: { ...base.stand, history: ctx.history, cash: 500 },
     business: ctx.business,
     ownership: ctx.ownership,
@@ -292,9 +292,10 @@ describe('every mastery skill has a state that can show it', () => {
     const actOf = (id: SkillId) => skills.find((s) => s.id === id)?.act;
     expect(actOf('delegates-to-grow')).toBe(2);
     expect(actOf('reads-the-street')).toBe(2);
-    expect(actOf('covers-the-fixed-cost')).toBe(3);
-    expect(actOf('chooses-how-to-fund-it')).toBe(3);
-    expect(actOf('sizes-what-to-sell')).toBe(4);
+    /* The rent and the funding decision are the business stage's last rung. */
+    expect(actOf('covers-the-fixed-cost')).toBe(2);
+    expect(actOf('chooses-how-to-fund-it')).toBe(2);
+    expect(actOf('sizes-what-to-sell')).toBe(3);
   });
 });
 
@@ -333,6 +334,6 @@ describe('the finale tells the run that actually happened', () => {
       listing: everythingGame().listing,
       stand: { ...createGame(3).stand, cash: 0 },
     };
-    expect(beginAct5(listed).portfolio!.cash).toBeCloseTo(seededWith(listed), 2);
+    expect(beginAct4(listed).portfolio!.cash).toBeCloseTo(seededWith(listed), 2);
   });
 });

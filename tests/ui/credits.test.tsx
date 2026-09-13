@@ -25,7 +25,7 @@ import { loadGame, loadLedger } from '@/lib/storage';
 
 function inTheMarket(): Game {
   const base = createGame(4242);
-  return { ...base, version: SAVE_VERSION, act: 5, portfolio: createPortfolio(500) };
+  return { ...base, version: SAVE_VERSION, act: 4, portfolio: createPortfolio(500) };
 }
 
 /** A ledger with the two best-paying deeds in it: 70 credits, so $10 is buyable. */

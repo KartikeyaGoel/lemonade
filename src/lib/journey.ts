@@ -42,7 +42,7 @@ import { plural } from './copy';
 export type StopState = 'done' | 'here' | 'locked';
 
 export interface Stop {
-  id: 1 | 2 | 3 | 4 | 5;
+  id: 1 | 2 | 3 | 4;
   /** Two words at most: this is read at a glance, at eleven pixels. */
   name: string;
   emoji: string;
@@ -62,10 +62,20 @@ const STOPS: Array<Omit<Stop, 'state'>> = [
     opensWhen: '',
   },
   {
+    /*
+     * Two stops became one.
+     *
+     * "More stands" and "A shop" were separate rungs on this road and separate
+     * stages in the game, and the shop turned out to be the last step of
+     * growing rather than a place of its own — see the note on `Act` in
+     * `progress.ts`. The road is a picture of the game, so when the game lost
+     * a stage the road had to lose a stop, or the padlock would be promising
+     * somewhere that no longer exists.
+     */
     id: 2,
-    name: 'More stands',
+    name: 'Grow it',
     emoji: '\u{1F4C8}',
-    what: 'A cooler, a helper, a bigger pitch. Then somebody to mind it, so you can go and open another one.',
+    what: 'A cooler, a helper, somebody to mind it. Then a second table — and then a door of your own, with a rent you owe on the day nobody comes.',
     /*
      * Derived, because it was wrong.
      *
@@ -84,20 +94,13 @@ const STOPS: Array<Omit<Stop, 'state'>> = [
   },
   {
     id: 3,
-    name: 'A shop',
-    emoji: '\u{1F3EA}',
-    what: 'A door, a counter and a rent you owe on the day nobody comes. The rain stops deciding how you do.',
-    opensWhen: 'Run two stands at once.',
-  },
-  {
-    id: 4,
     name: 'Go public',
     emoji: '\u{1F514}',
     what: 'Cut the whole thing into a thousand pieces. Sell some, keep the rest, and watch what one piece is worth.',
     opensWhen: 'Make the shop pay for itself.',
   },
   {
-    id: 5,
+    id: 4,
     name: 'The market',
     emoji: '\u{1F4B9}',
     what: 'Real companies, real prices, real accounts. Apple and Nike are lemonade stands with more zeros \u2014 and now you can read one.',
@@ -131,7 +134,7 @@ export function roadLine(game: Game, career: Career): string {
     return 'Learn it on lemonade. Then do it with real companies.';
   }
   const reached = road(game).filter((stop) => stop.state !== 'locked').length;
-  if (game.act === 5) return 'You made it to the market. This is what it was all for.';
+  if (game.act === 4) return 'You made it to the market. This is what it was all for.';
   return `${reached} of ${STOPS.length} \u00b7 next up: ${STOPS[game.act]?.name.toLowerCase() ?? 'the market'}`;
 }
 

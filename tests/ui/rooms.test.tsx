@@ -22,7 +22,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Page from '@/app/page';
-import { SAVE_VERSION, beginAct5, createGame, type Game } from '@/lib/progress';
+import { SAVE_VERSION, beginAct4, createGame, type Game } from '@/lib/progress';
 import { createCareer } from '@/lib/career';
 import { createPortfolio } from '@/lib/market';
 import { createClub, joinClub } from '@/lib/club';
@@ -185,7 +185,7 @@ describe('the club, and the counters only a club moves', () => {
 
     const base = createGame(4242);
     seed({
-      ...beginAct5({ ...base, stand: { ...base.stand, history } }),
+      ...beginAct4({ ...base, stand: { ...base.stand, history } }),
       club: joined.club,
       portfolio: createPortfolio(1000, 7),
     });
@@ -214,7 +214,7 @@ describe('the Saturday stand', () => {
      */
     const base = createGame(4242);
     seed({
-      ...beginAct5({ ...base, stand: { ...base.stand, history } }),
+      ...beginAct4({ ...base, stand: { ...base.stand, history } }),
       portfolio: createPortfolio(1000, 7),
     });
     await boot();

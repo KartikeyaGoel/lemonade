@@ -38,6 +38,7 @@ import {
   UPGRADES,
   dailyFixedCosts,
   serviceCapacity,
+  standCount,
   standLines,
   standOpening,
   type BusinessState,
@@ -220,6 +221,26 @@ export function sites(business: BusinessState, cash: number): Plot[] {
   }
 
   const shopOpen = business.shop.open;
+  /*
+   * The door is the *fourth* rung, and the yard has to say so.
+   *
+   * While the shop was a stage of its own this was impossible to get wrong: a
+   * child could not reach it until the stands stage had handed over. Folding it
+   * into the business stage put it in the yard from day one, and
+   * `act2Progress` completes the stage on `shopProgress` — so a child with
+   * $600 could have bought a door on the first morning, finished the stage, and
+   * never hired a manager or opened a second stand at all. That is
+   * `delegation` and the whole replication lesson skipped, and it is the
+   * ladder's own rule broken: no concept before the wall that motivates it.
+   * The wall here is two pitches both shutting in the rain, and a child who has
+   * not got two pitches has not met it.
+   *
+   * Gated the same way a second stand is gated on somebody minding the first —
+   * `affordable: false` with the reason in `what`, so the plot stays visible.
+   * A padlock you can read is the point; see the note above about the shop on
+   * the horizon being what makes the second stand feel like progress.
+   */
+  const needsTwoStands = !shopOpen && standCount(business) < 2;
   out.push({
     id: 'shop',
     kind: 'site',
@@ -240,8 +261,10 @@ export function sites(business: BusinessState, cash: number): Plot[] {
      * having the cash made the one screen that answers that question
      * unreachable by the only kid who needs it.
      */
-    affordable: !shopOpen,
-    what: `Serves ${SHOP.capacity} cups a day indoors, and the weather stops mattering. $${SHOP.rent} a day in rent, owed when nobody comes.`,
+    affordable: !shopOpen && !needsTwoStands,
+    what: needsTwoStands
+      ? 'Two stands first. A door is the answer to both of them shutting when it rains.'
+      : `Serves ${SHOP.capacity} cups a day indoors, and the weather stops mattering. $${SHOP.rent} a day in rent, owed when nobody comes.`,
     doing: shopOpen
       ? `Open. $${shopDailyCost(business.shop).toFixed(2)} a day owed before the door does anything.`
       : null,

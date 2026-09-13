@@ -14,15 +14,12 @@ import {
   SHOP_DAYS_REQUIRED,
 } from '../src/lib/retail';
 import {
-  ACT3_DAYS,
   act1Complete,
   act2Complete,
   act3Complete,
-  act4Complete,
   beginAct2,
   beginAct3,
   beginAct4,
-  beginAct5,
   createGame,
   type Game,
 } from '../src/lib/progress';
@@ -50,7 +47,6 @@ import {
   playDay,
   sensiblePrice,
   throughActOne,
-  throughShop,
   throughStands,
 } from '../src/lib/demo';
 
@@ -238,23 +234,29 @@ describe('the whole arc, played', () => {
   });
 
   it('makes the shop reachable, and pays for its own door before the clock', () => {
-    const stands = throughStands(throughActOne());
-    const { game, days } = throughShop(stands.game);
+    /*
+     * One stage now. The shop is the fourth rung of the business stage rather
+     * than a stage of its own — see the note on `Act` — so `throughStands`
+     * walks the whole thing: the kit, the manager, the second stand, and then
+     * the door on a loan.
+     */
+    const { game, days } = throughStands(throughActOne());
 
-    expect(game.business.shop.open).toBe(true);
+    expect(game.business.shop.open, 'the door never went up').toBe(true);
     expect(game.business.shop.goodDays).toBeGreaterThanOrEqual(SHOP_DAYS_REQUIRED);
-    expect(act3Complete(game.business, days)).toBe(true);
-    expect(days).toBeLessThan(ACT3_DAYS);
+    expect(act2Complete(game.business, days)).toBe(true);
+    expect(days, `took ${days} days of ${ACT2_DAYS}`).toBeLessThan(ACT2_DAYS);
 
-    // And it is a genuinely bigger business than the stands were, or the rent
+    // And it is a genuinely bigger business than one table was, or the rent
     // was not worth owing.
+    const beforeTheDoor = game.stand.history.slice(0, ECON.TOTAL_DAYS);
     expect(trailingWeeklyProfit(game.stand.history)).toBeGreaterThan(
-      trailingWeeklyProfit(stands.game.stand.history),
+      trailingWeeklyProfit(beforeTheDoor),
     );
   });
 
   it('pays the loan down out of trading, without being asked', () => {
-    const { game } = throughShop(throughStands(throughActOne()).game);
+    const { game } = throughStands(throughActOne());
     expect(game.business.loan).not.toBeNull();
     // Owed every day, good day or bad, which is the entire difference between
     // borrowing and selling a slice.
@@ -262,8 +264,8 @@ describe('the whole arc, played', () => {
   });
 
   it('prices the company off the kid\'s own week, and cuts it into shares', () => {
-    const { game } = throughShop(throughStands(throughActOne()).game);
-    const ready = beginAct4(game);
+    const { game } = throughStands(throughActOne());
+    const ready = beginAct3(game);
     const offer = listingOffer(ready.stand.history, ready.ownership);
 
     // The bridge in PRODUCT.md §9, still one division the kid can do — and
@@ -283,8 +285,8 @@ describe('the whole arc, played', () => {
   });
 
   it('ends the listing stage only after a week has been lived through', () => {
-    const { game } = throughShop(throughStands(throughActOne()).game);
-    let ready = beginAct4(game);
+    const { game } = throughStands(throughActOne());
+    let ready = beginAct3(game);
     ready = { ...ready, ownership: recordDealChoice(ready.ownership, 'sam') };
 
     const offer = listingOffer(ready.stand.history, ready.ownership);
@@ -295,11 +297,11 @@ describe('the whole arc, played', () => {
     // worth, and living one is what teaches what a share price is.
     expect(listing.listed).toBe(true);
     expect(listingComplete(listing)).toBe(false);
-    expect(act4Complete(ready.ownership, listing)).toBe(false);
+    expect(act3Complete(ready.ownership, listing)).toBe(false);
 
     listing = markListedWeek(listing, trailingWeeklyProfit(ready.stand.history)).listing;
     expect(listingComplete(listing)).toBe(true);
-    expect(act4Complete(ready.ownership, listing)).toBe(true);
+    expect(act3Complete(ready.ownership, listing)).toBe(true);
   });
 
   it('still ends the listing stage for a kid who sells up instead', () => {
@@ -307,25 +309,25 @@ describe('the whole arc, played', () => {
     // it is the one the game used to have.
     const fresh = createGame(1);
     const sold = acceptBuyout(fresh.ownership, offerOf(10, 800));
-    expect(act4Complete(sold, fresh.listing)).toBe(true);
+    expect(act3Complete(sold, fresh.listing)).toBe(true);
   });
 
   it('carries the money from the sale into the market, and nothing else', () => {
-    let game = beginAct4(beginAct3(beginAct2(createGame(2026))));
+    let game = beginAct3(beginAct3(beginAct2(createGame(2026))));
     game = {
       ...game,
       stand: { ...game.stand, cash: 40 },
       business: { ...game.business, savings: 60 },
       ownership: acceptBuyout(game.ownership, offerOf(10, 800)),
     };
-    const market = beginAct5(game);
+    const market = beginAct4(game);
     expect(market.portfolio?.cash).toBeCloseTo(900, 2);
     expect(Object.keys(market.portfolio?.holdings ?? {})).toHaveLength(0);
   });
 
   it('carries the float into the market when the kid stayed a founder', () => {
-    const { game } = throughShop(throughStands(throughActOne()).game);
-    let ready = beginAct4(game);
+    const { game } = throughStands(throughActOne());
+    let ready = beginAct3(game);
     const offer = listingOffer(ready.stand.history, ready.ownership);
     const plan = floatPlan(offer, 0.3, ready.ownership);
     const listing = markListedWeek(
@@ -334,17 +336,17 @@ describe('the whole arc, played', () => {
     ).listing;
     ready = { ...ready, listing, stand: { ...ready.stand, cash: 0 }, business: { ...ready.business, savings: 0 } };
 
-    const market = beginAct5(ready);
+    const market = beginAct4(ready);
     // What the float raised — not what a buyer would have paid for the lot,
     // because the company is still standing and the kid still owns most of it.
     expect(market.portfolio?.cash).toBeCloseTo(listing.raised, 2);
-    expect(market.act).toBe(5);
+    expect(market.act).toBe(4);
     expect(listing.founderShare).toBeCloseTo(0.7, 2);
   });
 
   it('runs the market out to the end and closes itself', () => {
-    let game = beginAct5({
-      ...beginAct4(beginAct3(beginAct2(createGame(2026)))),
+    let game = beginAct4({
+      ...beginAct3(beginAct2(createGame(2026))),
       ownership: acceptBuyout(createGame(1).ownership, offerOf(10, 800)),
     });
     let portfolio = game.portfolio!;

@@ -674,7 +674,7 @@ describe('the plan screen’s rehearsal', () => {
 describe('the road strip on the title screen', () => {
   it('draws the road at every stage of the journey', () => {
     const career = createCareer('Ada');
-    for (const act of [1, 2, 3, 4, 5] as const) {
+    for (const act of [1, 2, 3, 4] as const) {
       const game = { ...createGame(1), act, stand: { ...createGame(1).stand, history } };
       render(<Road stops={road(game)} line={roadLine(game, career)} />);
       clean(`the road at stage ${act}`);
@@ -699,13 +699,13 @@ describe('the readiness gate offers a way out', () => {
   /*
    * A real run, from the real constructors.
    *
-   * `demoGame(5)` plays the whole arc forward with the app's own functions —
+   * `demoGame(4)` plays the whole arc forward with the app's own functions —
    * see PRODUCT.md §49 and `src/lib/demo.ts` — so this is a save that genuinely
    * satisfies the gate rather than an object shaped like one. `stuck` then
    * replaces the ownership record with a single wrong pick, which is exactly
    * the state in the pilot's screenshot.
    */
-  const played = (): Game => demoGame(5);
+  const played = (): Game => demoGame(4);
   const stuck = (): Game => ({
     ...played(),
     ownership: recordDealChoice(createOwnershipState(), 'bella'),

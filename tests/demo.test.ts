@@ -26,7 +26,7 @@ import { trailingWeeklyProfit } from '../src/lib/business';
  * halves of the difference are testable:
  *
  *  - **The jump has to land somewhere that works.** Not merely somewhere with
- *    `act: 5` on it. The market's primary action is buying, and buying is gated
+ *    `act: 4` on it. The market's primary action is buying, and buying is gated
  *    by `readiness`, which reads four things only playing produces. A jump that
  *    passed the unlocks and failed the readiness gate would demo a locked
  *    screen, which is worse than no shortcut.
@@ -48,7 +48,7 @@ describe('a save that starts part-way through', () => {
   it('offers every stage the road does, named the way the road names it', () => {
     // One home for a stage name. A panel with its own list would drift from
     // the one the parent report and the title screen read.
-    expect(DEMO_STAGES.map((stage) => stage.act)).toEqual([1, 2, 3, 4, 5]);
+    expect(DEMO_STAGES.map((stage) => stage.act)).toEqual([1, 2, 3, 4]);
     for (const stage of DEMO_STAGES) {
       expect(stage.name).toBe(ACT_TITLES[stage.act].name);
       expect(stage.promise).toBe(ACT_TITLES[stage.act].promise);
@@ -86,7 +86,7 @@ describe('a save that starts part-way through', () => {
 });
 
 describe('the market, which is the stage that was asked for', () => {
-  const market = demoGame(5);
+  const market = demoGame(4);
 
   it('opens with money the business actually fetched', () => {
     expect(market.portfolio).not.toBeNull();
@@ -139,7 +139,7 @@ describe('the market, which is the stage that was asked for', () => {
    */
   it('lands in a market that can trade whatever the seed', () => {
     for (let seed = 1; seed <= 60; seed += 1) {
-      const game = demoGame(5, seed);
+      const game = demoGame(4, seed);
       const unmet = readiness(game).criteria.filter((criterion) => !criterion.met);
       expect(unmet.map((criterion) => criterion.id), `seed ${seed}`).toEqual([]);
       expect(game.portfolio!.cash, `seed ${seed}`).toBeGreaterThan(0);
@@ -227,7 +227,7 @@ describe('the words a jumped save arrives knowing', () => {
   });
 
   it('hands nothing over that was not taught by a day it played', () => {
-    const game = demoGame(5);
+    const game = demoGame(4);
     expect(game.pendingInsights).toHaveLength(0);
     expect(new Set(game.learned).size).toBe(game.learned.length);
   });

@@ -63,7 +63,7 @@ function listedCompany() {
   return { history, offer, listing: listCompany(offer, plan) };
 }
 
-describe('the words Act 4 hands over at the listing', () => {
+describe('the words the listing stage hands over at the float', () => {
   it('produces all four, from a company really taken public', () => {
     /*
      * `shares` and `share-price` are the two FRAMEWORK.md §2 calls the seam
@@ -146,7 +146,7 @@ describe('the words the rest of Acts 4 and 5 hand over', () => {
     const listingWords = ['shares', 'share-price', 'market-cap', 'going-public'];
     const covered = new Set([...listingWords, ...Object.keys(produced)]);
 
-    const owed = GLOSSARY.filter((word) => word.act >= 4).map((word) => word.id);
+    const owed = GLOSSARY.filter((word) => word.act >= 3).map((word) => word.id);
     const orphaned = owed.filter((id) => !covered.has(id));
 
     expect(orphaned, `Act 4/5 words with no producer: ${orphaned.join(', ')}`).toEqual([]);
@@ -164,10 +164,13 @@ describe('the stage a word says it belongs to', () => {
      * They did. `interest` said 3 and `equity` said 4, and because the trophy
      * case prints `Act {word.act}` against every word, a child who funded
      * their shop with a slice saw it filed under a stage they had not reached.
-     * FRAMEWORK.md §10 had described it correctly in prose the whole time —
-     * "the investor's slice in Act 3 and the float in Act 4" — which is the
-     * point of this test: the document made a checkable claim and nothing
-     * checked it. See PRODUCT.md §56.
+     * FRAMEWORK.md §10 had described it correctly in prose the whole time,
+     * which is the point of this test: the document made a checkable claim and
+     * nothing checked it. See PRODUCT.md §56.
+     *
+     * Both moved together again when the shop folded into the business stage,
+     * which is exactly what "same screen, same choice, same stage" is supposed
+     * to guarantee.
      */
     const words = GLOSSARY.filter((word) => word.id === 'equity' || word.id === 'interest');
     expect(words, 'the funding screen’s words are no longer both in the glossary').toHaveLength(2);
@@ -178,19 +181,19 @@ describe('the stage a word says it belongs to', () => {
       `${first.id} is act ${first.act} and ${second.id} is act ${second.act}, ` +
         'but they are taught by the same decision',
     ).toBe(second.act);
-    expect(first.act, 'the shop, and its funding, is Act 3').toBe(3);
+    expect(first.act, 'the shop, and its funding, is Act 2').toBe(2);
   });
 
-  it('keeps the listing’s four words in Act 4, where the float happens', () => {
+  it('keeps the listing’s four words in Act 3, where the float happens', () => {
     /*
-     * The other half of §10's sentence. The investor's slice is Act 3 and the
-     * float is Act 4, so retagging `equity` must not have dragged the listing
-     * words down with it.
+     * The other half of §10's sentence. The investor's slice is bought inside
+     * the business stage and the float happens at the listing, so retagging
+     * `equity` must not drag the listing's words down with it.
      */
     for (const id of ['shares', 'share-price', 'market-cap', 'going-public']) {
       const word = GLOSSARY.find((entry) => entry.id === id);
       expect(word, `${id} left the glossary`).toBeDefined();
-      expect(word?.act, `${id} should be taught at the listing`).toBe(4);
+      expect(word?.act, `${id} should be taught at the listing`).toBe(3);
     }
   });
 });

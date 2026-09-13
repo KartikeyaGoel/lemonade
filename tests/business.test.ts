@@ -5,7 +5,6 @@ import {
   COOLER_CAPACITY,
   HANDS_OFF_DAYS_REQUIRED,
   HELPER_CAPACITY,
-  TWO_STAND_DAYS_REQUIRED,
   LOCATIONS,
   RIVAL_APPEARS_ON_DAY,
   RIVAL_PRICE_FLOOR,
@@ -27,7 +26,6 @@ import {
   toggleStaff,
   trailingWeeklyProfit,
   updateHandsOff,
-  updateTwoStandDays,
   type BusinessState,
 } from '../src/lib/business';
 import {
@@ -38,6 +36,7 @@ import {
   type DayRecord,
   type GameState,
 } from '../src/lib/simulation';
+import { SHOP_DAYS_REQUIRED, updateShopDays } from '../src/lib/retail';
 
 function business(overrides: Partial<BusinessState> = {}): BusinessState {
   return { ...createBusinessState(), ...overrides };
@@ -307,7 +306,7 @@ describe('a manager turns work into ownership', () => {
     expect(act2Progress(managed, 5).nextStep).toContain('run by your manager');
   });
 
-  it('then asks for the second stand, because that is what the manager bought', () => {
+  it('then asks for the second stand, and then for a door', () => {
     /*
      * Proving the manager works used to end the act. It is now the unlock: the
      * wage buys the kid's own hands back, and there is exactly one thing worth
@@ -320,19 +319,35 @@ describe('a manager turns work into ownership', () => {
     expect(act2Progress(managed, 10).complete).toBe(false);
     expect(act2Progress(managed, 10).nextStep).toMatch(/second stand/i);
 
+    /*
+     * And then the fourth rung. Two stands used to end the stage; the shop is
+     * its last step now, and the wall that motivates the door is the one two
+     * pitches have just taught — the rain shuts both of them.
+     */
     const two = openStand(managed, 'park', 200).business;
     expect(act2Progress(two, 10).complete).toBe(false);
-    expect(act2Progress(two, 10).nextStep).toMatch(/both stands/i);
+    expect(act2Progress(two, 10).nextStep).toMatch(/rain shuts both|a door/i);
   });
 
-  it('completes once two stands have traded at a profit together', () => {
+  it('completes once the door has paid for itself', () => {
+    /*
+     * The stage's one proof streak. It asked for two profitable days with both
+     * stands open *and* five with the rent owed, which is the same lesson paid
+     * for twice — seven days of the arc for one idea. Now it asks once, with
+     * the rent, which is the version with something at stake.
+     */
     let managed = toggleStaff(business(), 'manager');
     for (let i = 0; i < HANDS_OFF_DAYS_REQUIRED; i++) {
       managed = updateHandsOff(managed, true, 20);
     }
     managed = openStand(managed, 'park', 200).business;
-    for (let i = 0; i < TWO_STAND_DAYS_REQUIRED; i++) {
-      managed = updateTwoStandDays(managed, 20);
+    expect(act2Progress(managed, 10).complete, 'two stands ended the stage on their own').toBe(
+      false,
+    );
+
+    managed = { ...managed, shop: { ...managed.shop, open: true } };
+    for (let i = 0; i < SHOP_DAYS_REQUIRED; i++) {
+      managed = { ...managed, shop: updateShopDays(managed.shop, 40) };
     }
     expect(act2Progress(managed, 10).complete).toBe(true);
   });

@@ -11,14 +11,14 @@
  * read off state that only playing produces, and the last of them is the one
  * that gates *committing money*. Turn every unlock on and the market screen
  * opens with a $0 account and a Buy button that refuses, because
- * `beginAct5` seeds the account from `seededWith` — the buyout or the float —
+ * `beginAct4` seeds the account from `seededWith` — the buyout or the float —
  * and both are zero on a fresh save. The demo would show a locked, empty
  * market. That is a worse outcome than the gates.
  *
  * So this does not unlock anything. It **plays the game forward** and hands
  * back the save a child would have had, using the same functions the app uses:
  * `runDay` for every day, `openStand` and `buyUpgrade` for the business,
- * `recordDealChoice` and `acceptBuyout` for the sale, `beginAct2`..`beginAct5`
+ * `recordDealChoice` and `acceptBuyout` for the sale, `beginAct2`..`beginAct4`
  * for the transitions. No gate is touched, no flag is forced, and no figure is
  * invented — which is what keeps PRODUCT.md §4 true, because the cash on screen
  * is the cash those days actually made. A demo that shows £900 next to a week
@@ -46,9 +46,7 @@ import {
   beginAct2,
   beginAct3,
   beginAct4,
-  beginAct5,
   createGame,
-  ACT3_DAYS,
   type Act,
   type Game,
 } from './progress';
@@ -64,9 +62,9 @@ import {
   toggleStaff,
   type UpgradeId,
 } from './business';
-import { SHOP, loanQuote, shopProgress } from './retail';
+import { SHOP, loanQuote } from './retail';
 import { acceptBuyout, bestDeal, buyoutOffer, recordDealChoice } from './ownership';
-import { ECON, batchPlan, runDay } from './simulation';
+import { ECON, batchPlan, round2, runDay } from './simulation';
 import { paramsForDay, settleDay } from './day';
 
 /**
@@ -212,6 +210,12 @@ export function throughStands(start: Game): { game: Game; days: number } {
   let days = 0;
   /* Differentiators first, then capacity. See the note above. */
   const KIT: UpgradeId[] = ['freshSqueeze', 'bigSign', 'cooler'];
+  /*
+   * The door is paid for with a loan, which is one of the three real answers
+   * the funding screen offers. A demo that paid cash would need a fortnight of
+   * saving first and would never show the debt line at all.
+   */
+  let borrowed = false;
   while (days < ACT2_DAYS && !act2Progress(game.business, days).complete) {
     for (const id of KIT) {
       if (game.business.upgrades[id]) continue;
@@ -233,6 +237,28 @@ export function throughStands(start: Game): { game: Game; days: number } {
         game = { ...game, stand: { ...game.stand, cash: opened.cash }, business: opened.business };
       }
     }
+    /*
+     * The door, once there are two stands to have learned the lesson from.
+     * Same gate the goal strip states, read off the same function.
+     */
+    if (standCount(game.business) >= 2 && !game.business.shop.open) {
+      if (!borrowed) {
+        const loan = loanQuote();
+        game = {
+          ...game,
+          business: { ...game.business, loan },
+          stand: { ...game.stand, cash: round2(game.stand.cash + loan.principal) },
+        };
+        borrowed = true;
+      }
+      if (game.stand.cash >= SHOP.fitOut) {
+        game = {
+          ...game,
+          stand: { ...game.stand, cash: round2(game.stand.cash - SHOP.fitOut) },
+          business: { ...game.business, shop: { ...game.business.shop, open: true } },
+        };
+      }
+    }
     days += 1;
     game = playDay(
       game,
@@ -241,30 +267,6 @@ export function throughStands(start: Game): { game: Game; days: number } {
       game.business.staff.manager,
       days,
     );
-  }
-  return { game, days };
-}
-
-/** The shop stage, paid for with a loan and traded until it pays for itself. */
-export function throughShop(start: Game): { game: Game; days: number } {
-  let game = beginAct3(start);
-  const loan = loanQuote();
-  game = {
-    ...game,
-    business: { ...game.business, loan },
-    stand: { ...game.stand, cash: game.stand.cash + loan.principal },
-  };
-  let days = 0;
-  while (days < ACT3_DAYS && !shopProgress(game.business.shop).complete) {
-    if (!game.business.shop.open && game.stand.cash >= SHOP.fitOut) {
-      game = {
-        ...game,
-        stand: { ...game.stand, cash: game.stand.cash - SHOP.fitOut },
-        business: { ...game.business, shop: { ...game.business.shop, open: true } },
-      };
-    }
-    days += 1;
-    game = playDay(game, sensiblePrice(game), batchForCapacity(game), true, days);
   }
   return { game, days };
 }
@@ -281,7 +283,7 @@ export function throughShop(start: Game): { game: Game; days: number } {
  * flag being set.
  */
 export function throughSale(start: Game): Game {
-  const game = beginAct4(start);
+  const game = beginAct3(start);
   const ranked = recordDealChoice(game.ownership, bestDeal().id);
   const offer = buyoutOffer(game.stand.history, ranked);
   return { ...game, ownership: acceptBuyout(ranked, offer) };
@@ -296,9 +298,9 @@ export interface DemoStage {
   promise: string;
 }
 
-export const DEMO_STAGES: readonly DemoStage[] = ([1, 2, 3, 4, 5] as Act[]).map((act) => ({
+export const DEMO_STAGES: readonly DemoStage[] = ([1, 2, 3, 4] as Act[]).map((act) => ({
   act,
-  phase: act === 1 ? 'morning' : act === 5 ? 'market' : 'act-intro',
+  phase: act === 1 ? 'morning' : act === 4 ? 'market' : 'act-intro',
   name: ACT_TITLES[act].name,
   promise: ACT_TITLES[act].promise,
 }));
@@ -309,6 +311,7 @@ export const DEMO_STAGES: readonly DemoStage[] = ([1, 2, 3, 4, 5] as Act[]).map(
  * Each case stands on the one before it, so a jump to the market carries a real
  * week at one stand, a manager, a second pitch, a shop with a loan against it
  * and a sale — and the account it opens with is what that business fetched.
+ * The stands and the shop are one stage now, so one walker covers both.
  */
 export function demoGame(act: Act, seed = 2026): Game {
   if (act === 1) return createGame(seed);
@@ -316,19 +319,16 @@ export function demoGame(act: Act, seed = 2026): Game {
   const one = throughActOne(seed);
   if (act === 2) return beginAct2(one);
 
-  const stands = throughStands(one).game;
-  if (act === 3) return beginAct3(stands);
-
-  const shop = throughShop(stands).game;
-  if (act === 4) return beginAct4(shop);
+  const shop = throughStands(one).game;
+  if (act === 3) return beginAct3(shop);
 
   /*
    * The till is emptied on the way in, exactly as `page.tsx` does it, because
-   * `beginAct5` adds `stand.cash` to the proceeds itself and counting it twice
+   * `beginAct4` adds `stand.cash` to the proceeds itself and counting it twice
    * would put money in the account that no day earned.
    */
   const sold = throughSale(shop);
-  return beginAct5({ ...sold, stand: { ...sold.stand, cash: 0 } });
+  return beginAct4({ ...sold, stand: { ...sold.stand, cash: 0 } });
 }
 
 /**

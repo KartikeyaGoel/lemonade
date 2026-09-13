@@ -316,7 +316,7 @@ const DETECTORS: Detector[] = [
     id: 'covers-the-fixed-cost',
     grownUpName: 'Trades through a day where fixed costs dominate',
     plain: 'You made money on a cold day, with the rent still owed.',
-    act: 3,
+    act: 2,
     needed: 2,
     find: (game) => {
       if (!game.business.shop.open) return [];
@@ -332,7 +332,7 @@ const DETECTORS: Detector[] = [
     id: 'chooses-how-to-fund-it',
     grownUpName: 'Chose between debt and equity, and can say what each cost',
     plain: 'You decided how to pay for the shop, and you know what that choice cost you.',
-    act: 3,
+    act: 2,
     needed: 1,
     find: (game) => {
       if (!game.business.shop.open) return [];
@@ -360,7 +360,7 @@ const DETECTORS: Detector[] = [
     id: 'sizes-what-to-sell',
     grownUpName: 'Weighs cash raised against ownership given up',
     plain: 'You picked how much of your company to sell, not just whether to sell.',
-    act: 4,
+    act: 3,
     needed: 1,
     find: (game) => {
       const listing = game.listing;
@@ -377,7 +377,7 @@ const DETECTORS: Detector[] = [
     id: 'prices-a-business',
     grownUpName: 'Compares a price against what a business earns',
     plain: 'You worked out which stand was worth more, not which was cheaper.',
-    act: 4,
+    act: 3,
     needed: 1,
     find: (game) => {
       const choice = game.ownership.comparisonChoiceId;
@@ -396,7 +396,7 @@ const DETECTORS: Detector[] = [
     id: 'reason-held-up',
     grownUpName: 'Buys for a reason, and the reason is what happened',
     plain: 'You said why before you bought, and you were right for that reason.',
-    act: 5,
+    act: 4,
     needed: 2,
     find: (_game, theses) =>
       theses
@@ -412,7 +412,7 @@ const DETECTORS: Detector[] = [
     id: 'spreads-the-risk',
     grownUpName: 'Spreads money across businesses',
     plain: 'You did not put everything into one company.',
-    act: 5,
+    act: 4,
     needed: 1,
     find: (game) => {
       const portfolio = game.portfolio;
@@ -433,7 +433,7 @@ const DETECTORS: Detector[] = [
     id: 'sat-on-cash',
     grownUpName: 'Does nothing when there is nothing worth doing',
     plain: 'You kept money back instead of spending it because you could.',
-    act: 5,
+    act: 4,
     needed: 1,
     find: (game) => {
       const portfolio = game.portfolio;

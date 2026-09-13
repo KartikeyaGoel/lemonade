@@ -362,7 +362,7 @@ describe('spending money on the business', () => {
 
 describe('paying for the shop, three ways', () => {
   const readyForAShop = (cash: number): Partial<Game> => ({
-    act: 3,
+    act: 2,
     stand: { ...createGame(4242).stand, day: history.length + 1, cash, history },
     business: {
       ...createBusinessState(),
@@ -464,7 +464,7 @@ describe('the choices that end a week or a stage', () => {
   }, 30_000);
 
   it('ranks the three stands for sale and records the answer', async () => {
-    seed({ act: 4 });
+    seed({ act: 3 });
     await resume();
     await playUntil(/stands for sale/i);
     await must(/asking price/i, 'picking a stand');
@@ -499,7 +499,7 @@ describe('the choices that end a week or a stage', () => {
      * straight to the listing screen and the readiness gate stayed shut for
      * the rest of the run with no way to reopen it.
      */
-    seed({ act: 4 });
+    seed({ act: 3 });
     await resume();
     await playUntil(/stands for sale/i);
     await must(/asking price/i, 'picking the cheapest stand');
@@ -527,7 +527,7 @@ describe('the choices that end a week or a stage', () => {
 
   it('accepts the buyout, and the proceeds are recorded', async () => {
     seed({
-      act: 4,
+      act: 3,
       ownership: {
         ...createOwnershipState(),
         comparisonAnswered: true,
@@ -547,7 +547,7 @@ describe('the choices that end a week or a stage', () => {
 
   it('floats the company, and the raise is recorded', async () => {
     seed({
-      act: 4,
+      act: 3,
       ownership: {
         ...createOwnershipState(),
         comparisonAnswered: true,
@@ -579,7 +579,7 @@ describe('the choices that end a week or a stage', () => {
      * different path.
      */
     seed({
-      act: 4,
+      act: 3,
       ownership: {
         ...createOwnershipState(),
         comparisonAnswered: true,
@@ -640,7 +640,7 @@ describe('putting money into a real company, and the reason for it', () => {
     let portfolio = createPortfolio(1500, 4242);
     portfolio = { ...portfolio, researched: SNAPSHOT.slice(0, 3).map((c) => c.ticker) };
     return {
-      act: 5 as const,
+      act: 4 as const,
       portfolio,
       ownership: {
         ...createOwnershipState(),

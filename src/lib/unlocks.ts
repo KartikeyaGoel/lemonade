@@ -183,7 +183,7 @@ export function isUnlocked(feature: Feature, game: Game, career: Career): boolea
     // a kid who started one and then began season 2 before the first week had
     // advanced would have had it orphaned — created, saved, and unreachable.
     case 'club':
-      return game.act >= 5 || career.clubWeeks > 0 || game.club !== null;
+      return game.act >= 4 || career.clubWeeks > 0 || game.club !== null;
 
     /*
      * The moment there is money in the market and a first trade behind them.
@@ -193,7 +193,7 @@ export function isUnlocked(feature: Feature, game: Game, career: Career): boolea
      * later it arrives as "there is a way to think about this".
      */
     case 'playbook':
-      return game.act >= 5 && (game.portfolio?.trades.length ?? 0) > 0;
+      return game.act >= 4 && (game.portfolio?.trades.length ?? 0) > 0;
 
     // Offered when there is a finished run to start again from.
     case 'seasons':

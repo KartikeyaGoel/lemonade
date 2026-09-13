@@ -431,7 +431,7 @@ describe('days that must not be compared', () => {
      * which kind of day it is; this test's job is to show why, by proving the
      * comparison really is nonsense when it happens.
      */
-    const game = demoGame(5);
+    const game = demoGame(4);
     const weekend = beginWeekend(game);
     const last = weekend.stand.history[weekend.stand.history.length - 1];
     expect(last, 'the market save had no stand history to trip over').toBeTruthy();

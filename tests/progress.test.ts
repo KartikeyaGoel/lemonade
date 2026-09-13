@@ -1,16 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ACT3_DAYS,
   ACT_TITLES,
   act1Complete,
   act2Complete,
   act3Complete,
-  act4Complete,
   actDay,
   beginAct2,
   beginAct3,
   beginAct4,
-  beginAct5,
   createGame,
   heldThroughWorstDay,
   readiness,
@@ -82,7 +79,7 @@ function playedThrough(): Game {
     game = { ...game, business: { ...game.business, shop: updateShopDays(game.business.shop, 40) } };
   }
   // Stage 4: rank the stands for sale, then sell up rather than list.
-  game = beginAct4(game);
+  game = beginAct3(game);
   game = { ...game, learned: [...game.learned, 'margin'] };
   game = { ...game, ownership: recordDealChoice(game.ownership, 'sam') };
   const offer = buyoutOffer(game.stand.history, game.ownership);
@@ -116,12 +113,14 @@ describe('acts begin and end on real conditions', () => {
     expect(act1Complete(game.stand)).toBe(true);
   });
 
-  it('Act 2 needs a manager and then a second stand actually paying', () => {
+  it('Act 2 needs a manager, then a second stand, then a door that pays', () => {
     const game = createGame(1);
     expect(act2Complete(game.business, 5)).toBe(false);
 
-    // A manager on its own used to end the act. It is now the unlock: it frees
-    // the kid's hands, and the act ends where the lesson does.
+    // A manager on its own used to end the act, then two stands did. Both were
+    // unlocks: the wage frees the child's hands, the second stand teaches the
+    // wall a door answers, and the stage ends where the lesson does — with a
+    // rent covered. See the note on `Act`.
     let business = toggleStaff(game.business, 'manager');
     for (let i = 0; i < HANDS_OFF_DAYS_REQUIRED; i++) {
       business = updateHandsOff(business, true, 20);
@@ -131,41 +130,49 @@ describe('acts begin and end on real conditions', () => {
     business = openStand(business, 'park', 200).business;
     expect(act2Complete(business, 5)).toBe(false);
 
-    for (let i = 0; i < TWO_STAND_DAYS_REQUIRED; i++) {
-      business = updateTwoStandDays(business, 20);
+    business = { ...business, shop: { ...business.shop, open: true } };
+    expect(act2Complete(business, 5), 'a door with no takings ended the stage').toBe(false);
+
+    for (let i = 0; i < SHOP_DAYS_REQUIRED; i++) {
+      business = { ...business, shop: updateShopDays(business.shop, 40) };
     }
     expect(act2Complete(business, 5)).toBe(true);
   });
 
-  it('Act 2 also ends if the fortnight runs out, so nobody gets stuck', () => {
+  it('Act 2 also ends if the clock runs out, so nobody gets stuck', () => {
     const game = createGame(1);
     expect(act2Complete(game.business, ACT2_DAYS)).toBe(true);
   });
 
-  it('Act 3 ends when the shop has paid for its own door', () => {
+  it('Act 2 ends when the shop has paid for its own door', () => {
+    /*
+     * The door is the last rung of the business stage rather than a stage of
+     * its own — see the note on `Act` — so this is `act2Complete` now, and the
+     * two-stand proof streak it used to end on is gone.
+     */
     const game = createGame(1);
-    expect(act3Complete(game.business, 0)).toBe(false);
+    expect(act2Complete(game.business, 0)).toBe(false);
 
     let shop = { ...game.business.shop, open: true };
     for (let i = 0; i < SHOP_DAYS_REQUIRED; i++) shop = updateShopDays(shop, 40);
-    expect(act3Complete({ ...game.business, shop }, 0)).toBe(true);
+    expect(act2Complete({ ...game.business, shop }, 0)).toBe(true);
   });
 
-  it('Act 3 hands over on the clock too, so a bad run is not a dead end', () => {
+  it('Act 2 hands over on the clock too, so a bad run is not a dead end', () => {
     const game = createGame(1);
-    expect(act3Complete(game.business, ACT3_DAYS)).toBe(true);
+    expect(act2Complete(game.business, ACT2_DAYS)).toBe(true);
   });
 
-  it('Act 4 ends at a sale or at a listing, and both are real endings', () => {
+  it('Act 3 ends at a sale or at a listing, and both are real endings', () => {
     const fresh = createGame(1);
-    expect(act4Complete(fresh.ownership, fresh.listing)).toBe(false);
+    expect(act3Complete(fresh.ownership, fresh.listing)).toBe(false);
 
     const sold = playedThrough();
-    expect(act4Complete(sold.ownership, sold.listing)).toBe(true);
+    expect(act3Complete(sold.ownership, sold.listing)).toBe(true);
 
     const listed = listedInstead();
     expect(listed.ownership.buyoutAccepted).toBe(false);
-    expect(act4Complete(listed.ownership, listed.listing)).toBe(true);
+    expect(act3Complete(listed.ownership, listed.listing)).toBe(true);
   });
 
   it('a listing is not finished until a week has actually been lived through', () => {
@@ -175,7 +182,7 @@ describe('acts begin and end on real conditions', () => {
     const listing = listCompany(offer, floatPlan(offer, 0.3, base.ownership));
     // Reaching a listing teaches what a company is worth. Living a week as one
     // is what teaches what a share price is, so the stage does not end here.
-    expect(act4Complete(base.ownership, listing)).toBe(false);
+    expect(act3Complete(base.ownership, listing)).toBe(false);
   });
 
   it('carries the same money and stand from Act 1 into Act 2', () => {
@@ -189,7 +196,7 @@ describe('acts begin and end on real conditions', () => {
 
   it('seeds the market with exactly what the kid walked away with', () => {
     const game = playedThrough();
-    const act5 = beginAct5(game);
+    const act5 = beginAct4(game);
     expect(act5.portfolio).not.toBeNull();
     const expected =
       game.ownership.buyoutProceeds + game.business.savings + game.stand.cash;
@@ -198,7 +205,7 @@ describe('acts begin and end on real conditions', () => {
 
   it('seeds the market from the float when the kid listed instead of selling', () => {
     const game = listedInstead();
-    const act5 = beginAct5(game);
+    const act5 = beginAct4(game);
     // What the float raised, not what a buyer would have paid for the lot. The
     // company still exists and the kid still owns most of it.
     const expected = game.listing.raised + game.business.savings + game.stand.cash;
@@ -208,8 +215,8 @@ describe('acts begin and end on real conditions', () => {
 
   it('counts each stage from where that stage opened, not from a fixed day', () => {
     // Two kids reach the shop on different days; both are on its day one.
-    const early: Game = { ...createGame(1), act: 3, stageStartDay: 14 };
-    const late: Game = { ...createGame(1), act: 3, stageStartDay: 26 };
+    const early: Game = { ...createGame(1), act: 2, stageStartDay: 14 };
+    const late: Game = { ...createGame(1), act: 2, stageStartDay: 26 };
     expect(actDay({ ...early, stand: { ...early.stand, history: withHistory([1], [1.6]) } })).toBe(1);
     expect(
       actDay({
@@ -223,7 +230,7 @@ describe('acts begin and end on real conditions', () => {
   });
 
   it('names every act with a promise, not a lesson title', () => {
-    for (const act of [1, 2, 3, 4, 5] as const) {
+    for (const act of [1, 2, 3, 4] as const) {
       expect(ACT_TITLES[act].name.length).toBeGreaterThan(3);
       expect(ACT_TITLES[act].promise).not.toMatch(/learn|lesson/i);
     }
@@ -434,7 +441,7 @@ describe('the parent report is evidence, never a score', () => {
 
   it('is honest about what has not been shown yet', () => {
     let game = playedThrough();
-    game = beginAct5(game);
+    game = beginAct4(game);
     game = { ...game, portfolio: buy(game.portfolio!, 'AAPL', maxSpendOn(game.portfolio!, 'AAPL')).portfolio };
     const report = parentReport(game);
     // One holding is not diversification, and we say so rather than implying it.
@@ -443,7 +450,7 @@ describe('the parent report is evidence, never a score', () => {
   });
 
   it('credits diversification once it is real', () => {
-    const game = beginAct5(playedThrough());
+    const game = beginAct4(playedThrough());
     let portfolio = game.portfolio!;
     for (const ticker of ['AAPL', 'KO', 'CMG']) {
       portfolio = buy(portfolio, ticker, maxSpendOn(portfolio, ticker)).portfolio;
@@ -458,7 +465,7 @@ describe('the parent report is evidence, never a score', () => {
   });
 
   it('reports research actually opened', () => {
-    const game = beginAct5(playedThrough());
+    const game = beginAct4(playedThrough());
     let portfolio = markResearched(game.portfolio!, 'AAPL');
     portfolio = markResearched(portfolio, 'KO');
     const report = parentReport({ ...game, portfolio });
