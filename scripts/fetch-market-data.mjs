@@ -40,6 +40,7 @@ import { writeFile, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { envOr, envSource, loadEnv } from './env.mjs';
+import { mondayOf } from './market-rules.mjs';
 
 /*
  * Before anything reads `process.env`.
@@ -586,15 +587,8 @@ async function weeklyCloses(ticker) {
  * child who checked in yesterday that nothing had happened.
  */
 function byWeek(rows) {
-  const monday = (iso) => {
-    const at = Date.parse(`${iso}T00:00:00Z`);
-    if (Number.isNaN(at)) return iso;
-    const day = new Date(at).getUTCDay();
-    /* Sunday is 0 and belongs to the week that started six days earlier. */
-    return new Date(at - (day === 0 ? 6 : day - 1) * 86_400_000).toISOString().slice(0, 10);
-  };
   const out = rows.map((row, index) =>
-    index === rows.length - 1 ? row : { ...row, date: monday(row.date) },
+    index === rows.length - 1 ? row : { ...row, date: mondayOf(row.date) },
   );
   /*
    * A provider that already Monday-stamps can put the in-progress week in twice

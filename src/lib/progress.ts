@@ -581,27 +581,39 @@ export function readiness(game: Game): Readiness {
  * ------------------------------------------------------------------ */
 
 /**
- * Act 2 keeps the same stand and the same money — it is the same business,
- * just with the ceiling lifted. Only the day counter restarts so the act has
- * its own arc.
+ * Carry the same business into a later act.
+ *
+ * Acts 2 and 3 are the same move: keep the stand, keep the money, restart the
+ * day counter so the act has its own arc, and put the stand back to
+ * `'playing'` in case the previous act finished it. `beginAct2` and
+ * `beginAct3` were two copies of this, identical but for the act number, and
+ * a change to the transition had to be made twice to be made at all. §75.
+ *
+ * Act 4 is deliberately not routed through here: it is the one transition
+ * that does something else, converting the business into an investing
+ * account, and pretending otherwise would hide the only interesting case.
  */
-export function beginAct2(game: Game): Game {
+function keepTradingInto(game: Game, act: 2 | 3): Game {
   return {
     ...game,
-    act: 2,
+    act,
     stageStartDay: game.stand.history.length,
     stand: { ...game.stand, status: 'playing' },
   };
 }
 
+/**
+ * Act 2 keeps the same stand and the same money — it is the same business,
+ * just with the ceiling lifted. Only the day counter restarts so the act has
+ * its own arc.
+ */
+export function beginAct2(game: Game): Game {
+  return keepTradingInto(game, 2);
+}
+
 /** The listing stage. The stands and the shop keep trading underneath it. */
 export function beginAct3(game: Game): Game {
-  return {
-    ...game,
-    act: 3,
-    stageStartDay: game.stand.history.length,
-    stand: { ...game.stand, status: 'playing' },
-  };
+  return keepTradingInto(game, 3);
 }
 
 /**

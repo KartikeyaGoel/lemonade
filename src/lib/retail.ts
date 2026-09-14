@@ -22,6 +22,7 @@
  */
 
 import { type FixedCostLine, round2 } from './simulation';
+import { money, moneyRound } from './copy';
 
 /* ------------------------------------------------------------------ *
  * The shop
@@ -284,7 +285,7 @@ export function fundingOptions(cash: number, investorCash: number): FundingOptio
       id: 'loan',
       name: 'Borrow it from the bank',
       cashToday: quote.principal,
-      cost: `$${quote.daily.toFixed(2)} a day for ${LOAN.days} days. You hand back $${quote.total.toFixed(0)}.`,
+      cost: `${money(quote.daily)} a day for ${LOAN.days} days. You hand back ${moneyRound(quote.total)}.`,
       enough: round2(cash + quote.principal) >= SHOP.fitOut,
     },
     {

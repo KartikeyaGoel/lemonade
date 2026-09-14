@@ -141,14 +141,9 @@ export function dayBefore(day: string): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** How many days apart two `YYYY-MM-DD` strings are. Negative if `b` is earlier. */
-export function daysBetween(a: string, b: string): number {
-  const parse = (s: string) => {
-    const [y, m, d] = s.split('-').map(Number);
-    return Date.UTC(y, m - 1, d);
-  };
-  return Math.round((parse(b) - parse(a)) / 86_400_000);
-}
+/* How many days apart two `YYYY-MM-DD` strings are. One home: `dates.ts`. */
+export { daysBetween } from './dates';
+import { daysBetween } from './dates';
 
 /**
  * Write a deed down.

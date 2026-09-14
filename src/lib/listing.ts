@@ -25,7 +25,7 @@
 import { round2, type DayRecord, type Insight } from './simulation';
 import { growthRate, trailingWeeklyProfit } from './business';
 import { buyoutOffer, type BuyoutOffer, type OwnershipState } from './ownership';
-import { money } from './copy';
+import { money, moneyRound } from './copy';
 
 /* ------------------------------------------------------------------ *
  * Shares
@@ -430,9 +430,9 @@ export function sharePriceBridge(listing: Listing): {
   const yearlyPerShare = round2((weekly * 52) / listing.shares);
   const pe = yearlyPerShare > 0 ? round2(listing.price / yearlyPerShare) : 0;
   return {
-    cap: `$${listing.price.toFixed(2)} a piece x ${listing.shares} pieces = $${cap.toFixed(0)} for the whole company.`,
-    perShare: `$${cap.toFixed(0)} for a company earning $${weekly.toFixed(2)} a week is ${listing.multiple.toFixed(1)} weeks of profit.`,
-    yearly: `Each piece earns $${yearlyPerShare.toFixed(2)} a year, and costs $${listing.price.toFixed(2)}.`,
+    cap: `${money(listing.price)} a piece x ${listing.shares} pieces = ${moneyRound(cap)} for the whole company.`,
+    perShare: `${moneyRound(cap)} for a company earning ${money(weekly)} a week is ${listing.multiple.toFixed(1)} weeks of profit.`,
+    yearly: `Each piece earns ${money(yearlyPerShare)} a year, and costs ${money(listing.price)}.`,
     pe,
   };
 }
@@ -453,8 +453,7 @@ export function sharePriceBridge(listing: Listing): {
 export function deriveListingInsights(listing: Listing, move: PriceMove | null): Insight[] {
   if (!listing.listed) return [];
   const found: Insight[] = [];
-  const money = (n: number) => `$${n.toFixed(2)}`;
-
+  
   found.push({
     id: 'shares',
     term: 'Shares',

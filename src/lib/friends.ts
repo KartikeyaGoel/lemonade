@@ -23,6 +23,7 @@ import type { Career } from './career';
 import type { ClubState } from './club';
 import { totalValue } from './market';
 import { honours, type TableCard } from './table';
+import { money } from './copy';
 
 export type DeskId = 'challenge' | 'club' | 'table';
 
@@ -115,7 +116,7 @@ function clubStatus(club: ClubState | null): string | null {
   if (open > 0) {
     return `${size} · ${open} ${open === 1 ? 'idea' : 'ideas'} on the table`;
   }
-  return `${size} · $${pot.toFixed(2)} pooled`;
+  return `${size} · ${money(pot)} pooled`;
 }
 
 function whoseTurnName(club: ClubState): string {

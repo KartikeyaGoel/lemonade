@@ -449,13 +449,26 @@ function num(value: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-export function saveGame(game: Game): void {
+/**
+ * Write one save, and never let storage break the game.
+ *
+ * `saveGame` and `saveCareer` were the same four lines twice, differing only
+ * in which key they wrote. A full or blocked quota — private browsing, a
+ * school-managed device, a phone that has run out of room — must lose the
+ * save and nothing else, and that decision is now made in one place rather
+ * than being re-made correctly by whoever adds the third save. §75.
+ */
+function write(key: string, value: unknown): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(game));
+    window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // A full or blocked storage quota must never break the game.
   }
+}
+
+export function saveGame(game: Game): void {
+  write(KEY, game);
 }
 
 /** Clears the run. Deliberately leaves the career record alone. */
@@ -495,12 +508,7 @@ export function loadCareer(): Career | null {
 }
 
 export function saveCareer(career: Career): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(CAREER_KEY, JSON.stringify(career));
-  } catch {
-    /* ignore */
-  }
+  write(CAREER_KEY, career);
 }
 
 

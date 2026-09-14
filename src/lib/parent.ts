@@ -24,6 +24,7 @@ import { GLOSSARY, wordsEarned } from './glossary';
 import { standing, type Career } from './career';
 import { mastery, reachable } from './mastery';
 import { closest, curriculum, reached, type Stage } from './curriculum';
+import { money } from './copy';
 import type { ThesisScore } from './thesis';
 import { plural } from './copy';
 
@@ -90,10 +91,6 @@ export interface ParentReport {
   } | null;
 }
 
-function money(n: number): string {
-  const sign = n < 0 ? '-' : '';
-  return `${sign}$${Math.abs(n).toFixed(2)}`;
-}
 
 /**
  * Builds the report from real state only.

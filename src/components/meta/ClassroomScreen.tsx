@@ -14,7 +14,7 @@ import {
   type CurvePoint,
   type Entry,
 } from '@/lib/classroom';
-import { ChunkyButton, CodeBox, SignHeading, Sky, money, plural } from '../ui';
+import { ChunkyButton, CodeBox, SignHeading, Sky, money, moneyRound, plural } from '../ui';
 
 /**
  * The classroom board.
@@ -290,7 +290,7 @@ function Chart({
         $0
       </text>
       <text x={2} y={y(top) + 3} className="font-ledger" fontSize={8} fill="#2B211877">
-        {`$${Math.round(top)}`}
+        {moneyRound(top)}
       </text>
 
       {[100, 200, 300, 400].map((cents) => (

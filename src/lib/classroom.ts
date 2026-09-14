@@ -49,6 +49,7 @@ import {
   type GameState,
 } from './simulation';
 import { CHALLENGE_DAYS, tidyName, type ChallengeSpec } from './challenge';
+import { moneyFromCents } from './copy';
 
 /** One child's week, as the two numbers they can read off their own screen. */
 export interface Entry {
@@ -151,7 +152,7 @@ export function findings(entries: Entry[]): Findings {
     );
     if (peak) {
       lines.push(
-        `Best on average: ${dollars(peak.priceCents)} a cup, ${dollars(
+        `Best on average: ${moneyFromCents(peak.priceCents)} a cup, ${moneyFromCents(
           Math.round(peak.averageProfit * 100),
         )} for the week.`,
       );
@@ -159,7 +160,7 @@ export function findings(entries: Entry[]): Findings {
     const spread = Math.max(...prices) - Math.min(...prices);
     if (spread >= 100) {
       lines.push(
-        `The cheapest and dearest in the room were ${dollars(spread)} apart. Ask both of them why.`,
+        `The cheapest and dearest in the room were ${moneyFromCents(spread)} apart. Ask both of them why.`,
       );
     }
     if (lostMoney > 0) {
@@ -180,9 +181,6 @@ export function findings(entries: Entry[]): Findings {
   };
 }
 
-function dollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
 
 /* ------------------------------------------------------------------ *
  * The answer, for afterwards
@@ -265,14 +263,14 @@ export function howClose(entries: Entry[], curve: CurvePoint[]): string {
 
   const gap = Math.abs(peak.priceCents - classPeak);
   if (gap <= BIN_CENTS) {
-    return `The class found it. The best price this week really was ${dollars(peak.priceCents)}.`;
+    return `The class found it. The best price this week really was ${moneyFromCents(peak.priceCents)}.`;
   }
   if (gap <= 30) {
-    return `Within ${dollars(gap)} of it. The best price this week was ${dollars(peak.priceCents)}.`;
+    return `Within ${moneyFromCents(gap)} of it. The best price this week was ${moneyFromCents(peak.priceCents)}.`;
   }
   return classPeak < peak.priceCents
-    ? `The best price this week was ${dollars(peak.priceCents)} — dearer than anyone in the room went. What stopped you?`
-    : `The best price this week was ${dollars(peak.priceCents)} — cheaper than the class settled on. Who was turning people away?`;
+    ? `The best price this week was ${moneyFromCents(peak.priceCents)} — dearer than anyone in the room went. What stopped you?`
+    : `The best price this week was ${moneyFromCents(peak.priceCents)} — cheaper than the class settled on. Who was turning people away?`;
 }
 
 /** A class code is a week. Same object the challenge screen already uses. */

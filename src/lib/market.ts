@@ -42,6 +42,7 @@ import {
   type Company,
 } from './companies';
 import { round2, toCents } from './simulation';
+import { money } from './copy';
 
 /* ------------------------------------------------------------------ *
  * Rules
@@ -414,7 +415,7 @@ export function buy(portfolio: PortfolioState, ticker: string, dollars: number):
   if (spend > allowed + 0.01) {
     return {
       ok: false,
-      reason: `Keep any one company under ${Math.round(MAX_POSITION_FRACTION * 100)}% of your money. You can put in up to $${allowed.toFixed(2)} here.`,
+      reason: `Keep any one company under ${Math.round(MAX_POSITION_FRACTION * 100)}% of your money. You can put in up to ${money(allowed)} here.`,
       portfolio,
     };
   }

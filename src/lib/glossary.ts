@@ -21,7 +21,7 @@
 
 import { type Insight, type InsightId } from './simulation';
 import { boardOf, type BuyoutOffer } from './ownership';
-import { plural } from './copy';
+import { money, plural } from './copy';
 
 export type WordAct = 1 | 2 | 3 | 4 | 5;
 
@@ -356,7 +356,6 @@ export function wordProgress(learned: string[]): WordProgress {
  * happened. Nothing below invents a number.
  * ------------------------------------------------------------------ */
 
-const money = (n: number) => `$${n.toFixed(2)}`;
 
 /** Earned the first day a regular is served. */
 export function recurringRevenueInsight(

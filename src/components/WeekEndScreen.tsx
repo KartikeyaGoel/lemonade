@@ -2,7 +2,7 @@
 
 import { closingTakeaway, type GameState, weekSummary } from '@/lib/simulation';
 import { ACT_TITLES } from '@/lib/progress';
-import { ChunkyButton, Sky, money, plural } from './ui';
+import { ChunkyButton, Sky, money, moneyRound, plural } from './ui';
 
 /**
  * End of the week. The kid gets to see their own learning curve plotted:
@@ -185,7 +185,7 @@ function PriceProfitChart({ state }: { state: GameState }) {
           $0
         </text>
         <text x={pad.left - 6} y={y(maxProfit) + 4} textAnchor="end" fontSize="9" fill="#2B2118" fillOpacity="0.5">
-          {`$${maxProfit.toFixed(0)}`}
+          {moneyRound(maxProfit)}
         </text>
 
         {/* Axis labels */}
@@ -193,7 +193,7 @@ function PriceProfitChart({ state }: { state: GameState }) {
           $0
         </text>
         <text x={width - pad.right} y={height - 8} textAnchor="end" fontSize="9" fill="#2B2118" fillOpacity="0.5">
-          {`$${maxPrice.toFixed(2)}`}
+          {money(maxPrice)}
         </text>
 
         {/* The path through their days, in the order played */}

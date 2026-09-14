@@ -32,6 +32,7 @@
 
 import DATA from './market-data.json';
 import { plural } from './copy';
+import { daysBetween } from './dates';
 
 /** The date of the most recent real weekly close in the bundled data. */
 export const SNAPSHOT_AS_OF: string = DATA.asOf;
@@ -82,10 +83,7 @@ export const PRICES_STALE_AFTER_DAYS = 14;
  * Pure: the day comes in as an argument.
  */
 export function pricesBehind(today: string): { days: number; behind: boolean } {
-  const from = Date.parse(`${DATA_FETCHED_AT}T00:00:00Z`);
-  const to = Date.parse(`${today}T00:00:00Z`);
-  if (Number.isNaN(from) || Number.isNaN(to)) return { days: 0, behind: false };
-  const days = Math.max(0, Math.floor((to - from) / 86_400_000));
+  const days = Math.max(0, daysBetween(DATA_FETCHED_AT, today));
   return { days, behind: days > PRICES_STALE_AFTER_DAYS };
 }
 

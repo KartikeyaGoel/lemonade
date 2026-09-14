@@ -41,6 +41,7 @@ import {
 import { findCompany, type Company } from './companies';
 import { buildThesis, reasoningSound, thesisLine, type Thesis } from './thesis';
 import { decodeLong, encodeLong } from './sharecode';
+import { money } from './copy';
 
 export const CLUB_PREFIX = 'CLUB';
 export const MAX_MEMBERS = 4;
@@ -189,7 +190,7 @@ export function propose(
       reason:
         ceiling <= 0
           ? `The club already holds as much ${company.ticker} as the rules allow.`
-          : `The most the club can put into ${company.ticker} right now is $${ceiling.toFixed(2)}.`,
+          : `The most the club can put into ${company.ticker} right now is ${money(ceiling)}.`,
       club,
     };
   }
@@ -308,7 +309,7 @@ function resolve(club: ClubState, proposal: Proposal): VoteResult {
   const passed: Proposal = {
     ...proposal,
     status: 'passed',
-    outcome: `Passed ${up}–${down}. The club put $${proposal.dollars.toFixed(2)} into ${proposal.ticker}.`,
+    outcome: `Passed ${up}–${down}. The club put ${money(proposal.dollars)} into ${proposal.ticker}.`,
   };
 
   return {

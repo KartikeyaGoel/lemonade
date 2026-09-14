@@ -8,7 +8,7 @@
  * The public entry point is `runDay(state, decisions) => DayOutcome`.
  */
 
-import { plural } from './copy';
+import { money, plural } from './copy';
 
 
 /* ------------------------------------------------------------------ *
@@ -1733,8 +1733,7 @@ export interface Insight {
  */
 export function deriveInsights(outcome: DayOutcome, history: DayRecord[]): Insight[] {
   const found: Insight[] = [];
-  const money = (n: number) => `$${n.toFixed(2)}`;
-
+  
   // Day one always earns the two words the whole game is built on.
   if (outcome.day === 1) {
     found.push({
@@ -2209,8 +2208,7 @@ export function projectDay(
 export function closingTakeaway(history: DayRecord[]): string {
   if (history.length === 0) return 'You did not run a single day.';
 
-  const money = (n: number) => `$${n.toFixed(2)}`;
-  const best = history.reduce((a, h) => (h.profit > a.profit ? h : a), history[0]);
+    const best = history.reduce((a, h) => (h.profit > a.profit ? h : a), history[0]);
   const mostCups = history.reduce((a, h) => (h.cupsSold > a.cupsSold ? h : a), history[0]);
   const cheapest = history.reduce((a, h) => (h.price < a.price ? h : a), history[0]);
   const dearest = history.reduce((a, h) => (h.price > a.price ? h : a), history[0]);

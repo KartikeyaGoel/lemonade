@@ -39,6 +39,10 @@ arc test, and the fixtures — each drifting on its own. §75.
   months (§55).
 - **A fact belongs in one place.** Two sentences carrying the same number is the
   §62 class, and it has recurred five times.
+- `scripts/check-duplicates.mjs` compares every function body in `src` and
+  `scripts` by shape and fails on an unclassified pair. It is the general form
+  of `check-one-day.mjs`: that gate closes the class for days, this one for
+  everything else. See §11.
 
 ## 3. Gates are allowlists
 
@@ -139,6 +143,16 @@ Three specific traps, all hit in one session:
   A check reading `innerText` passes on nothing, silently.
 - **A gate whose input has gone empty reports a pass.** Print how much every
   gate looked at, so a collapse to nearly nothing is visible in the log.
+- **A DOM reader that joins text nodes with nothing** welds `$208.16` and
+  `202 cups` into `$208.16202`. Joining with a space invents `5 cups .`
+  instead. Put a separator between *element* boundaries and none inside one.
+- **A count-up animation is not the final figure.** `useCountUp` had a
+  headline reading "You lost $2.00" next to a profit line of `-$5.00`, which
+  is a §4 violation for about a second. Wait for it to settle before reading.
+- **The measuring device can encode the bug.** `tests/claims.test.ts` built
+  every shape on a `FIGURE` regex that matched `$-3.78` and not `-$3.78` —
+  so the only negative it could read was the malformed one, and fixing the
+  copy turned the whole file red. §84.
 
 ## 9. Count the space before approximating it
 
@@ -167,7 +181,30 @@ marking holdings against dead prices. §79.
 - A deployed bundle ages after the gate has passed. `dataAge` puts that on the
   screen, because a check in CI cannot reach a phone.
 
-## 11. Conventions
+## 11. Fixing the instance is not fixing the class
+
+The playthrough in §83 found `$-4.16` in `listing.ts` and fixed it *there*, by
+importing `money` into the file — and left the file's other private copy, 428
+lines further down, shadowing the import. §84 found nine copies of `money`, six
+of them wrong, one of them on the profit card of a losing first day.
+
+So, when a defect is found by looking rather than by a gate:
+
+- **Count the instances before fixing one.** `grep` for the shape, not for the
+  line. Nine is a different problem from one and wants a different fix.
+- **Ask what the one home is, and whether anything imports it.** `copy.ts` had
+  exported the correct `money` for months with a comment explaining §62. One
+  file imported it. An abstraction nobody uses is not a fix, it is a comment.
+- **Then write the gate**, in the same session, before the next thing.
+
+And when you cannot think what else might be duplicated, that is the signal to
+stop grepping and write a detector. `check-duplicates.mjs` normalises every
+function body in the repo and fails on an unclassified pair. Three of the five
+duplicates it has found — two `localStorage` writers, two act transitions, two
+clipboard handlers with different flash durations — are ones nobody would have
+searched for. **You cannot grep for the duplicate you have not thought of.**
+
+## 12. Conventions
 
 - **"Push" means commit and push to `main`.** No PRs, no branches.
 - **Write it up.** A decision or a defect worth remembering goes in PRODUCT.md as

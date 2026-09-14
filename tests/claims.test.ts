@@ -131,6 +131,34 @@ export function badClaims(text: string): string[] {
   const bad: string[] = [];
 
   /*
+   * A dollar sign with the minus on the wrong side of it.
+   *
+   * `src/lib/copy.ts` has always documented the rule — "-$4.16" is how a
+   * ledger is read and "$-4.16" is how nothing is — and nine private copies of
+   * `money` ignored it. The profit card on day one of a losing week read
+   * "$0.00 in, $5.00 out, so you kept $-5.00.", which is the most likely first
+   * week a child has: price it too high and sell nothing.
+   *
+   * `scripts/check-money.mjs` stops the shape being *written*. This catches it
+   * being *rendered*, including from a "$" and a number built in two pieces,
+   * which is the half a source scan cannot see.
+   */
+  for (const m of text.matchAll(/\$-\s*\d/g)) {
+    bad.push(`${m[0]} — the sign goes in front of the dollar: use money() from '@/lib/copy'`);
+  }
+
+  /*
+   * Dollars printed with one decimal place, or three.
+   *
+   * The same nine copies were the only thing keeping the cent count
+   * consistent. A figure written `$1.5` is a price a child cannot check
+   * against a coin.
+   */
+  for (const m of text.matchAll(/\$\d+\.(\d+)\b/g)) {
+    if (m[1].length !== 2) bad.push(`${m[0]} — dollars are written to two decimal places`);
+  }
+
+  /*
    * `N cups x $P = $T`, optionally two terms joined by "and".
    *
    * `\d+(?:\.\d+)?` and not `[\d.]+`: the first version of this captured
@@ -257,8 +285,21 @@ export function badClaims(text: string): string[] {
  * The allowlist
  * ------------------------------------------------------------------ */
 
-/** Every figure a sentence can carry, in the forms the copy writes them. */
-const FIGURE = /\$-?\d+(?:\.\d+)?|-?\d+(?:\.\d+)?%|-?\d+(?:\.\d+)?/g;
+/**
+ * Every figure a sentence can carry, in the forms the copy writes them.
+ *
+ * The `-?` used to sit only *inside* the dollar (`$-3.78`), which is the form
+ * nine private copies of `money` produced and `src/lib/copy.ts` has always
+ * called wrong. So the instrument had encoded the defect: once the copy was
+ * fixed to say "-$3.78", the sign fell outside the match and every negative
+ * figure produced a shape — `-$#` — that the allowlist had never seen.
+ *
+ * Both forms match now. The correct one so the shapes stay stable, and the
+ * wrong one so a sentence carrying it is still parsed rather than skipped —
+ * `badClaims` rejects it on sight, and a check that cannot read a sentence
+ * cannot reject it.
+ */
+const FIGURE = /-?\$-?\d+(?:\.\d+)?|-?\d+(?:\.\d+)?%|-?\d+(?:\.\d+)?/g;
 
 /**
  * Words that can sit between a count and its noun without changing the
@@ -291,7 +332,13 @@ function shapeOf(sentence: string): string {
 
 /** The figures a sentence carries, in order, as numbers. */
 function figuresIn(sentence: string): number[] {
-  return (sentence.match(FIGURE) ?? []).map((raw) => Number(raw.replace(/[$%]/g, '')));
+  return (sentence.match(FIGURE) ?? []).map((raw) => {
+    /* "-$3.78" and "$-3.78" are the same number; the sign may sit on either
+       side of the dollar and must survive being stripped of it. */
+    const negative = raw.includes('-');
+    const digits = Number(raw.replace(/[-$%]/g, ''));
+    return negative ? -digits : digits;
+  });
 }
 
 /**

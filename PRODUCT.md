@@ -6682,3 +6682,173 @@ three of those gates found *additional* instances the moment they existed.
 
 But the ordering is worth being honest about. **The gates found the second
 instance of every class. A person playing the game found the first.**
+
+---
+
+## 84. Asked whether anything was still on fire, and going to look
+
+> are there more fires to put out or have we solved everything foundationally
+> and from first principles? have you brutally honestly verified that the game
+> works and we dont have like 4 implementations of something
+
+The honest answer turned out to be **no**, and finding that out took an hour.
+`npm run check` was green, CI was green, the tree was clean. The right response
+to "have you verified" is not to re-read the last green build; it is to go
+looking for the class the customer named — §75, *one decision, multiple
+implementations* — in the places no gate was pointed at.
+
+There were four of them live. One was on screen on day one.
+
+### Nine implementations of "write a number as dollars"
+
+`src/lib/copy.ts` exports `money`. It has done for months, and its own comment
+says why:
+
+> There were three of these: one in `ui.tsx` for the screens, one private to
+> `progress.ts` for the readiness details, and — briefly — a hand-written
+> `$${...}` in `ownership.ts` that had lost its dollar sign. §62 is about
+> exactly that: a fact with more than one home is a fact that will disagree
+> with itself.
+>
+> The sign goes in front of the dollar, not in front of the digits, because
+> "-$4.16" is how a ledger is read and "$-4.16" is how nothing is.
+
+It was imported by **one file**. `src/lib` had nine private copies of `money`
+and about thirty more loose `` `$${n.toFixed(2)}` `` interpolations. Six of the
+nine got the sign wrong.
+
+A twelve-line probe found it rendering, on the first day of a losing week:
+
+```
+day1 [profit]          $0.00 in, $5.00 out, so you kept $-5.00.
+day3 [signal-vs-noise] Your best day was $-5.00 and your worst $-10.00 …
+closingTakeaway:       You charged $5.00 on your best day and made $-5.00.
+```
+
+That is not an exotic state. Price it too high and sell nothing is what a child
+does first.
+
+**And the class had already been found once.** The browser playthrough in §83
+hit this exact shape in `listing.ts`'s `moveReason` and fixed it *there* — by
+importing `money` into the file. The file's other private copy, 428 lines
+further down in `deriveListingInsights`, was left shadowing the import. The
+instance was closed and the class was not, in a session whose whole subject was
+the difference.
+
+Everything that formats a runtime figure now goes through `money`,
+`moneyRound` or `moneyFromCents`. `scripts/check-money.mjs` allows a bare
+whole-dollar constant (`$${SHOP.fitOut}`) and fails on anything computed,
+including a private formatter under a name nobody has thought of yet — its
+body is a computed figure written as dollars by hand, which is the thing being
+checked. Nineteen sites remain, fifteen constants and four classified with a
+reason.
+
+### The instrument had encoded the defect
+
+Adding a rendered check to `tests/claims.test.ts` — a `$-` anywhere in the
+71,865 sentences it already sweeps — turned the whole file red for an
+unexpected reason. `FIGURE`, the regex every shape and every arithmetic check
+is built on, was:
+
+```js
+const FIGURE = /\$-?\d+(?:\.\d+)?|…/g;
+```
+
+`\$-?` — the minus *inside* the dollar. The sign-in-the-wrong-place form was
+the only negative the instrument had ever been able to read. Correcting the
+copy put the sign where `copy.ts` always said it went, and forty sentences
+promptly produced a shape (`-$#`) that the allowlist had never seen and
+correctly refused. §8, in the cleanest form it has taken yet: the measuring
+device had been built around the bug.
+
+### `daysBetween`, twice, under one name
+
+Two exported functions, one name, two contracts: `live.ts` clamped at zero and
+returned 0 on an unparseable date; `ledger.ts` was signed, with no guard. A
+third, `pricesBehind` in `companies.ts`, inlined the arithmetic with
+`Math.floor` instead of `Math.round`.
+
+Two exports sharing a name is worse than two under different names, because
+the import that picks the wrong one is invisible at the call site and an editor
+will write it for you. `src/lib/dates.ts` is the one arithmetic now, signed;
+the clamp is written at the two sites that actually depend on it, where it can
+be read.
+
+### `mondayOf`, twice, in the two scripts that must agree
+
+`fetch-market-data.mjs` normalises settled weeks to a Monday;
+`check-market-data.mjs` compares weeks by Monday. Character-identical, three
+hundred lines apart — and `scripts/market-rules.mjs` exists, in this repo,
+with a header explaining that it was created because the split rule was
+written twice and the copies disagreed for months. The rule went in there.
+
+### Then the detector, because you cannot grep for what you have not thought of
+
+Three classes found by looking is three classes' worth of luck.
+`scripts/check-duplicates.mjs` normalises every function body in `src` and
+`scripts` — comments stripped, numbers folded, identifiers renamed positionally
+— and fails on any group of two that is not classified with a reason.
+
+It found two more immediately, neither of which anybody would have searched
+for:
+
+- **`saveGame` and `saveCareer`**, the same four lines of "write JSON to
+  `localStorage` and swallow a quota failure", differing only in the key. The
+  third save would have re-made that decision from scratch.
+- **`beginAct2` and `beginAct3`**, identical but for the act number. A change
+  to how an act transition works had to be made twice to be made at all.
+
+And earlier, before the detector was a gate, the same technique had turned up
+two clipboard handlers that were identical except that one flashed its
+confirmation for 1600ms and the other for 1800ms. Nobody chose two durations.
+The second was typed from memory. That is §62 at its smallest, and the smallest
+version is the one that gets waved through.
+
+It is at **718 function bodies, 0 clone groups**.
+
+### Twice more, the instrument
+
+The detector's first two reports were both about the detector.
+
+It called `avg` a clone of `managerPrice` — because `avg` is an
+expression-bodied arrow with no braces, and the brace matcher had run on into
+the next function. Then, fixed, it called a three-line `Step` in the classroom
+screen a clone of a three-line `Stat` in the trophy screen, because it folded
+every string literal to one token and those two components differ *only* in
+their markup. Different text a child reads is different behaviour; string
+contents are compared now.
+
+In the browser the same thing happened twice more. A DOM reader that joined
+text nodes with no separator welded `$208.16` and `202 cups` into
+`$208.16202` and reported it as a malformed figure. And a headline read
+`You lost $2.00` next to a profit line of `-$5.00` — a §4 violation, except
+that `counted` is `useCountUp(outcome.profit)` and the read happened mid-
+animation. It settles to `You lost $5.00`.
+
+Four instrument faults, zero product faults, in one session. CLAUDE.md §8 says
+to suspect the instrument when a number looks wrong. The rate at which that
+rule pays out is still climbing.
+
+### What was verified
+
+- `npm run check`: **1,719 tests, 100 files**, and every gate, including the
+  two new ones. (That is vitest's run count. `check-doc-claims.mjs` says 1,675,
+  which is the number of `it()` declarations in the source — a parameterised
+  test is written once and runs many times. Two numbers, one fact, and worth
+  naming before somebody reads it as §62.)
+- Every gate mutation-tested: the money gate against a private formatter under
+  a novel name and against a loose interpolation; the rendered check against
+  `copy.ts` reverted to the buggy sign; the clone detector against both clone
+  groups restored.
+- A browser walk of **1,400 taps across 160 distinct screen signatures**, from
+  a fresh Act 1 and from a late-game save, checking every rendered figure for a
+  misplaced sign or a wrong number of decimal places after every tap. Zero.
+- The refactored clipboard hook exercised in the real app: the label flips to
+  "Copied — go paste it" and the right text reaches the clipboard.
+
+### What was not
+
+Nobody has played it for fun since §83. Five duplicate implementations are
+gone and a detector stands where they were, but that is a statement about the
+code, not about whether the game is any good — and the §83 ordering still
+holds. A detector finds the second instance. A person finds the first.

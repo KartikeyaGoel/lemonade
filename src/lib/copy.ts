@@ -46,3 +46,26 @@ export function money(n: number): string {
   const sign = n < 0 ? '-' : '';
   return `${sign}$${Math.abs(n).toFixed(2)}`;
 }
+
+/**
+ * Dollars with the cents dropped, for a chart axis or a round number.
+ *
+ * Same sign rule as `money`, and here for the same reason: `cap.toFixed(0)`
+ * and `maxProfit.toFixed(0)` were each written by hand next to a `$`, and a
+ * chart axis on a week where every day lost money drew "$-5".
+ */
+export function moneyRound(n: number): string {
+  const sign = n < 0 ? '-' : '';
+  return `${sign}$${Math.abs(n).toFixed(0)}`;
+}
+
+/**
+ * Dollars from a whole number of cents.
+ *
+ * `classroom.ts` keeps prices in cents so that a room full of children
+ * comparing them never meets a floating-point tail. It had its own formatter;
+ * this is that formatter, in the one place formatters live.
+ */
+export function moneyFromCents(cents: number): string {
+  return money(cents / 100);
+}

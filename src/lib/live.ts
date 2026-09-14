@@ -151,13 +151,10 @@ export function rehydrate(portfolio: PortfolioState): PortfolioState {
   return { ...portfolio, windowStart };
 }
 
-/** Whole days between two ISO dates. */
-export function daysBetween(from: string, to: string): number {
-  const a = Date.parse(`${from}T00:00:00Z`);
-  const b = Date.parse(`${to}T00:00:00Z`);
-  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
-  return Math.max(0, Math.round((b - a) / 86_400_000));
-}
+/* Whole days between two ISO dates. One home: `dates.ts`. The clamp that
+   used to live in here is now written at the two call sites that rely on it. */
+export { daysBetween } from './dates';
+import { daysBetween } from './dates';
 
 /**
  * How many rows of price data this account has not caught up to.
@@ -180,7 +177,9 @@ export function stepsBehind(portfolio: PortfolioState): number {
 /** Real days since the account last saw a price. */
 export function daysAway(portfolio: PortfolioState): number {
   if (!portfolio.live) return 0;
-  return daysBetween(dateOfWeek(portfolio.windowStart + portfolio.week), latestDate());
+  /* Clamped: a save whose `week` has run past the data would otherwise
+     report a negative number of days since it last saw a price. */
+  return Math.max(0, daysBetween(dateOfWeek(portfolio.windowStart + portfolio.week), latestDate()));
 }
 
 /**
@@ -354,11 +353,14 @@ export function runningFor(portfolio: PortfolioState): string {
    * in" on the very next tap is the kind of disagreement that makes a kid stop
    * believing either number.
    */
-  const weeks = Math.floor(
-    daysBetween(
-      portfolio.anchorDate ?? dateOfWeek(portfolio.windowStart),
-      dateOfWeek(portfolio.windowStart + portfolio.week),
-    ) / 7,
+  const weeks = Math.max(
+    0,
+    Math.floor(
+      daysBetween(
+        portfolio.anchorDate ?? dateOfWeek(portfolio.windowStart),
+        dateOfWeek(portfolio.windowStart + portfolio.week),
+      ) / 7,
+    ),
   );
   if (weeks === 0) return 'Opened this week.';
   if (weeks === 1) return 'One week in.';

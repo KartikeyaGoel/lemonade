@@ -662,8 +662,8 @@ export function peBridge(offer: BuyoutOffer): {
 } {
   const weekly = Math.max(0.01, offer.weeklyProfit);
   return {
-    standLine: `Your stand makes $${weekly.toFixed(2)} a week. They offered $${offer.price.toFixed(2)}.`,
-    ratioLine: `$${offer.price.toFixed(2)} ÷ $${weekly.toFixed(2)} = ${offer.multiple}. They paid ${plural(offer.multiple, 'time')} weekly profit.`,
+    standLine: `Your stand makes ${money(weekly)} a week. They offered ${money(offer.price)}.`,
+    ratioLine: `${money(offer.price)} ÷ ${money(weekly)} = ${offer.multiple}. They paid ${plural(offer.multiple, 'time')} weekly profit.`,
     // Deliberately restated as a payback period rather than a percentage.
     // Your stand is priced on a WEEK of profit; a real company is priced on a
     // YEAR of it. A kid who carries "12.5% a week" into the market and meets a

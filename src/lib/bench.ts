@@ -31,7 +31,7 @@ import {
   type DayRecord,
   type Weather,
 } from './simulation';
-import { plural } from './copy';
+import { money, plural } from './copy';
 
 /** How many tries are kept. See the note above on why this is small. */
 export const MAX_TRIES = 6;
@@ -148,7 +148,7 @@ export function compareTries(from: Try, to: Try): TryDiff {
     lines.push({
       label: up ? 'Charging more' : 'Charging less',
       amount: priceEffect,
-      detail: `${up ? '+' : '−'}${cents(Math.abs(to.price - from.price))} a cup on the ${from.cupsSold} you were selling`,
+      detail: `${up ? '+' : '−'}${money(Math.abs(to.price - from.price))} a cup on the ${from.cupsSold} you were selling`,
     });
   }
   if (cupsEffect !== 0) {
@@ -160,7 +160,7 @@ export function compareTries(from: Try, to: Try): TryDiff {
       detail:
         change === 0
           ? 'the mix of who bought changed'
-          : `${change} ${change === 1 ? 'cup' : 'cups'} ${soldMore ? 'more' : 'fewer'}, at ${cents(to.price)}`,
+          : `${change} ${change === 1 ? 'cup' : 'cups'} ${soldMore ? 'more' : 'fewer'}, at ${money(to.price)}`,
     });
   }
   if (ingredientsEffect !== 0) {
@@ -232,9 +232,6 @@ function headlineFor(
   return gap > 0 ? 'The extra cups did that.' : 'The missing cups did that.';
 }
 
-function cents(amount: number): string {
-  return `$${amount.toFixed(2)}`;
-}
 
 /** The day being replayed, described the way the kid will read it. */
 export function crowdLabel(past: DayRecord): string {

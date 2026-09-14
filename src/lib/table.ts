@@ -35,6 +35,7 @@
 import { ByteReader, ByteWriter, decodeShort, encodeShort } from './sharecode';
 import { tidyName } from './challenge';
 import { record, type Playbook } from './playbook';
+import { money } from './copy';
 
 export const CARD_PREFIX = 'CARD';
 
@@ -109,7 +110,7 @@ export function honours(cards: TableCard[]): Honour[] {
       emoji: '🍋',
       measures: 'The biggest week anybody has run at a stand.',
       mostlyLuck: false,
-      standings: rank(cards, (c) => c.bestWeek, (c) => `$${c.bestWeek.toFixed(2)}`),
+      standings: rank(cards, (c) => c.bestWeek, (c) => money(c.bestWeek)),
     },
     {
       id: 'thinking',

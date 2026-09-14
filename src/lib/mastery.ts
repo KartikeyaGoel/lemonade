@@ -45,7 +45,7 @@ import { SHOP } from './retail';
 import { positionFraction, type PortfolioState } from './market';
 import type { Game } from './progress';
 import type { ThesisScore } from './thesis';
-import { plural } from './copy';
+import { money, plural } from './copy';
 
 export type SkillId =
   | 'reads-the-queue'
@@ -126,9 +126,6 @@ function leftOver(day: DayRecord): number {
   return Math.max(0, day.cupsMade - day.cupsSold);
 }
 
-function money(n: number): string {
-  return `${n < 0 ? '-' : ''}$${Math.abs(n).toFixed(2)}`;
-}
 
 /** Consecutive pairs, so a detector can ask "and what did they do next". */
 function pairs(history: DayRecord[]): Array<[DayRecord, DayRecord]> {
@@ -324,7 +321,7 @@ const DETECTORS: Detector[] = [
         .filter((day) => day.weather === 'cold' && day.profit > 0 && (day.fixedCost ?? 0) >= SHOP.rent)
         .map((day) => ({
           when: `Day ${day.day}`,
-          what: `Cold day, $${(day.fixedCost ?? 0).toFixed(2)} owed before opening, and still made ${money(day.profit)}.`,
+          what: `Cold day, ${money(day.fixedCost ?? 0)} owed before opening, and still made ${money(day.profit)}.`,
         }));
     },
   },
@@ -340,7 +337,7 @@ const DETECTORS: Detector[] = [
       if (game.business.loan) {
         out.push({
           when: 'The shop',
-          what: `Borrowed $${game.business.loan.principal} and took on $${game.business.loan.daily.toFixed(2)} a day owed whatever happened.`,
+          what: `Borrowed $${game.business.loan.principal} and took on ${money(game.business.loan.daily)} a day owed whatever happened.`,
         });
       } else if (game.ownership.equitySoldPct > 0) {
         out.push({

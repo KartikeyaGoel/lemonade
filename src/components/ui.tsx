@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Forecast, Weather } from '@/lib/simulation';
 import { isMuted, onMuteChange, play, setMuted, type Cue } from '@/lib/sound';
-import { money, plural } from '@/lib/copy';
+import { money, moneyRound, plural } from '@/lib/copy';
 
 /* Re-exported so screens can reach it from the same place as `money`. */
 export { plural };
@@ -17,6 +17,9 @@ export { plural };
  * can reach it too. See PRODUCT.md §62.
  */
 export { money };
+
+/* Same home, same sign rule, cents dropped. */
+export { moneyRound };
 
 /** The full-bleed sky behind every screen. Time of day and weather are the
  *  main way the game signals "a new day started". */
@@ -204,6 +207,38 @@ export function HeaderBar({
  * width. Reading it out loud is the fallback, which is why the codes are
  * grouped in fours and use an alphabet with no letter that looks like a digit.
  */
+/**
+ * Put something on the clipboard and flash a confirmation.
+ *
+ * There were two of these — `CodeBox` here and `ShareBothButton` in
+ * `ChallengeScreen` — identical but for the flash, which was 1600ms in one
+ * and 1800ms in the other. Nobody chose two durations; the second was typed
+ * from memory. That is §62 in its smallest form, and the smallest form is
+ * the one that gets waved through.
+ *
+ * The `catch` is not incidental. `navigator.clipboard` rejects on an insecure
+ * origin and on a browser that wants a user gesture it did not see, and every
+ * caller here has the text on screen underneath, so failing quietly back to
+ * "not copied" leaves the child a way through.
+ */
+const COPY_FLASH_MS = 1600;
+
+export function useCopyToClipboard(text: string): [boolean, () => Promise<void>] {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), COPY_FLASH_MS);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return [copied, copy];
+}
+
 export function CodeBox({
   code,
   label,
@@ -213,18 +248,7 @@ export function CodeBox({
   label?: string;
   small?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    } catch {
-      // Clipboard blocked. The code is on screen; selecting it still works.
-      setCopied(false);
-    }
-  };
+  const [copied, copy] = useCopyToClipboard(code);
 
   return (
     <div className="rounded-2xl border-[3px] border-ink/20 bg-white p-3">

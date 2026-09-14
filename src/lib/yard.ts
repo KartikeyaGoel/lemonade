@@ -48,7 +48,7 @@ import {
 } from './business';
 import { SHOP, shopDailyCost } from './retail';
 import { totalFixedCost } from './simulation';
-import { plural } from './copy';
+import { money, plural } from './copy';
 
 /** Where a plot sits, which is also what kind of spending it is. */
 export type PlotKind =
@@ -215,7 +215,7 @@ export function sites(business: BusinessState, cash: number): Plot[] {
       affordable: opening.blocked === null,
       what:
         opening.blocked ??
-        `Serves ${opening.capacity} more cups a day. $${opening.daily.toFixed(2)} a day for the pitch${opening.runBy === 'minder' ? ' and a minder' : ''}.`,
+        `Serves ${opening.capacity} more cups a day. ${money(opening.daily)} a day for the pitch${opening.runBy === 'minder' ? ' and a minder' : ''}.`,
       doing: mine > 0 ? standDoing(business, location) : null,
     });
   }
@@ -266,7 +266,7 @@ export function sites(business: BusinessState, cash: number): Plot[] {
       ? 'Two stands first. A door is the answer to both of them shutting when it rains.'
       : `Serves ${SHOP.capacity} cups a day indoors, and the weather stops mattering. $${SHOP.rent} a day in rent, owed when nobody comes.`,
     doing: shopOpen
-      ? `Open. $${shopDailyCost(business.shop).toFixed(2)} a day owed before the door does anything.`
+      ? `Open. ${money(shopDailyCost(business.shop))} a day owed before the door does anything.`
       : null,
   });
 

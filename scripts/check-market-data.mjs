@@ -8,7 +8,7 @@
  */
 import { readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
-import { describeSuspectSplit, suspectSplits } from './market-rules.mjs';
+import { describeSuspectSplit, mondayOf, suspectSplits } from './market-rules.mjs';
 import { envOr, loadEnv } from './env.mjs';
 
 loadEnv();
@@ -290,15 +290,6 @@ if (!before) {
    * A week is the unit the data is in, so a week is the unit to compare in.
    * Both stamps collapse to the Monday of their week.
    */
-  const mondayOf = (iso) => {
-    const at = Date.parse(`${iso}T00:00:00Z`);
-    if (Number.isNaN(at)) return iso;
-    const day = new Date(at).getUTCDay();
-    /* Sunday is 0, and belongs to the week that started six days earlier. */
-    const back = day === 0 ? 6 : day - 1;
-    return new Date(at - back * 86_400_000).toISOString().slice(0, 10);
-  };
-
   const wasAt = new Map(before.weeks.map((date, index) => [mondayOf(date), index]));
   const wasClose = new Map(before.companies.map((company) => [company.ticker, company.closes]));
   for (const company of before.companies) {

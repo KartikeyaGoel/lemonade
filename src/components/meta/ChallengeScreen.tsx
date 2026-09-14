@@ -16,7 +16,15 @@ import {
   skyOfTheDay,
 } from '@/lib/challenge';
 import type { DayRecord } from '@/lib/simulation';
-import { ChunkyButton, CodeBox, CodeInput, SignHeading, Sky, money } from '../ui';
+import {
+  ChunkyButton,
+  CodeBox,
+  CodeInput,
+  SignHeading,
+  Sky,
+  money,
+  useCopyToClipboard,
+} from '../ui';
 import { plural } from '@/lib/copy';
 
 /**
@@ -251,19 +259,7 @@ export function ChallengeScreen({
 
 /** Puts the whole invitation on the clipboard as one message. */
 function ShareBothButton({ lines }: { lines: string[] }) {
-  const [done, setDone] = useState(false);
-  const message = lines.join('\n');
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(message);
-      setDone(true);
-      window.setTimeout(() => setDone(false), 1800);
-    } catch {
-      // Clipboard blocked. Both codes are on screen underneath.
-      setDone(false);
-    }
-  };
+  const [done, copy] = useCopyToClipboard(lines.join('\n'));
 
   return (
     <ChunkyButton variant="lemon" full onClick={copy} className="!text-base">

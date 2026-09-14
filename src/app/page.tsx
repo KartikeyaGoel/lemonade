@@ -232,6 +232,7 @@ import {
 import { missionsFor } from '@/lib/missions';
 import { HELD_A_WHILE_WEEKS, topUp } from '@/lib/credits';
 import { checkIn as buildCheckIn, storyFor, type Answers } from '@/lib/checkin';
+import { money } from '@/lib/copy';
 import { awardFor } from '@/lib/credits';
 import { CloseScreen } from '@/components/CloseScreen';
 import { WeekEndScreen } from '@/components/WeekEndScreen';
@@ -803,7 +804,7 @@ export default function Page() {
     if (game.act === 3) {
       if (game.listing.listed) {
         return {
-          goal: `Trade the week out. One piece of you is $${game.listing.price.toFixed(2)}.`,
+          goal: `Trade the week out. One piece of you is ${money(game.listing.price)}.`,
           day: stageDay,
         };
       }
@@ -2621,7 +2622,7 @@ export default function Page() {
           stage={stage}
           note={
             game.weekend
-              ? `$${WEEKEND_FLOAT.toFixed(2)} out of your investing money to buy lemons. Everything in the cash box goes back in tonight.`
+              ? `${money(WEEKEND_FLOAT)} out of your investing money to buy lemons. Everything in the cash box goes back in tonight.`
               : undefined
           }
           /*

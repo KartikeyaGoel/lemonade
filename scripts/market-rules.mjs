@@ -89,3 +89,28 @@ export function describeSuspectSplit(s) {
     `— an unadjusted split?`
   );
 }
+
+/**
+ * The Monday that owns a date, as `YYYY-MM-DD`.
+ *
+ * A week is the unit the price data is in, and the provider decides which day
+ * of that week it stamps the row with: Alpha Vantage uses the last trading
+ * day, Yahoo the first. Switching provider therefore rewrote every date in
+ * the file without a single price changing — a 98,000-line diff whose shape
+ * gate passed vacuously, because it compared rows by date and almost no dates
+ * matched. §81.
+ *
+ * `fetch-market-data.mjs` normalises settled weeks with it and
+ * `check-market-data.mjs` compares weeks with it. Those were two copies of
+ * this function, character-identical and three hundred lines apart, which is
+ * the precise thing this module was created to stop — see the header. They
+ * agreed today; the split rule agreed for months too.
+ */
+export function mondayOf(iso) {
+  const at = Date.parse(`${iso}T00:00:00Z`);
+  if (Number.isNaN(at)) return iso;
+  const day = new Date(at).getUTCDay();
+  /* Sunday is 0, and belongs to the week that started six days earlier. */
+  const back = day === 0 ? 6 : day - 1;
+  return new Date(at - back * 86_400_000).toISOString().slice(0, 10);
+}

@@ -20,6 +20,7 @@
 
 import { ECON, ingredientCostOf, round2, type DayRecord } from './simulation';
 import { ByteReader, ByteWriter, decodeShort, encodeShort } from './sharecode';
+import { money } from './copy';
 
 export const CHALLENGE_PREFIX = 'SKY';
 export const RESULT_PREFIX = 'RUN';
@@ -399,7 +400,3 @@ function causeFor(
   return `Most of it was ${biggest.label.toLowerCase()}.`;
 }
 
-function money(n: number): string {
-  const sign = n < 0 ? '-' : '';
-  return `${sign}$${Math.abs(n).toFixed(2)}`;
-}

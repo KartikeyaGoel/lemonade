@@ -38,6 +38,7 @@
  */
 
 import { formatMillions, metricsFor, type Company } from './companies';
+import { money } from './copy';
 
 export type Side = 'business' | 'stock';
 
@@ -168,9 +169,9 @@ export const SCOUT_QUESTIONS: readonly ScoutQuestion[] = [
         // The price still goes in. "No profit to divide by" without saying
         // what is being asked for it leaves out the only number a child can
         // reason from — and it is the number that makes the point.
-        return `You would pay $${price.toFixed(2)} a share for a company that made no profit at all last year. There is no sensible price for that, only a guess.`;
+        return `You would pay ${money(price)} a share for a company that made no profit at all last year. There is no sensible price for that, only a guess.`;
       }
-      return `At $${price.toFixed(2)} you are paying ${pe.toFixed(0)} years of profit. Over ${DEAR_PE} is dear.`;
+      return `At ${money(price)} you are paying ${pe.toFixed(0)} years of profit. Over ${DEAR_PE} is dear.`;
     },
   },
   {
@@ -188,7 +189,7 @@ export const SCOUT_QUESTIONS: readonly ScoutQuestion[] = [
     evidence: (company, price, asOf) => {
       const pe = metricsFor(company, price, asOf).pe;
       if (pe === null) {
-        return `There is no profit yet, so every cent of the $${price.toFixed(2)} is somebody expecting one. That is the most expectation a price can carry.`;
+        return `There is no profit yet, so every cent of the ${money(price)} is somebody expecting one. That is the most expectation a price can carry.`;
       }
       return pe > DEAR_PE
         ? `${pe.toFixed(0)} years of profit is a lot to hand over. The price needs it to grow into that.`

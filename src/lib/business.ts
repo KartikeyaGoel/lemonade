@@ -36,7 +36,7 @@ import {
   type LoanState,
   type ShopState,
 } from './retail';
-import { plural } from './copy';
+import { money, plural } from './copy';
 
 /* ------------------------------------------------------------------ *
  * Things you can buy
@@ -1222,8 +1222,7 @@ export function deriveAct2Insights(
   history: DayRecord[],
 ): Insight[] {
   const found: Insight[] = [];
-  const money = (n: number) => `$${n.toFixed(2)}`;
-
+  
   const ownsCapex = Object.values(business.upgrades).some(Boolean);
   const paysWages = business.staff.helper || business.staff.manager;
 
@@ -1331,8 +1330,7 @@ export function deriveAct3Insights(
   business: BusinessState,
 ): Insight[] {
   const found: Insight[] = [];
-  const money = (n: number) => `$${n.toFixed(2)}`;
-
+  
   if (business.shop.open) {
     const owed = shopDailyCost(business.shop);
     const perCup = outcome.ingredients.perCup;

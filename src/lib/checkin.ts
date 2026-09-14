@@ -34,7 +34,7 @@ import { SNAPSHOT, type Company } from './companies';
 import { currentDate, currentPrice, summarisePortfolio, type PortfolioState } from './market';
 import type { Ledger } from './ledger';
 import { checkedInToday } from './credits';
-import { plural } from './copy';
+import { money, plural } from './copy';
 
 /**
  * Why a price moved, in the four kinds a child has to be able to tell apart.
@@ -240,8 +240,8 @@ export function storyFor(portfolio: PortfolioState): Story | null {
         : `${biggest.company.name} went ${up ? 'up' : 'down'} ${pct}% this week.`,
     told:
       pct === 0
-        ? `${biggest.company.name} barely moved this week. A share is still $${price.toFixed(2)}.`
-        : `A share of ${biggest.company.name} ${up ? 'costs more' : 'costs less'} than last week — $${price.toFixed(2)} now. ${
+        ? `${biggest.company.name} barely moved this week. A share is still ${money(price)}.`
+        : `A share of ${biggest.company.name} ${up ? 'costs more' : 'costs less'} than last week — ${money(price)} now. ${
             biggest.owned ? 'You own some of this one.' : 'You do not own this one.'
           }`,
     because,

@@ -67,7 +67,7 @@
 
 import type { Act } from './progress';
 import { ECON, totalFixedCost, type DayOutcome, type DayRecord } from './simulation';
-import { plural } from './copy';
+import { money, plural } from './copy';
 
 export const GUIDE_NAME = 'Pip';
 
@@ -404,7 +404,6 @@ export function ledgerStartsOpen(outcome: DayOutcome, history: readonly DayRecor
  */
 export function closingLine(outcome: DayOutcome): string {
   const cups = outcome.cupsSold;
-  const dollars = (amount: number) => `$${amount.toFixed(2)}`;
 
   // Sold out with people still wanting one: capacity decided the day.
   /* `cupsAvailable`, not `cupsMakeable`: on a day the child sent out for more
@@ -417,19 +416,19 @@ export function closingLine(outcome: DayOutcome): string {
   // sold, and "cost $0.00 to make" is not a fact about anything — on a day
   // with no sales the only real line is the one owed regardless.
   if (outcome.cupsSold === 0) {
-    return `Nobody bought a cup at ${dollars(outcome.price)}. The stand still cost you ${dollars(totalFixedCost(outcome.fixedCostLines))}.`;
+    return `Nobody bought a cup at ${money(outcome.price)}. The stand still cost you ${money(totalFixedCost(outcome.fixedCostLines))}.`;
   }
 
   // A loss, with the line that caused it.
   if (outcome.profit < 0) {
     if (outcome.grossProfit > 0) {
-      return `Your cups made ${dollars(outcome.grossProfit)}, and the costs you owe anyway were ${dollars(totalFixedCost(outcome.fixedCostLines))}.`;
+      return `Your cups made ${money(outcome.grossProfit)}, and the costs you owe anyway were ${money(totalFixedCost(outcome.fixedCostLines))}.`;
     }
-    return `Each cup sold for ${dollars(outcome.price)} and cost ${dollars(outcome.ingredients.perCup)} to make.`;
+    return `Each cup sold for ${money(outcome.price)} and cost ${money(outcome.ingredients.perCup)} to make.`;
   }
 
   if (outcome.spoiledLemons > 0) {
-    return `${plural(outcome.spoiledLemons, 'lemon')} went off before anyone drank them. That is ${dollars(outcome.spoilageCost)} gone.`;
+    return `${plural(outcome.spoiledLemons, 'lemon')} went off before anyone drank them. That is ${money(outcome.spoilageCost)} gone.`;
   }
 
   if (outcome.subscriberCups > 0) {
@@ -437,5 +436,5 @@ export function closingLine(outcome: DayOutcome): string {
   }
 
   // The ordinary good day. Name the gap between what came in and what it cost.
-  return `${plural(cups, 'cup')} brought in ${dollars(outcome.revenue)}. Making them cost ${dollars(outcome.ingredients.total)}.`;
+  return `${plural(cups, 'cup')} brought in ${money(outcome.revenue)}. Making them cost ${money(outcome.ingredients.total)}.`;
 }
