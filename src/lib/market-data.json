@@ -3,8 +3,8 @@
   "fundamentalsSource": "SEC EDGAR XBRL company facts (10-K filings)",
   "pricesSource": "Alpha Vantage TIME_SERIES_WEEKLY_ADJUSTED",
   "pricesFellBack": [],
-  "fetchedAt": "2026-09-13",
-  "fundamentalsFetchedAt": "2026-09-13",
+  "fetchedAt": "2026-09-14",
+  "fundamentalsFetchedAt": "2026-09-14",
   "fundamentalsCarried": [],
   "weeks": [
     "2021-08-02",
