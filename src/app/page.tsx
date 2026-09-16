@@ -109,6 +109,7 @@ import {
   type Act,
 } from '@/lib/progress';
 import { DEMO_STAGES, demoGame } from '@/lib/demo';
+import { SkipAheadScreen } from '@/components/SkipAheadScreen';
 import { parentReport } from '@/lib/parent';
 import { catchUp, createLivePortfolio, type CatchUp } from '@/lib/live';
 import { LiveOpenScreen } from '@/components/acts/LiveOpenScreen';
@@ -288,6 +289,7 @@ type Phase =
   | 'week-report'
   | 'gate'
   | 'parent'
+  | 'skip'
   | 'finale'
   | 'trophies'
   | 'challenge'
@@ -2478,6 +2480,7 @@ export default function Page() {
              lemonade stand and no evidence of anything. The ladder in the
              report is written to be worth reading on day zero. */
           onParent={openParent}
+          onSkip={openFrom('title', 'skip')}
           parentLabel={firstRun ? 'For a grown-up: what this teaches' : 'For a grown-up'}
           rank={
             isUnlocked('trophies', game, career)
@@ -3194,6 +3197,15 @@ export default function Page() {
           onNewSeason={isUnlocked('seasons', game, career) ? startNewSeason : undefined}
         />
       ) : null;
+
+    case 'skip':
+      return (
+        <SkipAheadScreen
+          at={game.act}
+          onJump={jumpToStage}
+          onBack={() => setPhase(returnPhase)}
+        />
+      );
 
     case 'parent':
       return (

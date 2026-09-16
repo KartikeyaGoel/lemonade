@@ -50,6 +50,7 @@ import { createCareer } from '@/lib/career';
 import { UNLOCK_COPY } from '@/lib/unlocks';
 import type { Act } from '@/lib/progress';
 import { GLOSSARY } from '@/lib/glossary';
+import { enabled, FURNITURE, nameOf } from './screen';
 
 /**
  * Controls that are on screen whatever is happening.
@@ -58,14 +59,6 @@ import { GLOSSARY } from '@/lib/glossary';
  * is still an interstitial — and a screen offering one real control plus the
  * sound toggle is not a choice between them.
  */
-const FURNITURE =
-  /^(🔊|🔇|↺|Back|Back →|←|For a grown-up.*|Turn sound (on|off)|Hide static indicator|Start over on this device)$/i;
-
-function enabled(): HTMLButtonElement[] {
-  return [...document.querySelectorAll('button')].filter(
-    (b) => !(b as HTMLButtonElement).disabled,
-  ) as HTMLButtonElement[];
-}
 
 /**
  * Everything on this screen a child can act on.
@@ -85,24 +78,6 @@ function realControls(): Element[] {
 }
 
 /** The same screen fingerprint the soak uses, for the same reason. */
-function nameOf(): string {
-  const heading = document.querySelector('h1, h2')?.textContent?.trim();
-  /*
-   * `textContent`. `innerText` is `undefined` in jsdom, so this fallback used to
-   * name every heading-less screen `(blank)` — which meant the allowlist entry
-   * for `(blank)` was silently excusing *all* of them rather than the one frame
-   * before hydration it claimed to be about.
-   */
-  const raw = heading ?? (document.body.textContent ?? '').trim().slice(0, 40);
-  return (
-    raw
-      .replace(/\d+/g, '')
-      .replace(/[^\p{L}\s?!'—-]/gu, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 32) || '(blank)'
-  );
-}
 
 /**
  * Screens that legitimately offer one thing, and why.
@@ -119,6 +94,16 @@ const ALLOWED_INTERSTITIALS: Record<string, string> = {
   'That was the best deal': 'the verdict on a decision already made; the choosing happened on the screen before',
   'Your money grew': WEEK_REPORT,
   'Your money dipped': WEEK_REPORT,
+  /*
+   * Both of these became reachable when the demo shortcut moved onto the title
+   * screen (§86) — a walk that can reset to any stage meets screens a walk
+   * that passes through each stage once does not. Neither is new and neither
+   * is a defect; they had simply never been caught in a one-control state.
+   */
+  Friends:
+    "the unlock card announcing the Friends feature — `unlocks.ts` titles it 'Friends' and its only control is `Got it →`. A feature arriving is the second kind of card named in the note above",
+  'How are we doing':
+    'the club\'s two leaderboards. A readout, and deliberately two of them: money made and reasoning that held up are different things and the gap between them is the lesson. The deciding happens in proposing and voting, on the screens before',
 };
 
 /**

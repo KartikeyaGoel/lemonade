@@ -5,8 +5,8 @@ import type { ParentReport } from '@/lib/parent';
 import type { Stage } from '@/lib/curriculum';
 import type { Skill } from '@/lib/mastery';
 import type { Act } from '@/lib/progress';
-import { DEMO_STAGES } from '@/lib/demo';
 import { ChunkyButton, clearsBar, PinnedBar, SignHeading, Sky } from '../ui';
+import { SkipAheadPanel } from '../SkipAheadScreen';
 import { plural } from '@/lib/copy';
 
 /**
@@ -320,41 +320,20 @@ export function ParentScreen({
 }
 
 /**
- * The admin door: start somewhere other than the beginning.
+ * The same door, from the grown-up screen.
  *
- * Asked for as "a way to shortcut to level 2", level 2 being the market, with
- * the suggestion that the stages could be unlocked for a demo. They are not
- * unlocked, here or anywhere — the gated path stays exactly as a child plays
- * it, which is the whole product. Each button plays the game forward instead
- * and hands over the save that produces. `demo.ts` has the argument for why
- * that is not the same thing, and why unlocking would have shown an empty
- * market rather than a working one.
+ * This used to hold the whole control. It now holds the disclosure and hands
+ * the rest to `SkipAheadPanel`, because the title screen has a pill that opens
+ * the same thing — see `SkipAheadScreen` for why a stage-skip stopped being an
+ * admin door, and `check-duplicates.mjs` for the gate that keeps it one
+ * implementation rather than two.
  *
- * Styled like the erase below it and for the same reason: small print rather
- * than an action, because this is a control for the person running the demo and
- * a landmine for anybody else.
- *
- * **All four stages are offered, including the one you are on.** They were not:
- * the stage matching `game.act` was filtered out, on the reasoning that it
- * "removes the only tap that would replace a run with an identical one". That
- * reasoning is wrong, and it broke the control's main use.
- *
- * `demoGame` plays the stage forward from a seed, so what it hands over is a
- * *freshly played* save. The moment the demo-er buys a share or advances a
- * week, their run is no longer identical to that — and resetting to a clean
- * stage is the thing a demo needs most, because a demo is given more than
- * once. Worse, the stage it hid was whichever one you had just jumped to, so
- * using the shortcut made the shortcut disappear. The market is the stage
- * anybody demonstrating this game shows, and jumping to the market was the
- * exact tap that removed it. Reported from outside: *"the shortcut for market
- * seems to have gone away."*
- *
- * What the filter was guarding against — a tap that looks like it did nothing
- * — is real, and is handled by saying so instead of by hiding the row.
+ * It stays here as well as there. A grown-up reading the syllabus is the other
+ * person who wants it, and the surrounding paragraph is the only place that
+ * explains why the stages are slow in the first place.
  */
 function JumpBlock({ onJump, at }: { onJump: (act: Act) => void; at: number }) {
   const [open, setOpen] = useState(false);
-  const [picked, setPicked] = useState<Act | null>(null);
 
   if (!open) {
     return (
@@ -374,77 +353,17 @@ function JumpBlock({ onJump, at }: { onJump: (act: Act) => void; at: number }) {
     );
   }
 
-  const chosen = picked === null ? null : DEMO_STAGES.find((stage) => stage.act === picked);
-
   return (
     <div className="mt-5 rounded-2xl border-[3px] border-ink/25 bg-white/85 p-4">
       <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-ink/50">
         Skip ahead
       </div>
-
-      {chosen ? (
-        <>
-          {/* Named, because "are you sure" is not a question. What goes is a
-              run; what arrives is somebody else's week, and a demo-er should
-              know which of the two is on the screen they are about to show.
-              And when it is the stage they are standing on, the honest word is
-              "again" — the save is fresh, theirs is not. */}
-          <p className="mt-1 font-body text-[13px] font-extrabold leading-snug text-ink">
-            {chosen.act === at
-              ? `Start ${chosen.name} again, from a save played fresh up to it?`
-              : `Replace this run with a game that has been played up to ${chosen.name}?`}
-          </p>
-          <p className="mt-1 font-body text-[12px] font-bold leading-snug text-ink/65">
-            The days are real ones: every figure on screen is what those days actually made. The
-            badges and words are whatever that week earned, so it is a played save rather than a
-            finished one. Trophies and names already on this device are kept.
-          </p>
-          <div className="mt-3 space-y-2">
-            <ChunkyButton variant="ghost" full onClick={() => setPicked(null)}>
-              Pick a different one
-            </ChunkyButton>
-            <ChunkyButton variant="lemon" full onClick={() => onJump(chosen.act)}>
-              {chosen.act === at ? `Start ${chosen.name} again` : `Start at ${chosen.name}`}
-            </ChunkyButton>
-          </div>
-        </>
-      ) : (
-        <>
-          <p className="mt-1 font-body text-[12px] font-bold leading-snug text-ink/65">
-            This replaces the run on this device with one that has been played that far. It is for
-            demos — a child gets here by playing.
-          </p>
-          <div className="mt-3 space-y-2">
-            {DEMO_STAGES.map((stage) => (
-              <button
-                key={stage.act}
-                type="button"
-                onClick={() => setPicked(stage.act)}
-                className="w-full rounded-xl border-[3px] border-ink/15 bg-white px-3 py-2 text-left"
-              >
-                <div className="font-sign text-lg leading-tight text-ink">
-                  {stage.act}. {stage.name}
-                  {stage.act === at && (
-                    <span className="ml-1.5 font-body text-[10px] font-extrabold uppercase tracking-wide text-ink/45">
-                      you are here
-                    </span>
-                  )}
-                </div>
-                <div className="font-body text-[11px] font-bold leading-tight text-ink/55">
-                  {stage.act === at ? 'Start this stage again, on a fresh save.' : stage.promise}
-                </div>
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="mt-2 flex h-11 w-full items-center justify-center font-body text-[12px] font-extrabold uppercase tracking-wide text-ink/50"
-          >
-            Never mind
-          </button>
-        </>
-      )}
+      <SkipAheadPanel
+        at={at}
+        onJump={onJump}
+        onCancel={() => setOpen(false)}
+        cancelLabel="Never mind"
+      />
     </div>
   );
 }

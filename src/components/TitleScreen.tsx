@@ -27,6 +27,7 @@ export function TitleScreen({
   onStart,
   hasSave,
   onParent,
+  onSkip,
   parentLabel = 'For a grown-up',
   extras = [],
   road,
@@ -39,6 +40,19 @@ export function TitleScreen({
   hasSave: boolean;
   /** Deliberately small and low-contrast: this screen belongs to the kid. */
   onParent?: () => void;
+  /**
+   * Straight to the stage picker.
+   *
+   * A base feature, not an admin door. This build has no accounts — "For a
+   * grown-up" is a label on a button a child can press — so hiding a demo
+   * shortcut behind it protected nobody and made it hard to find for the only
+   * people currently using the app. See `SkipAheadScreen`.
+   *
+   * A quiet pill beside the grown-up one, deliberately. The rule this screen
+   * protects is **one thing that looks like an action**, which is about the
+   * primary button rather than the button count; `journey.ts` has the argument.
+   */
+  onSkip?: () => void;
   /**
    * What the grown-up link says.
    *
@@ -166,8 +180,11 @@ export function TitleScreen({
           </div>
         )}
 
-        {/* Gated on `onParent` alone, not on there being a save, and no longer
-            hidden on a first run — see the note at the call site. */}
+        {/* Two quiet pills, side by side. Gated on their handlers alone, not on
+            there being a save — the person who most wants to skip to the market
+            is somebody who has just opened the link for the first time, and a
+            first run is exactly when `extras` is empty by design. */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
         {onParent && (
           <button
             type="button"
@@ -177,11 +194,21 @@ export function TitleScreen({
                actually land on. PRODUCT.md §41: this is the one screen built
                to show a grown-up what the game teaches, and every parent
                evaluating it cold has to find it exactly once. */
-            className="mt-4 inline-flex min-h-11 items-center rounded-full bg-white/45 px-4 py-2.5 font-body text-xs font-extrabold text-ink/60"
+            className="inline-flex min-h-11 items-center rounded-full bg-white/45 px-4 py-2.5 font-body text-xs font-extrabold text-ink/60"
           >
             {parentLabel}
           </button>
         )}
+        {onSkip && (
+          <button
+            type="button"
+            onClick={onSkip}
+            className="inline-flex min-h-11 items-center rounded-full bg-white/45 px-4 py-2.5 font-body text-xs font-extrabold text-ink/60"
+          >
+            Skip to a stage
+          </button>
+        )}
+        </div>
       </div>
       <Ground height="h-28" />
     </Sky>

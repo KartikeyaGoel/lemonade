@@ -6963,3 +6963,145 @@ One instance, and now one gate.
 Somebody opened the app and found it. Fourteen gated classes, 1,723 tests, an
 exhaustive state sweep, and the thing that found this was a person trying to
 show the game to somebody. §83 is now three for three.
+
+---
+
+## 86. Skip ahead is a base feature now, and the boundary it was guarding never existed
+
+> why cant you just add the skip ahead as a base feature, the entire vercel app
+> is a demo so there arent any avccounts with the grown up ansd kid
+
+Right on both counts, and §85 is the cost of having got it wrong: the shortcut
+sat broken for who knows how long, and the person who found it was trying to
+show somebody the game.
+
+The control was behind the grown-up screen because *the gated path is the
+product* — §57's argument, and it still holds. Nothing here touches it.
+`demoGame` **plays** the stage forward with the same functions the app uses, so
+`unlocks.ts` and `readiness` are untouched and a jumped save gets past them by
+having been played rather than by being waved through. `tests/demo.test.ts`
+still forbids `demo.ts` from writing a readiness flag or a badge by hand.
+
+What did not survive contact with the deployment is the *other* half — that
+"behind the grown-up screen" is a boundary. There are no accounts. "For a
+grown-up" is a label on a button a child can press, one tap from the title
+screen. It never protected anybody; it only made the control hard to find for
+the people this build currently exists for.
+
+So: a second quiet pill on the title screen, **Skip to a stage**, beside the
+grown-up one. It is not gated on having a save, because the person who most
+wants to see the market is somebody who has just opened the link for the first
+time — and a first run is exactly when `extras` is empty by design.
+
+### What is preserved, and it is not button count
+
+`journey.ts` argues at length that a menu on the title screen would undo the
+entry, and `tests/ui/parent.test.tsx` had `expect(screen.getAllByRole('button'))
+.toHaveLength(3)` to hold the line. Read carefully, the rule being protected is
+**one thing that looks like an action** — that is about the primary button, not
+about how many quiet pills sit in the small print at the bottom. "Start
+selling" is still the only thing on that screen that looks like a decision.
+
+### One panel, two doors
+
+`SkipAheadPanel` is the whole control. `SkipAheadScreen` renders it as a screen
+for the title pill; `ParentScreen`'s disclosure renders the same panel where it
+already was, because a grown-up reading the syllabus is the other person who
+wants it and that paragraph is the only place explaining why the stages are
+slow. Two entrances, one implementation —
+`scripts/check-duplicates.mjs` is what notices if that stops being true.
+
+The gate that asserted `onJump=` appeared exactly once in `page.tsx` is gone,
+because counting doors was never the invariant. What replaced it is an
+allowlist of **where**: the jump may be offered from `ParentScreen` and
+`SkipAheadScreen` and nowhere else, and the door to it from `TitleScreen` and
+nowhere else. Adding a stage-skip to `PlanScreen` — next to a decision a child
+is making — fails the build.
+
+### Four gates caught the change, and two of them caught real mistakes
+
+Worth listing, because this is the first change in a while where the existing
+gates did the work rather than being widened after the fact:
+
+1. `tests/layout.test.ts` — the new screen pinned a bar without padding its
+   content by the measured height. Content would have sat under the bar. **A
+   real bug, in code written ten minutes earlier.**
+2. `tests/layout.test.ts` again — the render matrix fails a `*Screen.tsx` no UI
+   test mentions. It made the new screen get tests.
+3. `tests/demo.test.ts` — the door count, above. A decision to reverse rather
+   than a bug, and it forced the reversal to be written down.
+4. `tests/ui/engagement.test.tsx` — new screens became reachable. See below.
+
+### What a resettable stage does to the instruments
+
+A walk that can reset to any stage meets screens a walk that passes through
+each stage once does not. That surfaced two screens that had never been caught
+offering one control, and neither is a defect: the **Friends unlock card**
+(`unlocks.ts` titles it "Friends", its only control is `Got it →` — a feature
+arriving, which the allowlist's own note already names as a legitimate card)
+and the club's **How are we doing**, two leaderboards that are a readout, with
+the deciding done in proposing and voting on the screens before.
+
+It also exposed something worse, and it was in the instrument.
+
+**`nameOf` was duplicated verbatim** between `tests/ui/soak.test.tsx` and
+`tests/ui/engagement.test.tsx`, and the engagement copy carried a comment
+saying *"the same screen fingerprint the soak uses, for the same reason"* —
+true only because nobody had yet changed one. So were `body` and `enabled`.
+That is §75 in the one layer `check-duplicates.mjs` does not scan, and it
+matters more here than most places, because these two files report numbers that
+get written into this document and compared across sessions. Two fingerprints
+drifting apart would make the soak's screen count and the engagement screen
+count quietly incomparable, and nothing would say so. They live in
+`tests/ui/screen.ts` now.
+
+And the fingerprint itself was inventing screens. A screen with no `h1` or `h2`
+falls back to forty characters of body text, and the text it lands on is
+usually *data*:
+
+```
+Pick two othersMcDonald'sCrocsNo
+Pick two othersDisneyNvidiaNobod
+Pick two othersDoorDashDomino'sN
+```
+
+One screen — the head-to-head comparison — named once per pair of companies,
+each name seen once, each therefore looking like a screen that only ever
+offered one thing. It had no heading at all, which is also the reason a screen
+reader had no landmark on it. It has one now, and the effect on the numbers is
+the point:
+
+| | before | after |
+|---|---|---|
+| soak "screens" | 178 | **114** |
+| engagement screen kinds | 55 | **45** |
+
+**Sixty-four of the soak's screens were the same screens under different
+names.** The coverage *ratio* was never wrong — the denominator is controls,
+not screens — but every screen count this document has ever quoted for the
+soak was inflated, and the honest reading is that the app has about a hundred
+and fourteen distinct screens rather than a hundred and seventy-eight.
+
+### Two things found and deliberately not fixed here
+
+Both measured, both written down rather than left as a feeling:
+
+- **A labelled back arrow counts as a decision.** `FURNITURE` knows a bare `←`
+  and not `← Market` or `← Pick two others`, so the company screen reads as
+  offering two controls when it offers one — *Buy DUOL* and the exit. Adding
+  `←\s*.*` to that list unmasks several screens at once, and what those
+  screens should offer is a piece of product work rather than a regex change.
+  The measurement: with it added, the company detail screen appears as a
+  one-decision screen on every company the walk opens.
+- **No gate fails a reachable screen with no heading.** Two screen files have
+  no heading component at all (`WeekEndScreen`, `TrophyScreen`) and an unknown
+  number of render branches inside other files are the same. A source grep
+  cannot see a branch, so this wants a runtime check inside the walks, which
+  is the same shape as `tests/ui/lists.test.tsx`: enumerate, do not sample.
+
+And the 16 clone groups that `check-duplicates.mjs` reports the moment it is
+pointed at `tests/` — a `walk` in four files, an `rng` in three, and
+`demo.ts`'s own `sensiblePrice` copied into `arc.test.ts`, where a test agrees
+with the implementation by construction. That last one is the dangerous shape.
+The scan is not enabled yet because enabling it means doing that cleanup, and
+it is not this change.

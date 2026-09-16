@@ -639,6 +639,14 @@ function FaceoffView({
           ← Pick two others
         </button>
 
+        {/* A heading, which this screen did not have.
+            A screen reader had no landmark on it, and the walks in
+            `tests/ui/` name a screen by its heading — so with none, this one
+            got named from its body text and came out as a *different screen
+            per pair of companies*, each seen once, each looking like a screen
+            that offers one thing. `tests/ui/headings.test.tsx` is the gate. */}
+        <SignHeading className="!text-lemon-light mt-2 text-3xl">Head to head</SignHeading>
+
         <div className="mt-3 grid grid-cols-2 gap-2">
           {[a, b].map((c, i) => (
             <div

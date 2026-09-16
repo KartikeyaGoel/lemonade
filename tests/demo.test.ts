@@ -196,15 +196,54 @@ describe('what the shortcut is not allowed to cost', () => {
     expect(source).toContain('acceptBuyout');
   });
 
-  it('keeps the door out of every screen a child looks at', () => {
-    // `onJump` belongs to one component, and it is the one no child screen
-    // links to. A second home for it is how an admin control becomes a
-    // feature.
-    const parent = readFileSync('src/components/acts/ParentScreen.tsx', 'utf8');
-    expect(parent).toContain('onJump');
+  /*
+   * This used to assert `onJump=` appeared in `page.tsx` exactly once, on the
+   * reasoning that "a second home for it is how an admin control becomes a
+   * feature". It is a feature now, deliberately:
+   *
+   * > why cant you just add the skip ahead as a base feature, the entire
+   * > vercel app is a demo so there arent any avccounts with the grown up
+   * > ansd kid
+   *
+   * Which is right about this build. There are no accounts, and "For a
+   * grown-up" is a label on a button a child can press — so the old test was
+   * protecting a boundary that does not exist, and the cost of protecting it
+   * was §85: the shortcut sat broken until somebody trying to demo the game
+   * noticed.
+   *
+   * What still matters is not *how many* doors there are. It is **where** they
+   * are and **what the jump is allowed to do**. The second half is the test
+   * above — `demo.ts` may not write a readiness flag or a badge by hand, so a
+   * jumped save gets past the gate by having been played rather than by being
+   * waved through, and that is untouched.
+   *
+   * This is the first half, as an allowlist: the jump may be offered from the
+   * title screen and the grown-up screen, and from nowhere inside the day. A
+   * stage-skip next to a decision a child is making is a different product,
+   * and adding it to `PlanScreen` should fail a build.
+   */
+  it('is offered from the two screens outside the day, and nowhere in it', () => {
     const page = readFileSync('src/app/page.tsx', 'utf8');
-    // Passed to the grown-up screen and nowhere else.
-    expect(page.match(/onJump=/g) ?? []).toHaveLength(1);
+
+    /** Which JSX component each prop is handed to. */
+    const hostsOf = (prop: string) => {
+      const found = new Set<string>();
+      for (const match of page.matchAll(new RegExp(`\\b${prop}=`, 'g'))) {
+        const before = page.slice(0, match.index);
+        const open = [...before.matchAll(/<([A-Z]\w+)/g)].pop();
+        found.add(open?.[1] ?? '(none)');
+      }
+      return [...found].sort();
+    };
+
+    expect(hostsOf('onJump'), 'who is handed the jump').toEqual([
+      'ParentScreen',
+      'SkipAheadScreen',
+    ]);
+    expect(hostsOf('onSkip'), 'who is handed the door to it').toEqual(['TitleScreen']);
+
+    /* And it is the one implementation, in both places. */
+    expect(page.match(/onJump=\{jumpToStage\}/g) ?? []).toHaveLength(2);
   });
 
   it('is honest in code about what a jumped save does not show', () => {

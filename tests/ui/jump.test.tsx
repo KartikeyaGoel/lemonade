@@ -41,6 +41,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { ParentScreen } from '@/components/acts/ParentScreen';
+import { SkipAheadScreen } from '@/components/SkipAheadScreen';
 import { parentReport } from '@/lib/parent';
 import { DEMO_STAGES, demoGame } from '@/lib/demo';
 import { createCareer } from '@/lib/career';
@@ -128,5 +129,72 @@ describe('the demo shortcut', () => {
     fireEvent.click(screen.getByText('4. Markets', { exact: false }));
     fireEvent.click(screen.getByText('Start Markets again'));
     expect(jumped, 'the market row did not ask for the market').toEqual([4]);
+  });
+
+  /*
+   * The second door, added when the first one turned out to be guarding
+   * nothing:
+   *
+   * > why cant you just add the skip ahead as a base feature, the entire
+   * > vercel app is a demo so there arent any avccounts with the grown up
+   * > ansd kid
+   *
+   * `SkipAheadScreen` is what the title-screen pill opens. It renders the same
+   * `SkipAheadPanel` the grown-up screen does — one implementation, two
+   * entrances — so these assertions are about the door rather than the list,
+   * which is covered above from every stage.
+   */
+  describe('the door on the title screen', () => {
+    it('opens straight onto the stages, with no disclosure to find first', () => {
+      render(<SkipAheadScreen at={4} onJump={() => {}} onBack={() => {}} />);
+      for (const stage of DEMO_STAGES) {
+        expect(
+          screen.getByText(`${stage.act}. ${stage.name}`, { exact: false }),
+          `${stage.name} is not on the screen the pill opens`,
+        ).toBeInTheDocument();
+      }
+      /* The thing the grown-up screen makes you tap first is not here. */
+      expect(screen.queryByText('Skip ahead to a stage')).not.toBeInTheDocument();
+    });
+
+    it('marks the stage in progress and offers it as a restart', () => {
+      render(<SkipAheadScreen at={2} onJump={() => {}} onBack={() => {}} />);
+      expect(screen.getByText('you are here')).toBeInTheDocument();
+      fireEvent.click(screen.getByText('2. A real business', { exact: false }));
+      expect(
+        screen.getByText(/Start A real business again, from a save played fresh up to it\?/),
+      ).toBeInTheDocument();
+    });
+
+    it('hands back the act, and can always be left', () => {
+      const jumped: Act[] = [];
+      let backs = 0;
+      render(<SkipAheadScreen at={1} onJump={(a) => jumped.push(a)} onBack={() => { backs += 1; }} />);
+
+      /* Leaving, from the list. Two ways out on purpose: the pinned Back is
+         where a thumb already is, and "Never mind" is where the eye finishes
+         reading the list. */
+      fireEvent.click(screen.getByText('Never mind'));
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      expect(backs).toBe(2);
+
+      fireEvent.click(screen.getByText('4. Markets', { exact: false }));
+      fireEvent.click(screen.getByText('Start at Markets'));
+      expect(jumped).toEqual([4]);
+    });
+
+    it('never offers a way in that a jumped save could not come back from', () => {
+      /* Every state of this screen keeps a control that leaves it. A dead end
+         behind a demo pill is worse than no pill, because the person holding
+         the phone is mid-sentence in front of somebody. */
+      for (const at of ACTS) {
+        render(<SkipAheadScreen at={at} onJump={() => {}} onBack={() => {}} />);
+        expect(screen.getByRole('button', { name: 'Back' })).toBeEnabled();
+        fireEvent.click(screen.getByText(`${at}. `, { exact: false }));
+        expect(screen.getByRole('button', { name: 'Back' })).toBeEnabled();
+        expect(screen.getByText('Pick a different one')).toBeEnabled();
+        cleanup();
+      }
+    });
   });
 });

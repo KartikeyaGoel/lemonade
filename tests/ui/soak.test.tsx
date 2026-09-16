@@ -89,6 +89,7 @@ import { SAVE_VERSION, type Act } from '@/lib/progress';
 import { demoGame } from '@/lib/demo';
 import { createCareer } from '@/lib/career';
 import { UNLOCK_COPY } from '@/lib/unlocks';
+import { body, enabled, nameOf } from './screen';
 
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -99,14 +100,6 @@ function rng(seed: number) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-}
-
-const body = () => document.body.textContent ?? '';
-
-function enabled(): HTMLButtonElement[] {
-  return [...document.querySelectorAll('button')].filter(
-    (b) => !(b as HTMLButtonElement).disabled,
-  ) as HTMLButtonElement[];
 }
 
 /**
@@ -188,18 +181,6 @@ const IMPOSSIBLE = [/NaN/, /Infinity/, /undefined/, /\[object Object\]/, /\$\s*-
  * makes a whole screen unreachable the screen count drops even when control
  * coverage does not.
  */
-function nameOf(): string {
-  const heading = document.querySelector('h1, h2')?.textContent?.trim();
-  const raw = heading ?? body().trim().slice(0, 40);
-  return (
-    raw
-      .replace(/\d+/g, '')
-      .replace(/[^\p{L}\s?!'—-]/gu, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 32) || '(blank)'
-  );
-}
 
 /**
  * Phases the walk is not expected to reach, each with the reason.
