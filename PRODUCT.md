@@ -6852,3 +6852,114 @@ Nobody has played it for fun since §83. Five duplicate implementations are
 gone and a detector stands where they were, but that is a statement about the
 code, not about whether the game is any good — and the §83 ordering still
 holds. A detector finds the second instance. A person finds the first.
+
+---
+
+## 85. Using the shortcut removed the shortcut
+
+> Btw, been the shortcut for market seems to have gone away in the game.
+
+It had. `JumpBlock` in `ParentScreen.tsx` — the admin door asked for in §57 as
+*"a way to shortcut to level 2"*, level 2 being the market — filtered the stage
+list like this:
+
+```tsx
+{DEMO_STAGES.filter((stage) => stage.act !== at).map((stage) => (
+```
+
+`at` is `game.act`. So the stage hidden from the list was always **the stage you
+had just jumped to**. Jump to the market, and the market is no longer on offer.
+The market is the stage anybody demonstrating this game shows, so the one tap
+that mattered was the tap that deleted itself.
+
+Reproduced in the browser in four steps: fresh save, open the grown-up screen,
+skip to Markets, open it again — the list reads *1. One stand · 2. A real
+business · 3. Go public* and stops.
+
+### The comment explaining it was wrong on the facts
+
+> The stage they are already on is not offered, which removes the only tap that
+> would replace a run with an identical one.
+
+`demoGame(act)` does not hand back the save you are holding. It *plays the
+stage forward from a seed*, so what arrives is a freshly played one. The moment
+a demo-er buys a share or advances a week, their run is not that save any more
+— and resetting to a clean stage is the thing a demo needs most, because a demo
+is given more than once. The premise was false for every stage and most false
+for the one it mattered on.
+
+What the filter was actually guarding against is real: a tap that looks like it
+did nothing. That is now handled by **saying so** rather than by hiding the row.
+The row for the current stage is marked *you are here*, its subtitle becomes
+"Start this stage again, on a fresh save", the confirmation asks *"Start Markets
+again, from a save played fresh up to it?"* instead of *"Replace this run…"*,
+and the button says *Start Markets again*.
+
+Verified by dirtying a market save to week 7 and $3.21 and re-jumping: week 0,
+$4,760.14, on the market screen.
+
+### A test was defending it
+
+`tests/ui/parent.test.tsx` had:
+
+```ts
+it('does not offer the stage already on screen', …)
+```
+
+written from the implementation rather than from what the control is for. A
+test written that way will defend a defect exactly as hard as it defends a
+feature, and this one did — it is the reason the behaviour survived a fortnight
+of gate-building. It now asserts the opposite, with the story next to it, and
+`tests/ui/jump.test.tsx` holds the whole 4x4 of stages against stages, because
+sixteen cases is not a space worth sampling (§9).
+
+### Why no gate caught it, which is the interesting part
+
+`tests/ui/soak.test.tsx` and `tests/ui/engagement.test.tsx` both reach this
+screen, many times. Neither could have noticed, and the reason is the shape of
+what they measure: **coverage is a ratio over controls the walk was offered.**
+A control that is never rendered is not missing from the numerator — it is
+missing from the denominator, and a ratio cannot see a hole in its own
+denominator. §9 said this about 100% being unreachable; the same sentence, read
+the other way, says a walk can be at 95% of everything it was shown while a
+whole door is bricked up.
+
+The evidence is in the numbers after the fix, which moved on their own:
+
+| | before | after |
+|---|---|---|
+| soak control coverage | 95.0% of 444 | **96.2% of 450** |
+| engagement screen kinds | 52 | **62** |
+
+Six more controls and ten more screen kinds became reachable from *one row*,
+because the row resets the save and lets the walk re-enter stages it had
+otherwise passed through once. The hidden control had been hiding a tenth of
+the app from the instruments that measure the app.
+
+That also turned up a screen the walk had never met: `WeekReportScreen` with a
+falling week, whose heading is `up ? 'Your money grew' : 'Your money dipped'`.
+It takes only `onContinue`, which is correct — the buying and selling it is
+about happens on the market screen next — so it is allowed as a card. Two
+headings for one component needed a small honesty fix in the gate itself:
+`SAME_SCREEN` says the two strings are one screen, so a walk that meets only
+the falling week is not told its allowlist has gone stale.
+
+### The class, checked rather than assumed
+
+§11's rule is to count the instances before fixing one. The generalised class
+is *a control filtered out by the very state it applies to*. Every
+`.filter(… !== …)` in the components and the app was read: excluding an
+already-earned badge from the announce queue, deselecting a ticker from a
+comparison, dropping nulls from a line list, removing a row from a classroom
+table. All correct, all doing the opposite thing — removing something that has
+been dealt with rather than something you might want again. `!== at`,
+`!== act`, `!== current`, `!== selected`: no other occurrence in the
+repository.
+
+One instance, and now one gate.
+
+### And the part that is not a code problem
+
+Somebody opened the app and found it. Fourteen gated classes, 1,723 tests, an
+exhaustive state sweep, and the thing that found this was a person trying to
+show the game to somebody. §83 is now three for three.

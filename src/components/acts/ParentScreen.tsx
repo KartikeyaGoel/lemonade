@@ -332,8 +332,25 @@ export function ParentScreen({
  *
  * Styled like the erase below it and for the same reason: small print rather
  * than an action, because this is a control for the person running the demo and
- * a landmine for anybody else. The stage they are already on is not offered,
- * which removes the only tap that would replace a run with an identical one.
+ * a landmine for anybody else.
+ *
+ * **All four stages are offered, including the one you are on.** They were not:
+ * the stage matching `game.act` was filtered out, on the reasoning that it
+ * "removes the only tap that would replace a run with an identical one". That
+ * reasoning is wrong, and it broke the control's main use.
+ *
+ * `demoGame` plays the stage forward from a seed, so what it hands over is a
+ * *freshly played* save. The moment the demo-er buys a share or advances a
+ * week, their run is no longer identical to that — and resetting to a clean
+ * stage is the thing a demo needs most, because a demo is given more than
+ * once. Worse, the stage it hid was whichever one you had just jumped to, so
+ * using the shortcut made the shortcut disappear. The market is the stage
+ * anybody demonstrating this game shows, and jumping to the market was the
+ * exact tap that removed it. Reported from outside: *"the shortcut for market
+ * seems to have gone away."*
+ *
+ * What the filter was guarding against — a tap that looks like it did nothing
+ * — is real, and is handled by saying so instead of by hiding the row.
  */
 function JumpBlock({ onJump, at }: { onJump: (act: Act) => void; at: number }) {
   const [open, setOpen] = useState(false);
@@ -369,9 +386,13 @@ function JumpBlock({ onJump, at }: { onJump: (act: Act) => void; at: number }) {
         <>
           {/* Named, because "are you sure" is not a question. What goes is a
               run; what arrives is somebody else's week, and a demo-er should
-              know which of the two is on the screen they are about to show. */}
+              know which of the two is on the screen they are about to show.
+              And when it is the stage they are standing on, the honest word is
+              "again" — the save is fresh, theirs is not. */}
           <p className="mt-1 font-body text-[13px] font-extrabold leading-snug text-ink">
-            Replace this run with a game that has been played up to {chosen.name}?
+            {chosen.act === at
+              ? `Start ${chosen.name} again, from a save played fresh up to it?`
+              : `Replace this run with a game that has been played up to ${chosen.name}?`}
           </p>
           <p className="mt-1 font-body text-[12px] font-bold leading-snug text-ink/65">
             The days are real ones: every figure on screen is what those days actually made. The
@@ -383,7 +404,7 @@ function JumpBlock({ onJump, at }: { onJump: (act: Act) => void; at: number }) {
               Pick a different one
             </ChunkyButton>
             <ChunkyButton variant="lemon" full onClick={() => onJump(chosen.act)}>
-              Start at {chosen.name}
+              {chosen.act === at ? `Start ${chosen.name} again` : `Start at ${chosen.name}`}
             </ChunkyButton>
           </div>
         </>
@@ -394,7 +415,7 @@ function JumpBlock({ onJump, at }: { onJump: (act: Act) => void; at: number }) {
             demos — a child gets here by playing.
           </p>
           <div className="mt-3 space-y-2">
-            {DEMO_STAGES.filter((stage) => stage.act !== at).map((stage) => (
+            {DEMO_STAGES.map((stage) => (
               <button
                 key={stage.act}
                 type="button"
@@ -403,9 +424,14 @@ function JumpBlock({ onJump, at }: { onJump: (act: Act) => void; at: number }) {
               >
                 <div className="font-sign text-lg leading-tight text-ink">
                   {stage.act}. {stage.name}
+                  {stage.act === at && (
+                    <span className="ml-1.5 font-body text-[10px] font-extrabold uppercase tracking-wide text-ink/45">
+                      you are here
+                    </span>
+                  )}
                 </div>
                 <div className="font-body text-[11px] font-bold leading-tight text-ink/55">
-                  {stage.promise}
+                  {stage.act === at ? 'Start this stage again, on a fresh save.' : stage.promise}
                 </div>
               </button>
             ))}

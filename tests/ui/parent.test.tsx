@@ -232,21 +232,31 @@ describe('skipping ahead, for a demo', () => {
     expect(onJump).toHaveBeenCalledWith(4);
   });
 
-  it('does not offer the stage already on screen', async () => {
-    const onJump = vi.fn();
-    render(<ParentScreen report={report()} onJump={onJump} onBack={() => {}} />);
+  /*
+   * This used to assert the opposite, and the assertion was the bug.
+   *
+   * The stage matching the save's own act was filtered out of the list, so
+   * **using the shortcut removed the shortcut** — jump to the market and the
+   * market stops being on offer. Reported from outside the build: "the
+   * shortcut for market seems to have gone away in the game." A test written
+   * from the implementation rather than from what the control is for will
+   * defend a defect as hard as it defends a feature.
+   *
+   * `tests/ui/jump.test.tsx` holds the full 4x4 of stages against stages;
+   * this keeps the case the old test got wrong, next to its siblings.
+   */
+  it('offers the stage already on screen, marked as a restart', async () => {
+    render(<ParentScreen report={report()} onJump={() => {}} onBack={() => {}} />);
     await userEvent.click(screen.getByRole('button', { name: /skip ahead to a stage/i }));
 
-    // A fresh report is Act 1, so every other stage is on offer and that one
-    // is not.
-    expect(
-      screen.queryByRole('button', { name: new RegExp(`1\\. ${ACT_TITLES[1].name}`) }),
-    ).not.toBeInTheDocument();
-    for (const act of [2, 3, 4] as const) {
+    // A fresh report is Act 1. Every stage is on offer, including that one.
+    for (const act of [1, 2, 3, 4] as const) {
       expect(
         screen.getByRole('button', { name: new RegExp(`${act}\\. ${ACT_TITLES[act].name}`) }),
       ).toBeInTheDocument();
     }
+    expect(screen.getByText('you are here')).toBeInTheDocument();
+    expect(screen.getByText('Start this stage again, on a fresh save.')).toBeInTheDocument();
   });
 
   it('says what it costs before it does it', async () => {

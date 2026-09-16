@@ -112,9 +112,27 @@ function nameOf(): string {
  * is a fake choice — and the check that matters is not "are there any" but "is
  * there a **run** of them", which is the second assertion below.
  */
+const WEEK_REPORT =
+  'the week of the market that just passed — `WeekReportScreen` takes only `onContinue`, and the buying and selling it is about happens on the market screen next. Its own note: "we name what happened and ask the only useful question, without telling them what to do about it"';
+
 const ALLOWED_INTERSTITIALS: Record<string, string> = {
   'That was the best deal': 'the verdict on a decision already made; the choosing happened on the screen before',
+  'Your money grew': WEEK_REPORT,
+  'Your money dipped': WEEK_REPORT,
 };
+
+/**
+ * Headings that are one screen, so the "no unused entry" check below is
+ * satisfied by seeing either of them.
+ *
+ * `WeekReportScreen`'s heading is `up ? 'Your money grew' : 'Your money dipped'`
+ * — two strings, one component, one `onContinue`. Screens are keyed here by
+ * their heading, which is the right granularity nearly everywhere and the wrong
+ * one here: a walk that happens to meet only the falling week would otherwise
+ * be told it has a stale allowlist entry, and the honest fix is to say the two
+ * headings are the same screen rather than to justify each separately.
+ */
+const SAME_SCREEN: string[][] = [['Your money grew', 'Your money dipped']];
 
 /**
  * Allowed, and outside the reach of these walks, with where each is asserted.
@@ -364,7 +382,11 @@ describe('every screen gives a child something to decide, or says why not', () =
     const oneControl = new Set(
       [...seen.most].filter(([, most]) => most <= 1).map(([screen]) => screen),
     );
-    const unused = Object.keys(ALLOWED_INTERSTITIALS).filter((screen) => !oneControl.has(screen));
+    const sawScreen = (screen: string) =>
+      (SAME_SCREEN.find((group) => group.includes(screen)) ?? [screen]).some((heading) =>
+        oneControl.has(heading),
+      );
+    const unused = Object.keys(ALLOWED_INTERSTITIALS).filter((screen) => !sawScreen(screen));
     expect(unused, 'allowed as a card, but the walk never saw it offer one control').toEqual([]);
 
     /* And the out-of-reach ones have to say where they are asserted instead. */
