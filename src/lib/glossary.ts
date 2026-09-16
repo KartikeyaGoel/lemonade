@@ -444,7 +444,7 @@ export function diversificationInsight(tickers: string[]): Insight {
   return {
     id: 'diversification',
     term: 'Diversification',
-    evidence: `You own ${tickers.length} companies: ${tickers.join(', ')}. No single one of them can take all your money.`,
+    evidence: `You own ${plural(tickers.length, 'company', 'companies')}: ${tickers.join(', ')}. No single one of them can take all your money.`,
     carriesForward:
       'This does not make you more money on average. One bad call cannot end the game. That is what keeps you in long enough for the good ones to count.',
   };

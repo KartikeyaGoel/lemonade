@@ -38,7 +38,7 @@
  */
 
 import { formatMillions, metricsFor, type Company } from './companies';
-import { money } from './copy';
+import { money, plural } from './copy';
 
 export type Side = 'business' | 'stock';
 
@@ -171,7 +171,7 @@ export const SCOUT_QUESTIONS: readonly ScoutQuestion[] = [
         // reason from — and it is the number that makes the point.
         return `You would pay ${money(price)} a share for a company that made no profit at all last year. There is no sensible price for that, only a guess.`;
       }
-      return `At ${money(price)} you are paying ${pe.toFixed(0)} years of profit. Over ${DEAR_PE} is dear.`;
+      return `At ${money(price)} you are paying ${plural(Math.round(pe), 'year')} of profit. Over ${DEAR_PE} is dear.`;
     },
   },
   {
@@ -192,8 +192,8 @@ export const SCOUT_QUESTIONS: readonly ScoutQuestion[] = [
         return `There is no profit yet, so every cent of the ${money(price)} is somebody expecting one. That is the most expectation a price can carry.`;
       }
       return pe > DEAR_PE
-        ? `${pe.toFixed(0)} years of profit is a lot to hand over. The price needs it to grow into that.`
-        : `${pe.toFixed(0)} years of profit is not much of a promise. It does not have to be brilliant to be worth this.`;
+        ? `${plural(Math.round(pe), 'year')} of profit is a lot to hand over. The price needs it to grow into that.`
+        : `${plural(Math.round(pe), 'year')} of profit is not much of a promise. It does not have to be brilliant to be worth this.`;
     },
   },
   {
@@ -223,7 +223,7 @@ export const SCOUT_QUESTIONS: readonly ScoutQuestion[] = [
          * company and insists each answer contains a number, because a verdict
          * with no arithmetic in it is the game holding an opinion.
          */
-        return `${pe === null ? 'It makes no profit at all' : `${pe.toFixed(0)} years of profit is a lot to pay`}, and it only moves about ${pct(company.volatility)} in a week. The hope is the part that falls first.`;
+        return `${pe === null ? 'It makes no profit at all' : `${plural(Math.round(pe), 'year')} of profit is a lot to pay`}, and it only moves about ${pct(company.volatility)} in a week. The hope is the part that falls first.`;
       }
       return `It moves about ${pct(company.volatility)} in a week and the price is not asking much. That is as steady as this list gets.`;
     },

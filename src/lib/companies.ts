@@ -489,5 +489,5 @@ export function standComparison(company: Company, price = company.price, asOf?: 
   if (!m.profitable) {
     return `${company.name} takes in ${formatMillions(m.year.revenueM)} a year and still loses money. It has no P/E, because there are no earnings to divide by.`;
   }
-  return `${company.name} sells ${formatMillions(m.year.revenueM)} a year and keeps ${keeps}. At ${plural(Number(m.pe!.toFixed(0)), 'time')} yearly profit, you would wait ${m.pe!.toFixed(0)} years to get your money back.`;
+  return `${company.name} sells ${formatMillions(m.year.revenueM)} a year and keeps ${keeps}. At ${plural(Number(m.pe!.toFixed(0)), 'time')} yearly profit, you would wait ${plural(Math.round(m.pe!), 'year')} to get your money back.`;
 }

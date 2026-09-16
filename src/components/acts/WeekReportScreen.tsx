@@ -2,7 +2,8 @@
 
 import { SNAPSHOT } from '@/lib/companies';
 import { type WeekReport } from '@/lib/market';
-import { ActionFooter, ChunkyButton, SignHeading, Sky, money } from '../ui';
+import { ActionFooter, ChunkyButton, SignHeading, Sky, money, percent } from '../ui';
+import { direction } from '@/lib/copy';
 
 /**
  * A week of the market passing.
@@ -23,7 +24,8 @@ export function WeekReportScreen({
 }) {
   const mine = report.moves.filter((m) => heldTickers.includes(m.ticker));
   const shown = mine.length > 0 ? mine : report.moves.slice(0, 5);
-  const up = report.changePct >= 0;
+  /* From the printed figure, not the raw one — see `direction`. */
+  const went = direction(report.changePct);
 
   return (
     <Sky mood={report.wasScare ? 'night' : 'dusk'}>
@@ -47,7 +49,11 @@ export function WeekReportScreen({
             </>
           ) : (
             <SignHeading className="mt-1 text-4xl">
-              {up ? 'Your money grew' : 'Your money dipped'}
+              {went === 'up'
+                ? 'Your money grew'
+                : went === 'down'
+                  ? 'Your money dipped'
+                  : 'Your money barely moved'}
             </SignHeading>
           )}
         </div>
@@ -55,17 +61,22 @@ export function WeekReportScreen({
         {heldTickers.length > 0 && (
           <div
             className={`mt-4 rounded-2xl border-[3px] p-4 text-center ${
-              up ? 'border-mint/60 bg-mint/15' : 'border-berry/50 bg-berry/10'
+              went === 'up'
+                ? 'border-mint/60 bg-mint/15'
+                : went === 'down'
+                  ? 'border-berry/50 bg-berry/10'
+                  : 'border-ink/20 bg-white'
             }`}
           >
             <div className="font-ledger text-3xl font-bold tabular-nums text-ink">
               {money(report.portfolioAfter)}
             </div>
             <div
-              className={`font-body text-sm font-extrabold ${up ? 'text-mint' : 'text-berry'}`}
+              className={`font-body text-sm font-extrabold ${
+                went === 'up' ? 'text-mint' : went === 'down' ? 'text-berry' : 'text-ink/60'
+              }`}
             >
-              {up ? '+' : ''}
-              {(report.changePct * 100).toFixed(1)}% this week
+              {percent(report.changePct)} this week
             </div>
           </div>
         )}
@@ -76,7 +87,8 @@ export function WeekReportScreen({
           </div>
           {shown.map((move) => {
             const company = SNAPSHOT.find((c) => c.ticker === move.ticker)!;
-            const rose = move.changePct >= 0;
+            /* Same rule per holding: a share that moved 0.0% is not red. */
+            const moved = direction(move.changePct);
             return (
               <div key={move.ticker} className="flex items-center gap-2 py-1">
                 <span aria-hidden>{company.emoji}</span>
@@ -88,11 +100,10 @@ export function WeekReportScreen({
                 </span>
                 <span
                   className={`w-14 text-right font-ledger text-sm font-bold tabular-nums ${
-                    rose ? 'text-mint' : 'text-berry'
+                    moved === 'up' ? 'text-mint' : moved === 'down' ? 'text-berry' : 'text-ink/60'
                   }`}
                 >
-                  {rose ? '+' : ''}
-                  {(move.changePct * 100).toFixed(1)}%
+                  {percent(move.changePct)}
                 </span>
               </div>
             );

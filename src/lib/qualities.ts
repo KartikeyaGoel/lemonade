@@ -68,7 +68,7 @@
  */
 
 import { MODELS, formatMillions, metricsFor, type BusinessModel, type Company } from './companies';
-import { plural } from './copy';
+import { percent, plural } from './copy';
 
 /** Which of `scout.ts`'s two questions a quality answers. */
 export type Side = 'business' | 'stock';
@@ -194,7 +194,7 @@ export function qualitiesOf(company: Company, price = company.price, asOf?: stri
   const m = metricsFor(company, price, asOf);
   const found: Quality[] = [];
   const cents = Math.round(m.netMargin * 100);
-  const pct = (v: number) => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`;
+  const pct = (v: number) => percent(v, 0);
 
   /* ---- Is this a good business? ---- */
 

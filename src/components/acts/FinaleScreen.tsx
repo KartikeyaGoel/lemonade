@@ -5,13 +5,15 @@ import { play } from '@/lib/sound';
 import { SNAPSHOT, metricsFor } from '@/lib/companies';
 import {
   MARKET_WEEKS,
+  currentDate,
+  currentPrice,
   holdingGain,
   holdingValue,
   type PortfolioState,
   type PortfolioSummary,
 } from '@/lib/market';
 import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
-import { plural } from '@/lib/copy';
+import { percent, plural } from '@/lib/copy';
 
 /** How Level 1 finished, in the few facts this screen needs to tell it. */
 export interface FinaleEnding {
@@ -107,7 +109,9 @@ export function FinaleScreen({
             label={ending.stands > 1 ? 'Opened another stand' : 'Grew it'}
             detail={
               ending.stands > 1
-                ? `Paid somebody to mind one stand and went and worked ${ending.stands - 1} more.`
+                ? /* "worked 1 more" was missing its noun as well as its number:
+                     the sentence is about stands and has to say so. */
+                  `Paid somebody to mind one stand and went and worked ${plural(ending.stands - 1, 'more stand')}.`
                 : 'Spent profit on capacity, and outlasted a rival.'
             }
           />
@@ -134,7 +138,13 @@ export function FinaleScreen({
           <Step
             n={ending.hadShop ? 5 : 4}
             label="Bought other businesses"
-            detail={`Put ${money(summary.startingValue)} into ${summary.holdingsCount} real companies.`}
+            /* "1 real companies", on the last screen of the whole arc. Found
+               by playing the market stage to the end with one holding. */
+            detail={`Put ${money(summary.startingValue)} into ${plural(
+              summary.holdingsCount,
+              'real company',
+              'real companies',
+            )}.`}
           />
         </div>
 
@@ -150,8 +160,7 @@ export function FinaleScreen({
             <span
               className={`font-ledger text-sm font-bold tabular-nums ${up ? 'text-mint' : 'text-berry'}`}
             >
-              {up ? '+' : ''}
-              {(summary.gainPercent * 100).toFixed(1)}%
+              {percent(summary.gainPercent)}
             </span>
           </div>
           <div className="ledger-row mt-1">
@@ -176,7 +185,23 @@ export function FinaleScreen({
             {held.map((ticker) => {
               const company = SNAPSHOT.find((c) => c.ticker === ticker)!;
               const gain = holdingGain(portfolio, ticker);
-              const pe = metricsFor(company).pe;
+              /*
+               * The price the child actually holds it at, and the accounts
+               * that were public then — not `company.price`, which is today's.
+               *
+               * `currentPrice`'s own comment forbids exactly this: "the
+               * fallback used to be today's price, which is the one price this
+               * must never be… it would quote a price-to-earnings ratio nobody
+               * ever paid." This line did it anyway, so the last screen of the
+               * arc showed "44x" beside a holding valued at the replayed
+               * week's price — three figures side by side and one of them from
+               * a different year. §4, found by playing to the end. §87.
+               */
+              const pe = metricsFor(
+                company,
+                currentPrice(portfolio, ticker),
+                currentDate(portfolio),
+              ).pe;
               return (
                 <div key={ticker} className="flex items-center gap-2 py-1">
                   <span aria-hidden>{company.emoji}</span>
@@ -194,8 +219,7 @@ export function FinaleScreen({
                       gain.dollars >= 0 ? 'text-mint' : 'text-berry'
                     }`}
                   >
-                    {gain.dollars >= 0 ? '+' : ''}
-                    {(gain.percent * 100).toFixed(0)}%
+                    {percent(gain.percent, 0)}
                   </span>
                 </div>
               );

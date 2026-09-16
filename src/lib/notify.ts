@@ -163,7 +163,7 @@ export function nudges(context: NudgeContext): Nudge[] {
     found.push({
       kind: 'credits-to-spend',
       id: `credits-to-spend:${today}`,
-      title: `${balance(ledger)} credits`,
+      title: plural(balance(ledger), 'credit'),
       body: 'Enough to put more money into something you already believe in.',
       priority: 3,
       goTo: 'credits',

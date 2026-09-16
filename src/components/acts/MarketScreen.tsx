@@ -37,7 +37,7 @@ import {
 import { runningFor } from '@/lib/live';
 import type { Readiness } from '@/lib/progress';
 import { PipSays } from '../Pip';
-import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
+import { ChunkyButton, clearsBar, money, percent, PinnedBar, SignHeading, Sky } from '../ui';
 import { CoachTour } from '../CoachTour';
 import { MARKET_TOUR } from '@/lib/coach';
 
@@ -61,6 +61,7 @@ export function MarketScreen({
   onSell,
   onAdvanceWeek,
   onLeave,
+  onHome,
   onOpenGate,
   guide,
   drifts = [],
@@ -93,6 +94,21 @@ export function MarketScreen({
   onAdvanceWeek?: () => void;
   /** Live only: there is no end to walk towards, so there is a way out. */
   onLeave?: () => void;
+  /**
+   * Back to the title screen, which is where everything else is.
+   *
+   * There was no way out of this screen. The loop is market -> "Next week" ->
+   * week report -> market, for twelve weeks, and the title screen — which is
+   * the only home of *Rate a company*, *Check in*, *Your stuff*, *Friends*,
+   * *Messages* and the credits balance — was not reachable from inside it at
+   * all. Reloading the browser was the only way back, which is exactly how I
+   * kept seeing those options while testing and never noticed they were
+   * unreachable in the app.
+   *
+   * Reported as "all the old options are gone" after skipping straight to the
+   * market, and it was true for a child who played there too. §87.
+   */
+  onHome?: () => void;
   onOpenGate: () => void;
   /**
    * Pip's payoff line, once.
@@ -179,6 +195,15 @@ export function MarketScreen({
   return (
     <Sky mood="night">
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-col px-4 pt-5" style={clearsBar()}>
+        {onHome && (
+          <button
+            type="button"
+            onClick={onHome}
+            className="mb-2 self-start rounded-full bg-white/80 px-4 py-1.5 font-body text-sm font-extrabold text-ink"
+          >
+            ← Everything else
+          </button>
+        )}
         <div className="flex items-baseline justify-between">
           <SignHeading className="!text-lemon-light text-3xl">The market</SignHeading>
           {/* Weeks *elapsed*, not a week number. The counter starts at zero
@@ -374,8 +399,7 @@ export function MarketScreen({
                       gain.dollars >= 0 ? 'text-mint' : 'text-berry'
                     }`}
                   >
-                    {gain.dollars >= 0 ? '+' : ''}
-                    {(gain.percent * 100).toFixed(1)}%
+                    {percent(gain.percent)}
                   </div>
                 </button>
               );

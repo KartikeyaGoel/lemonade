@@ -6,7 +6,7 @@ import { SNAPSHOT, pricesBehind } from '@/lib/companies';
 import { totalValue, type PortfolioState } from '@/lib/market';
 import { lastWeekOnTheMarket, runningFor, type CatchUp } from '@/lib/live';
 import { ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
-import { plural } from '@/lib/copy';
+import { percent, plural } from '@/lib/copy';
 import { localDay } from '@/lib/ledger';
 
 /**
@@ -99,8 +99,7 @@ export function LiveOpenScreen({
                 }`}
               >
                 {up ? '+' : ''}
-                {money(report.changeDollars)} ({up ? '+' : ''}
-                {(report.changePct * 100).toFixed(1)}%) since you were last here
+                {money(report.changeDollars)} ({percent(report.changePct)}) since you were last here
               </div>
               {report.wasScare && (
                 <p className="mt-2 rounded-xl bg-black/25 p-2.5 font-body text-[12px] font-extrabold text-lemon-light">
@@ -237,8 +236,7 @@ function Row({
           up ? 'text-mint' : 'text-berry'
         }`}
       >
-        {up ? '+' : ''}
-        {(pct * 100).toFixed(1)}%
+        {percent(pct)}
       </span>
     </div>
   );

@@ -29,7 +29,7 @@ import {
 import { reasoningSound, thesisLine } from '@/lib/thesis';
 import { ChunkyButton, clearsBar, CodeBox, CodeInput, money, PinnedBar, SignHeading, Sky } from '../ui';
 import { ThesisScreen } from './ThesisScreen';
-import { plural } from '@/lib/copy';
+import { percent, plural } from '@/lib/copy';
 
 /**
  * The investment club.
@@ -325,8 +325,7 @@ export function ClubScreen({
                           change >= 0 ? 'text-mint' : 'text-berry'
                         }`}
                       >
-                        {change >= 0 ? '+' : ''}
-                        {Math.round(change * 100)}%
+                        {percent(change, 0)}
                       </div>
                     </div>
                   </div>

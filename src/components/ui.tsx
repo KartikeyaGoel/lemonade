@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Forecast, Weather } from '@/lib/simulation';
 import { isMuted, onMuteChange, play, setMuted, type Cue } from '@/lib/sound';
-import { money, moneyRound, plural } from '@/lib/copy';
+import { money, moneyRound, percent, plural } from '@/lib/copy';
 
 /* Re-exported so screens can reach it from the same place as `money`. */
 export { plural };
@@ -20,6 +20,9 @@ export { money };
 
 /* Same home, same sign rule, cents dropped. */
 export { moneyRound };
+
+/* And the same rule for a change written as a percentage. */
+export { percent };
 
 /** The full-bleed sky behind every screen. Time of day and weather are the
  *  main way the game signals "a new day started". */

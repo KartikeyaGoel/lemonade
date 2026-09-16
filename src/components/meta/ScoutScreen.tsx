@@ -8,7 +8,7 @@ import {
   type Rating,
 } from '@/lib/scout';
 import { formatMillions, metricsFor, type Company } from '@/lib/companies';
-import { ChunkyButton, PinnedBar, SignHeading, Sky, clearsBar, money } from '../ui';
+import { ChunkyButton, PinnedBar, SignHeading, Sky, clearsBar, money, plural } from '../ui';
 import { PipSays } from '../Pip';
 
 /**
@@ -86,7 +86,7 @@ export function ScoutScreen({
           </span>
           <span className="stat-chip !text-[11px]">{money(price)} a share</span>
           <span className="stat-chip !text-[11px]">
-            {metrics.pe ? `${metrics.pe.toFixed(0)} years of profit` : 'no profit to price'}
+            {metrics.pe ? `${plural(Math.round(metrics.pe), 'year')} of profit` : 'no profit to price'}
           </span>
         </div>
 

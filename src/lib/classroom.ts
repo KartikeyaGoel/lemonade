@@ -49,7 +49,7 @@ import {
   type GameState,
 } from './simulation';
 import { CHALLENGE_DAYS, tidyName, type ChallengeSpec } from './challenge';
-import { moneyFromCents } from './copy';
+import { moneyFromCents, plural } from './copy';
 
 /** One child's week, as the two numbers they can read off their own screen. */
 export interface Entry {
@@ -148,7 +148,7 @@ export function findings(entries: Entry[]): Findings {
     );
   } else {
     lines.push(
-      `${entries.length} children, ${grouped.length} different prices, one identical week.`,
+      `${plural(entries.length, 'child', 'children')}, ${plural(grouped.length, 'different price')}, one identical week.`,
     );
     if (peak) {
       lines.push(

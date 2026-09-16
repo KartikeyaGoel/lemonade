@@ -42,9 +42,27 @@ export function plural(n: number, one: string, many = one + 's'): string {
  * The sign goes in front of the dollar, not in front of the digits, because
  * "-$4.16" is how a ledger is read and "$-4.16" is how nothing is.
  */
+/**
+ * Dollars to a given number of places, signed.
+ *
+ * `money` and `moneyRound` were this twice, differing only in the places —
+ * and `check-duplicates.mjs` blinds numbers, so it called them clones and was
+ * right to. One body, and the precision is the argument.
+ *
+ * The sign comes from the figure that will be *printed*, not the one that came
+ * in. §84 moved the minus to the front of the dollar and left this half of it
+ * wrong, so `money(-0.004)` still returned `-$0.00` — a minus in front of a
+ * zero, which is the §87 defect in a different currency. Found by the test in
+ * `tests/copy.test.ts`, written after `percent` had taught the same lesson.
+ */
+function dollars(n: number, places: number): string {
+  const shown = Number(n.toFixed(places));
+  const sign = shown < 0 ? '-' : '';
+  return `${sign}$${Math.abs(shown).toFixed(places)}`;
+}
+
 export function money(n: number): string {
-  const sign = n < 0 ? '-' : '';
-  return `${sign}$${Math.abs(n).toFixed(2)}`;
+  return dollars(n, 2);
 }
 
 /**
@@ -55,8 +73,7 @@ export function money(n: number): string {
  * chart axis on a week where every day lost money drew "$-5".
  */
 export function moneyRound(n: number): string {
-  const sign = n < 0 ? '-' : '';
-  return `${sign}$${Math.abs(n).toFixed(0)}`;
+  return dollars(n, 0);
 }
 
 /**
@@ -68,4 +85,47 @@ export function moneyRound(n: number): string {
  */
 export function moneyFromCents(cents: number): string {
   return money(cents / 100);
+}
+
+/**
+ * A change, as a signed percentage.
+ *
+ * **The sign is decided from the figure that will actually be printed**, not
+ * from the one that went in. Seven screens did it the other way —
+ * `{up ? '+' : ''}` next to `{(pct * 100).toFixed(1)}%` — which puts a minus
+ * in front of a rounded zero. Found by playing: the market's first week moved
+ * a portfolio by two hundredths of a percent and the week report said
+ *
+ *     Your money dipped · $4759.15 · -0.0% this week
+ *
+ * "-0.0%" is not a number a child can do anything with, and the screen had
+ * already decided the week was a dip on the strength of it.
+ *
+ * Same lesson as §84's `money` and the same shape of fix: one home, and the
+ * sign and the digits produced together so they cannot disagree. A figure that
+ * rounds to zero is zero, and zero has no sign.
+ */
+export function percent(fraction: number, places = 1): string {
+  const shown = Number((fraction * 100).toFixed(places));
+  const sign = shown > 0 ? '+' : shown < 0 ? '-' : '';
+  return `${sign}${Math.abs(shown).toFixed(places)}%`;
+}
+
+/**
+ * Which way a change went, judged on the figure that will be printed.
+ *
+ * `percent` fixed the number and left the sentence. The market's first week
+ * moved a portfolio by two hundredths of a percent, and once the figure
+ * correctly read "0.0%" the heading above it still said **"Your money
+ * dipped"** — because it was derived from `changePct >= 0` on the raw value.
+ * A heading that claims a dip next to a figure that says nothing happened is
+ * PRODUCT.md §4: two figures shown together that do not reconcile.
+ *
+ * So the wording and the number come from the same place. `flat` is a real
+ * third case and screens have to say something for it; a week where nothing
+ * happened is a true and useful thing for a child to be told.
+ */
+export function direction(fraction: number, places = 1): 'up' | 'down' | 'flat' {
+  const shown = Number((fraction * 100).toFixed(places));
+  return shown > 0 ? 'up' : shown < 0 ? 'down' : 'flat';
 }

@@ -12,7 +12,7 @@ import {
   type Playbook,
   type RuleKind,
 } from '@/lib/playbook';
-import { ChunkyButton, clearsBar, CodeBox, CodeInput, PinnedBar, SignHeading, Sky } from '../ui';
+import { ChunkyButton, clearsBar, CodeBox, CodeInput, percent, plural, PinnedBar, SignHeading, Sky } from '../ui';
 
 /**
  * The deck builder.
@@ -100,7 +100,7 @@ export function PlaybookScreen({
         {mine && (
           <div className="mt-4 rounded-2xl border-[3px] border-mint/60 bg-night-panel p-4 animate-riseFade">
             <div className="font-body text-[11px] font-extrabold uppercase tracking-[0.16em] text-lemon-light">
-              Across {mine.windows} real twelve-week stretches
+              Across {plural(mine.windows, 'real twelve-week stretch', 'real twelve-week stretches')}
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="font-sign text-5xl leading-none text-white">
@@ -115,9 +115,9 @@ export function PlaybookScreen({
             </p>
 
             <div className="mt-3 grid grid-cols-3 gap-2">
-              <Figure label="Typical" value={asPct(mine.medianReturn)} />
-              <Figure label="Best stretch" value={asPct(mine.bestReturn)} good />
-              <Figure label="Worst stretch" value={asPct(mine.worstReturn)} bad />
+              <Figure label="Typical" value={percent(mine.medianReturn, 0)} />
+              <Figure label="Best stretch" value={percent(mine.bestReturn, 0)} good />
+              <Figure label="Worst stretch" value={percent(mine.worstReturn, 0)} bad />
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <Figure label="Companies it allows" value={`${mine.namesEverBought}`} />
@@ -265,9 +265,6 @@ export function PlaybookScreen({
   );
 }
 
-function asPct(value: number): string {
-  return `${value >= 0 ? '+' : '−'}${Math.abs(value * 100).toFixed(0)}%`;
-}
 
 function Figure({
   label,
@@ -313,7 +310,7 @@ export function verdict(mine: number, theirs: number, myWorst: number, theirWors
     return 'Yours is ahead more often and falls less far. That combination is rare — check it is not just refusing to buy anything.';
   }
   if (better) {
-    return `Yours wins more often, and its worst stretch is worse (${asPct(myWorst)} against ${asPct(theirWorst)}). You are being paid for taking that.`;
+    return `Yours wins more often, and its worst stretch is worse (${percent(myWorst, 0)} against ${percent(theirWorst, 0)}). You are being paid for taking that.`;
   }
   if (safer) {
     return `Theirs wins more often, but yours falls less far when it goes wrong. Which of those you want is a real question, not a wrong answer.`;

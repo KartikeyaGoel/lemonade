@@ -87,37 +87,11 @@ function realControls(): Element[] {
  * is a fake choice — and the check that matters is not "are there any" but "is
  * there a **run** of them", which is the second assertion below.
  */
-const WEEK_REPORT =
-  'the week of the market that just passed — `WeekReportScreen` takes only `onContinue`, and the buying and selling it is about happens on the market screen next. Its own note: "we name what happened and ask the only useful question, without telling them what to do about it"';
-
 const ALLOWED_INTERSTITIALS: Record<string, string> = {
-  'That was the best deal': 'the verdict on a decision already made; the choosing happened on the screen before',
-  'Your money grew': WEEK_REPORT,
-  'Your money dipped': WEEK_REPORT,
-  /*
-   * Both of these became reachable when the demo shortcut moved onto the title
-   * screen (§86) — a walk that can reset to any stage meets screens a walk
-   * that passes through each stage once does not. Neither is new and neither
-   * is a defect; they had simply never been caught in a one-control state.
-   */
-  Friends:
-    "the unlock card announcing the Friends feature — `unlocks.ts` titles it 'Friends' and its only control is `Got it →`. A feature arriving is the second kind of card named in the note above",
-  'How are we doing':
-    'the club\'s two leaderboards. A readout, and deliberately two of them: money made and reasoning that held up are different things and the gap between them is the lesson. The deciding happens in proposing and voting, on the screens before',
+  'That was the best deal':
+    'the verdict on a decision already made; the choosing happened on the screen before',
 };
 
-/**
- * Headings that are one screen, so the "no unused entry" check below is
- * satisfied by seeing either of them.
- *
- * `WeekReportScreen`'s heading is `up ? 'Your money grew' : 'Your money dipped'`
- * — two strings, one component, one `onContinue`. Screens are keyed here by
- * their heading, which is the right granularity nearly everywhere and the wrong
- * one here: a walk that happens to meet only the falling week would otherwise
- * be told it has a stale allowlist entry, and the honest fix is to say the two
- * headings are the same screen rather than to justify each separately.
- */
-const SAME_SCREEN: string[][] = [['Your money grew', 'Your money dipped']];
 
 /**
  * Allowed, and outside the reach of these walks, with where each is asserted.
@@ -134,6 +108,20 @@ const ALLOWED_ELSEWHERE: Record<string, string> = {
     'the live account with no new prices, which needs an account these walks never open — tests/ui/live.test.tsx',
   'The prices are stuck':
     'the same screen with a dead data feed, which needs the clock moved — tests/ui/live.test.tsx',
+  /*
+   * These three moved here from the list above when the market got a way home
+   * (§87). The walk can now leave the market before advancing a week, so it
+   * stops meeting the week report — and an entry justified by "the walk saw
+   * this offer one control" is hostage to the route the walk takes. They are
+   * rendered and asserted directly instead, which is a fact about the screen
+   * rather than a coincidence of the walk.
+   */
+  'Your money grew':
+    'the week of the market that just passed; the buying and selling happens on the market screen next — tests/ui/cards.test.tsx renders both directions',
+  'Your money dipped':
+    'the same screen with the week having gone the other way — tests/ui/cards.test.tsx renders both directions',
+  'How are we doing':
+    "the club's two leaderboards, a readout with nothing to decide on it — tests/ui/cards.test.tsx asserts it offers zero — the deciding was proposing and voting",
 };
 
 /**
@@ -367,11 +355,7 @@ describe('every screen gives a child something to decide, or says why not', () =
     const oneControl = new Set(
       [...seen.most].filter(([, most]) => most <= 1).map(([screen]) => screen),
     );
-    const sawScreen = (screen: string) =>
-      (SAME_SCREEN.find((group) => group.includes(screen)) ?? [screen]).some((heading) =>
-        oneControl.has(heading),
-      );
-    const unused = Object.keys(ALLOWED_INTERSTITIALS).filter((screen) => !sawScreen(screen));
+    const unused = Object.keys(ALLOWED_INTERSTITIALS).filter((screen) => !oneControl.has(screen));
     expect(unused, 'allowed as a card, but the walk never saw it offer one control').toEqual([]);
 
     /* And the out-of-reach ones have to say where they are asserted instead. */

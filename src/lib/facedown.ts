@@ -26,6 +26,7 @@ import {
   metricsFor,
   type Company,
 } from './companies';
+import { percent, plural } from './copy';
 
 export type Edge = 'a' | 'b' | 'even';
 
@@ -98,8 +99,8 @@ export function faceoff(
     {
       label: 'What you pay for it',
       emoji: '🏷️',
-      a: ma.pe === null ? 'no profit to price' : `${ma.pe.toFixed(0)} years of profit`,
-      b: mb.pe === null ? 'no profit to price' : `${mb.pe.toFixed(0)} years of profit`,
+      a: ma.pe === null ? 'no profit to price' : `${plural(Math.round(ma.pe), 'year')} of profit`,
+      b: mb.pe === null ? 'no profit to price' : `${plural(Math.round(mb.pe), 'year')} of profit`,
       edge: edgeOf(ma.pe, mb.pe),
       meaning:
         'Higher is not worse and lower is not a bargain. It is what other people already expect.',
@@ -134,7 +135,7 @@ function growthOf(m: ReturnType<typeof metricsFor>): number {
 function growthLabel(m: ReturnType<typeof metricsFor>): string {
   const value = growthOf(m);
   const what = m.profitable ? 'profit' : 'sales';
-  return `${value >= 0 ? '+' : ''}${(value * 100).toFixed(0)}%/yr ${what}`;
+  return `${percent(value, 0)}/yr ${what}`;
 }
 
 /**

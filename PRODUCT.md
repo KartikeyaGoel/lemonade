@@ -7105,3 +7105,112 @@ pointed at `tests/` — a `walk` in four files, an `rng` in three, and
 with the implementation by construction. That last one is the dangerous shape.
 The scan is not enabled yet because enabling it means doing that cleanup, and
 it is not this change.
+
+---
+
+## 87. The market had no way out, and five things wrong inside it
+
+> But now all the old options are gone. I go into the old long form of pick a
+> company. There were 4-5 cards with options of rate a company, market check-in
+> etc
+
+The screenshot was the market shelf. And the options were not gone from the
+game — they were **unreachable from where §86 now drops you.**
+
+`page.tsx`'s market loop is: market → *Next week* → week report → market, for
+twelve weeks. There is no route from inside it to the title screen, and the
+title screen is the only home of *Rate a company*, *Check in*, *Your stuff*,
+*Friends*, *Messages*, *Playbook* and the credits balance. `MarketScreen` even
+declares an `onLeave` prop; `page.tsx` has never passed it.
+
+**This was true for a child who played there too.** Reaching the market by
+playing twelve weeks earned the same trap. The only way back to the title was
+to reload the browser — which is exactly how I kept seeing those options while
+testing §86 and never noticed they were unreachable. §8 again: I was using an
+instrument (the address bar) the player does not have.
+
+The fix is one control: **← Everything else**, at the top of the market screen.
+The round trip is market → title → *Keep going* → market, and both directions
+were walked.
+
+### The gates could not have caught it, and then they proved it
+
+Coverage is a ratio over controls the walk was *offered*. One more control
+changed the offered total from 452 to **489** — the walk had been locked out of
+about eight per cent of the app, and could not report a gap in its own
+denominator. The same blindness as §86, one screen deeper.
+
+It also cost something: with an easy exit, the walk stops advancing weeks, so
+it no longer meets the week report at all. Two engagement allowlist entries
+went stale without anything about those screens changing. An entry justified by
+"the walk saw this offer one control" is hostage to the route the walk takes,
+so the week report and the club scoreboard are rendered and asserted directly
+in `tests/ui/cards.test.tsx` now, and the allowlist points at a fact instead of
+a coincidence.
+
+### Then I played it, and it was worth playing
+
+Twelve weeks, buying Apple with a written reason, through the reckoning and the
+finale to a new season. Every portfolio total reconciled to the cent —
+3.66041 shares × $249.67 + $3,761.14 = $4,675.04, and every weekly percentage
+against it. Five defects, and the first two are the same defect twice.
+
+**1. "-0.0% this week".** The market's first week moved the portfolio by two
+hundredths of a percent, and the week report put a minus in front of a rounded
+zero. Seven screens wrote `{up ? '+' : ''}` next to
+`{(pct * 100).toFixed(1)}%` — the sign chosen from the figure that went *in*,
+the digits from the one that came *out*. `percent` in `copy.ts` produces both
+together. The gate written for the shape then found **five more**, including
+two private formatters in `facedown.ts` and `playbook.ts` that no grep of mine
+had turned up.
+
+**2. `money` had the same bug, and I wrote it yesterday.** §84 moved the minus
+in front of the dollar and left the other half: `money(-0.004)` still returned
+`-$0.00`. Found not by playing but by writing `tests/copy.test.ts` for
+`percent` and asking the same question of its neighbour. Both formatters now
+decide the sign from the figure they are about to print, and there is one body
+for the two of them — `check-duplicates.mjs` blinds numbers, so it called
+`money` and `moneyRound` clones and was right to.
+
+**3. "Your money dipped · 0.0%".** Fixing the number left the sentence: the
+heading was still `changePct >= 0` on the raw value, so it claimed a dip beside
+a figure saying nothing happened. §4, in the screen I had just edited.
+`direction` returns `up | down | flat` from the printed figure, the heading has
+a third case — *"Your money barely moved"* — and flat is no longer coloured
+red.
+
+**4. "Put $4760.14 into 1 real companies."** On the last screen of the whole
+arc, with one holding. `tests/plural.test.ts` was a **blocklist of fourteen
+nouns** and `companies` was not on it. Converting it to an allowlist — every
+plural-looking word after a `}` must be classified as counted or not — found
+**six more live instances**, and the most interesting is `years`: every screen
+that says "37 years of profit" would say "1 years of profit" at a
+price-to-earnings ratio of 1, and §44 records a real one (Chipotle, after its
+50:1 split). Also `reasons`, `results`, `things`, `prices`, `stretches`, and
+"1 real companies" **twice more** — the parent report says it too.
+
+The first rebuilt version of that gate still missed the defect that prompted
+it, because the word after the brace is "real", not "companies". A mutation
+test caught that: restoring the exact defect passed. It allows up to two
+adjectives now.
+
+**5. "Apple · 44x · $913.90 · -9%".** Three figures side by side and one from a
+different year. `metricsFor(company)` defaults to *today's* price, and the
+finale omitted the arguments — so the multiple was computed on the live price
+while the value beside it came from the replayed week. `currentPrice` carries a
+comment added when this exact defect was found in its own fallback: *"the
+fallback used to be today's price, which is the one price this must never
+be… it would quote a price-to-earnings ratio nobody ever paid."* The finale did
+it anyway. It reads **33x** now, which is $249.67 ÷ $7.46, and every other one
+of the fourteen call sites already passed the price.
+
+### The count
+
+Five defects and eleven latent instances, all found in one playthrough of one
+stage plus the gates that playthrough motivated. Every fix mutation-tested.
+1,741 tests.
+
+The ordering from §83 has now held four times running. **The gates find the
+second instance. Playing it finds the first.** The uncomfortable part is that
+three of these five were in code I had written in the previous two sessions,
+and two were the unfixed half of a defect I had already written up.

@@ -153,6 +153,11 @@ Three specific traps, all hit in one session:
   every shape on a `FIGURE` regex that matched `$-3.78` and not `-$3.78` —
   so the only negative it could read was the malformed one, and fixing the
   copy turned the whole file red. §84.
+- **Mutation-test the *rebuilt* gate, not just the fix.** The plural gate was
+  converted from a blocklist to an allowlist *because* it missed
+  "1 real companies", and the first rebuilt version still missed it — the word
+  after the brace is "real". Restoring the defect passed. A gate written in
+  response to a defect has to be shown to catch that exact defect. §87.
 
 ## 9. Count the space before approximating it
 
@@ -196,6 +201,11 @@ So, when a defect is found by looking rather than by a gate:
   exported the correct `money` for months with a comment explaining §62. One
   file imported it. An abstraction nobody uses is not a fix, it is a comment.
 - **Then write the gate**, in the same session, before the next thing.
+- **Fix both halves.** §84 moved the minus in front of the dollar and left the
+  sign being chosen from the unrounded value, so `money(-0.004)` still returned
+  `-$0.00`. §87 fixed the number in the week report and left the heading, so it
+  said "Your money dipped" beside "0.0%". A formatter has a *figure* and a
+  *sentence*, and fixing one reads as done.
 
 And when you cannot think what else might be duplicated, that is the signal to
 stop grepping and write a detector. `check-duplicates.mjs` normalises every
@@ -204,7 +214,27 @@ duplicates it has found — two `localStorage` writers, two act transitions, two
 clipboard handlers with different flash durations — are ones nobody would have
 searched for. **You cannot grep for the duplicate you have not thought of.**
 
-## 12. Conventions
+## 12. A screen you cannot leave is a screen nobody can see past
+
+The market had no route to the title screen. The loop is market -> next week ->
+week report -> market for twelve weeks, and the title screen is the only home
+of *Rate a company*, *Check in*, *Your stuff*, *Friends* and *Messages*.
+Reloading the browser was the only way back — which is how I kept seeing those
+options while testing and never noticed they were unreachable in the app. §87.
+
+- **Every screen needs a way to the title screen.** Not a back button to the
+  previous screen: a way *home*, because that is where everything that is not
+  this stage lives.
+- **A coverage ratio cannot see a hole in its own denominator.** `offered` is
+  what the walk was shown, so a control that never renders is missing from the
+  bottom of the fraction, not the top. One `onHome` moved the offered total
+  from 452 to 489: the walk had been locked out of eight per cent of the app
+  and was reporting 95% of what was left. When a fix makes coverage *rise*,
+  that is the shape of what was wrong.
+- **The address bar is not a control.** Anything you reached by reloading, a
+  child cannot reach.
+
+## 13. Conventions
 
 - **"Push" means commit and push to `main`.** No PRs, no branches.
 - **Write it up.** A decision or a defect worth remembering goes in PRODUCT.md as

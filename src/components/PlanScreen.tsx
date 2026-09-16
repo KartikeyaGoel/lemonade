@@ -883,7 +883,7 @@ export function describeKit(business: BusinessState): string {
   ];
   if (owned.length === 0) return 'plain';
   if (owned.length === 1) return owned[0];
-  return `${owned.length} things`;
+  return plural(owned.length, 'thing');
 }
 
 function Row({

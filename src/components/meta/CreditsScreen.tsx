@@ -106,7 +106,7 @@ export function CreditsScreen({
                     onClick={() => onTopUp(amount)}
                     className="flex min-h-11 items-center rounded-xl border-[3px] border-ink/15 bg-white/85 px-3 py-2 font-body text-sm font-extrabold text-ink/80 transition active:translate-y-[1px]"
                   >
-                    {money(amount)} · {amount * CREDITS_PER_DOLLAR} credits
+                    {money(amount)} · {plural(amount * CREDITS_PER_DOLLAR, 'credit')}
                   </button>
                 ))}
             </div>

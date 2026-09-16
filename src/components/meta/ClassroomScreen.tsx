@@ -281,7 +281,7 @@ function Chart({
       aria-label={
         entries.length === 0
           ? 'An empty chart of price against profit'
-          : `${entries.length} results plotted, price along the bottom and profit up the side`
+          : `${plural(entries.length, 'result')} plotted, price along the bottom and profit up the side`
       }
     >
       {/* Zero, which is the only gridline that means anything here. */}

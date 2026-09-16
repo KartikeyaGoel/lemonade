@@ -215,7 +215,7 @@ export function sites(business: BusinessState, cash: number): Plot[] {
       affordable: opening.blocked === null,
       what:
         opening.blocked ??
-        `Serves ${opening.capacity} more cups a day. ${money(opening.daily)} a day for the pitch${opening.runBy === 'minder' ? ' and a minder' : ''}.`,
+        `Serves ${plural(opening.capacity, 'more cup')} a day. ${money(opening.daily)} a day for the pitch${opening.runBy === 'minder' ? ' and a minder' : ''}.`,
       doing: mine > 0 ? standDoing(business, location) : null,
     });
   }
@@ -279,8 +279,8 @@ function standDoing(business: BusinessState, location: LocationId): string {
   const doubled = lines.length > 1;
   const cups = mine.reduce((sum, line) => sum + line.capacity, 0);
   return doubled
-    ? `${cups} more cups a day here — but you already trade this pitch, so a new stand on it only finds about half a crowd.`
-    : `${cups} more cups a day, on a crowd that was not yours before.`;
+    ? `${plural(cups, 'more cup')} a day here — but you already trade this pitch, so a new stand on it only finds about half a crowd.`
+    : `${plural(cups, 'more cup')} a day, on a crowd that was not yours before.`;
 }
 
 function kitDoing(id: UpgradeId, capacity: number): string {

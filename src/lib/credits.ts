@@ -34,6 +34,7 @@
 
 import type { Deed, Ledger } from './ledger';
 import { balance, didToday, record, spend, timesToday } from './ledger';
+import { plural } from './copy';
 
 export interface Earner {
   deed: Deed;
@@ -334,14 +335,14 @@ export function topUp(ledger: Ledger, dollars: number): TopUp {
     return {
       ledger,
       dollars: 0,
-      why: `That costs ${cost} credits and you have ${balance(ledger)}.`,
+      why: `That costs ${plural(cost, 'credit')} and you have ${balance(ledger)}.`,
     };
   }
 
   return {
     ledger: spend(ledger, cost),
     dollars: whole,
-    why: `${cost} credits became $${whole} to invest.`,
+    why: `${plural(cost, 'credit')} became $${whole} to invest.`,
   };
 }
 
@@ -388,8 +389,8 @@ export function creditsCard(ledger: Ledger, on: string): CreditsCard {
   const dollars = affordableDollars(ledger);
   const line =
     dollars >= TOPUP_STEP
-      ? `${have} credits — enough for $${dollars} more to invest.`
-      : `${have} credits. ${TOPUP_STEP * CREDITS_PER_DOLLAR - have} more buys $${TOPUP_STEP} to invest.`;
+      ? `${plural(have, 'credit')} — enough for $${dollars} more to invest.`
+      : `${plural(have, 'credit')}. ${TOPUP_STEP * CREDITS_PER_DOLLAR - have} more buys $${TOPUP_STEP} to invest.`;
 
   return { balance: have, earned: ledger.earned, today, leftToday, line };
 }

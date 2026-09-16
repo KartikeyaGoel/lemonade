@@ -33,11 +33,79 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 }
 
 /**
- * Nouns a child would hear read out. Not an exhaustive English list — the ones
- * this product actually counts.
+ * Every word that can follow a closing brace, classified.
+ *
+ * This was a **blocklist** of fourteen counted nouns, and a blocklist only
+ * knows the mistakes somebody already made. `companies` was not on it, so the
+ * last screen of the whole arc shipped
+ *
+ *     Put $4760.14 into 1 real companies.
+ *
+ * found by playing the market stage to the end with a single holding. §87, and
+ * CLAUDE.md §3: *a gate that fails on the known-bad closes one bug; a gate
+ * that fails on the unclassified closes a class.*
+ *
+ * So it is an allowlist now. Every distinct word appearing after a `}` in
+ * `src` must be in one of the two sets below, and a word in neither **fails
+ * the build** until somebody decides which it is. Closing the list the first
+ * time found six more live instances the blocklist had never looked at:
+ * `years` (a price-to-earnings ratio of 1 is real — Chipotle had one after its
+ * 50:1 split), `companies` twice more, `reasons`, `results`, and `things`.
  */
-const NOUNS =
-  'days|weeks|cups|lemons|stands|people|badges|words|proposals|shares|members|customers|times|packs';
+
+/** Words that are a noun being counted. These must go through `plural()`. */
+const COUNTED = [
+  'days', 'weeks', 'wks', 'cups', 'lemons', 'packs', 'stands', 'people',
+  'badges', 'words', 'proposals', 'shares', 'pieces', 'members', 'customers',
+  'friends', 'times', 'years', 'seasons', 'companies', 'credits', 'notes',
+  'reasons', 'results', 'things', 'steps',
+];
+
+/**
+ * Words that follow a `}` and are not a count of anything, with the reason.
+ *
+ * Mostly verbs: `${company.name} keeps 27c` is a sentence about one company,
+ * and the brace before it holds a name rather than a number. Listed
+ * individually because "it ends in s" cannot tell a verb from a plural, and
+ * guessing is what a blocklist did.
+ */
+const NOT_A_COUNT: Record<string, string> = {
+  is: 'verb — "${x} is …"',
+  as: 'preposition, or a JSX `as` prop',
+  was: 'verb',
+  has: 'verb',
+  does: 'verb',
+  keeps: 'verb — what a company keeps of every dollar',
+  takes: 'verb',
+  grows: 'verb',
+  sells: 'verb',
+  makes: 'verb',
+  earns: 'verb',
+  wants: 'verb',
+  comes: 'verb',
+  opens: 'verb',
+  costs: 'verb — "${company} costs 37 years of profit"',
+  vs: 'the word between two things being compared',
+  across: 'preposition',
+  this: 'determiner',
+  its: 'possessive',
+  yes: '"would say yes" — the answer, not a count of them',
+  savings: 'a mass noun — money moved *to savings*, never "3 savings"',
+  sales: 'a mass noun — "$416M of sales", never "3 sales"',
+  buys: 'verb — "5 more buys $5 to invest"',
+  gets: 'verb',
+  less: 'comparative — "earned less than the year before"',
+  regulars: 'the people a count of *cups* went to, not the count itself',
+  profits: 'a mass noun — "bought out of profits"',
+};
+
+/**
+ * Words classified as counted, so the check below has something to be about.
+ *
+ * Kept as an assertion rather than a comment: a `COUNTED` list that quietly
+ * emptied would make this whole file pass on nothing, which is the §8 trap.
+ */
+const COUNTED_MUST_NOT_SHRINK = 25;
 
 /**
  * Counts that are constants and can never be one.
@@ -59,6 +127,20 @@ const NEVER_ONE = [
   'GROWING_MULTIPLE',
   'GLOSSARY.length',
   'MAX_MEMBERS',
+  /* A flotation always cuts the company into `SHARES = 1000` pieces, and the
+     smallest slice anybody may float is a tenth of it, so neither the count
+     nor the sold count can be one. */
+  'listing.shares',
+  'offer.shares',
+  'plan.sharesSold',
+  'ending.shares',
+  /* Four readiness criteria, and a top-up step of five dollars. */
+  'readiness.criteria.length',
+  'TOPUP_STEP',
+  'DIVERSIFIED_MIN_HOLDINGS',
+  'CREDITS_PER_DOLLAR} credits is',
+  'SHOP.staffCapacity',
+  'HELPER_CAPACITY',
 ];
 
 /**
@@ -69,7 +151,23 @@ const NEVER_ONE = [
  * than an "s" — "a stand" against "3 stands". `.toFixed(1)` can never produce
  * a bare "1": it produces "1.0", and "1.0 times weekly profit" is correct.
  */
-const ALREADY_AGREES = [/=== 1 \?/, /\.toFixed\(1\)\}\s/];
+const ALREADY_AGREES = [
+  /=== 1 \?/,
+  /\.toFixed\(1\)\}\s/,
+  /> 1 \?/,
+  /*
+   * "Day 3 results" — the number counts *days*, and the results are the day's.
+   * The only shape where the word after the brace is not what is being
+   * counted, so it is matched rather than excused by word, and a second one
+   * would have to be added here deliberately.
+   */
+  /Day \{[^}]+\} results/,
+  /*
+   * "Picked Bayview from the stands for sale" — the brace holds a *name*, and
+   * the stands are the ones on offer rather than a count of anything.
+   */
+  /chosen\.name\} from the stands/,
+];
 
 describe('plural()', () => {
   it('agrees with its count', () => {
@@ -91,31 +189,53 @@ describe('plural()', () => {
 
 describe('no screen may disagree with its own count', () => {
   it('interpolates every counted noun through plural()', () => {
+    /* Only a word that *looks* plural. Requiring every English word after an
+       interpolation to be classified is noise — "of", "and", "each" follow one
+       constantly and none of them can disagree with a number. A trailing `s`
+       plus the irregulars this product actually counts is the whole signal,
+       and it is what turned up `companies`. */
     /*
-     * Matches a closing brace followed by a counted noun — which is what both
-     * `{n} cups` in JSX and `${n} cups` in a template literal look like by the
-     * time they reach the file.
-     *
-     * `(?!\s*=)` excludes the noun being a **JSX attribute name** rather than
-     * prose. `<GradePicker grade={grade} lemons={n} />` closes a brace and is
-     * followed by the word "lemons", and no child will ever read it. Prose
-     * never contains `lemons=`, so the exclusion cannot hide a real offender —
-     * and without it the only way to pass this gate is to avoid naming a prop
-     * after the thing it counts.
+     * Up to two adjectives may sit between the count and the noun, and this is
+     * not hypothetical: the defect that prompted the rewrite was
+     * `${summary.holdingsCount} real companies`, where the word right after the
+     * brace is "real". A pattern anchored on the first word missed it, which a
+     * mutation test caught — restoring the defect passed the rebuilt gate.
      */
-    const pattern = new RegExp(`\\}\\s+(${NOUNS})\\b(?!\\s*=)`, 'g');
+    const pattern = /\}\s+(?:[a-z][a-z-]*\s+){0,2}?([a-z][a-z-]*(?:s|people|children))\b(?!\s*=)/g;
     const offenders: string[] = [];
+    const unclassified: string[] = [];
 
     for (const file of sourceFiles('src')) {
       const lines = readFileSync(file, 'utf8').split('\n');
       lines.forEach((line, i) => {
-        if (!pattern.test(line)) return;
-        pattern.lastIndex = 0;
-        if (NEVER_ONE.some((constant) => line.includes(constant))) return;
-        if (ALREADY_AGREES.some((allowed) => allowed.test(line))) return;
-        offenders.push(`${file}:${i + 1}  ${line.trim().slice(0, 90)}`);
+        /* A named-import list closes a brace and is followed by `from`. Never
+           prose, and skipped wholesale rather than by excusing the word, so
+           that `from` in a sentence would still have to be classified. */
+        if (/^\s*(?:import|export)\b/.test(line) || /\}\s+from\s+'/.test(line)) return;
+        for (const match of line.matchAll(pattern)) {
+          const word = match[1];
+          if (word in NOT_A_COUNT) continue;
+          if (!COUNTED.includes(word)) {
+            /* The half that closes the class: a word nobody has judged. */
+            unclassified.push(`${file}:${i + 1}  "${word}"  ${line.trim().slice(0, 70)}`);
+            continue;
+          }
+          if (NEVER_ONE.some((constant) => line.includes(constant))) continue;
+          if (ALREADY_AGREES.some((allowed) => allowed.test(line))) continue;
+          offenders.push(`${file}:${i + 1}  ${line.trim().slice(0, 90)}`);
+        }
       });
     }
+
+    expect(COUNTED.length, 'the counted-noun list has shrunk').toBeGreaterThanOrEqual(
+      COUNTED_MUST_NOT_SHRINK,
+    );
+    expect(
+      unclassified,
+      'a word after a count that nothing has classified. Add it to COUNTED if a ' +
+        'child reads it as "N of them", or to NOT_A_COUNT with the reason it is ' +
+        `not a count:\n${unclassified.join('\n')}`,
+    ).toEqual([]);
 
     expect(
       offenders,

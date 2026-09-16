@@ -2,7 +2,7 @@
 
 import type { ThesisReport, ThesisScore } from '@/lib/thesis';
 import { journalLines } from '@/lib/thesis';
-import { ChunkyButton, clearsBar, PinnedBar, SignHeading, Sky } from '../ui';
+import { ChunkyButton, clearsBar, percent, PinnedBar, SignHeading, Sky } from '../ui';
 
 /**
  * Solid fills, not translucent ones.
@@ -87,8 +87,7 @@ export function ReckoningScreen({
                     score.madeMoney ? 'text-mint-deep' : 'text-berry'
                   }`}
                 >
-                  {score.gainPct >= 0 ? '+' : ''}
-                  {Math.round(score.gainPct * 100)}%
+                  {percent(score.gainPct, 0)}
                 </span>
               </div>
 

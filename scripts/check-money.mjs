@@ -74,10 +74,24 @@ function sources(dir) {
   return out;
 }
 
+/**
+ * A signed percentage, written by hand.
+ *
+ * `{up ? '+' : ''}` next to `{(pct * 100).toFixed(1)}%` decides the sign from
+ * the figure that went in and prints the one that comes out, so a change that
+ * rounds to zero gets a minus in front of it. Seven screens did this and the
+ * market's first week said "-0.0% this week". `percent` in `copy.ts` produces
+ * the sign and the digits together. §87.
+ *
+ * Only the *signed* form is caught: an unsigned percentage of something that
+ * cannot be negative — a win rate, a market share, a margin in cents — is
+ * fine written inline, and there are a dozen of those.
+ */
 const problems = [];
 let checked = 0;
 let bare = 0;
 let classified = 0;
+let percents = 0;
 
 for (const file of sources('src')) {
   if (file === HOME) continue;
@@ -97,6 +111,25 @@ for (const file of sources('src')) {
         `${file}:${index + 1}  a second implementation of money formatting\n` +
           `    ${line.trim()}\n` +
           `    Import { money, moneyRound, moneyFromCents } from '@/lib/copy' instead. There is one home for this and it is ${HOME}.`,
+      );
+    }
+
+    /*
+     * A `'+'` sign chosen by a ternary, with a percentage on this line or the
+     * next. Two lines, because JSX puts the sign and the figure on separate
+     * ones, which is exactly how they came to disagree.
+     */
+    const withNext = `${line}\n${lines[index + 1] ?? ''}`;
+    if (
+      /\?\s*'\+'\s*:/.test(line) &&
+      /\*\s*100\s*\)?(?:\.toFixed\(\d\))?\s*\}?\s*%/.test(withNext) &&
+      !/percent\(/.test(withNext)
+    ) {
+      percents++;
+      problems.push(
+        `${file}:${index + 1}  a signed percentage with the sign chosen separately from the digits\n` +
+          `    ${line.trim()}\n` +
+          `    Use percent() from '@/lib/copy', which decides the sign from the figure it is about to print.`,
       );
     }
 
@@ -133,7 +166,8 @@ for (const entry of CLASSIFIED) {
 
 console.log(
   `money — ${checked} hand-written dollar signs outside ${HOME}: ` +
-    `${bare} whole-dollar constants, ${classified} classified with a reason.`,
+    `${bare} whole-dollar constants, ${classified} classified with a reason. ` +
+    `${percents} hand-rolled signed percentages.`,
 );
 
 if (problems.length > 0) {

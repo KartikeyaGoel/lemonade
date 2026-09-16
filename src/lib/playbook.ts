@@ -52,6 +52,7 @@ import {
 } from './market';
 import { round2 } from './simulation';
 import { ByteReader, ByteWriter, decodeShort, encodeShort } from './sharecode';
+import { percent } from './copy';
 
 /** Four. Small enough to hold in your head, big enough to have a shape. */
 export const DECK_SIZE = 4;
@@ -388,9 +389,6 @@ export function record(playbook: Playbook, cash = 1000): Record {
   };
 }
 
-function pct(value: number): string {
-  return `${value >= 0 ? '+' : '−'}${Math.abs(value * 100).toFixed(0)}%`;
-}
 
 function headlineFor(
   winRate: number,
@@ -409,12 +407,12 @@ function headlineFor(
     return `Only ${names === 1 ? 'one company' : 'two companies'} ever gets past these rules. That is a bet on ${names === 1 ? 'it' : 'them'}, not a strategy.`;
   }
   if (winRate >= 0.7) {
-    return `Ahead in ${Math.round(winRate * 100)}% of stretches, usually by ${pct(median)}. Worth asking what it is giving up to be that reliable.`;
+    return `Ahead in ${Math.round(winRate * 100)}% of stretches, usually by ${percent(median, 0)}. Worth asking what it is giving up to be that reliable.`;
   }
   if (winRate <= 0.4) {
     return `Behind more often than not: ahead in only ${Math.round(winRate * 100)}% of stretches. The wins would have to be big to make up for that.`;
   }
-  return `Ahead in ${Math.round(winRate * 100)}% of stretches, typically ${pct(median)}. Roughly a coin-flip with a lean — which is what most real strategies look like.`;
+  return `Ahead in ${Math.round(winRate * 100)}% of stretches, typically ${percent(median, 0)}. Roughly a coin-flip with a lean — which is what most real strategies look like.`;
 }
 
 /* ------------------------------------------------------------------ *

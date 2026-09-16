@@ -8,7 +8,7 @@ import {
   paybackWeeks,
   type StandForSale,
 } from '@/lib/ownership';
-import { ActionFooter, ChunkyButton, clearsBar, money, PinnedBar, SignHeading, Sky } from '../ui';
+import { ActionFooter, ChunkyButton, PinnedBar, SignHeading, Sky, clearsBar, money, plural } from '../ui';
 
 /**
  * Comparison shopping. This is where PE actually lands.
@@ -193,7 +193,7 @@ function DealCard({
 
       <div className="mt-2 grid grid-cols-2 gap-2 font-ledger text-[13px] tabular-nums">
         <Cell label="asking price" value={money(askingPrice(stand))} />
-        <Cell label="money back in" value={`${paybackWeeks(stand)} wks`} />
+        <Cell label="money back in" value={`${plural(paybackWeeks(stand), 'wk')}`} />
       </div>
 
       <div className={`mt-2 font-body text-[12px] font-extrabold ${trend.tone}`}>{trend.label}</div>

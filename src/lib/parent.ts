@@ -372,7 +372,11 @@ function headlineFor(game: Game): string {
   const weekly = trailingWeeklyProfit(game.stand.history);
   if (game.portfolio) {
     const p = summarisePortfolio(game.portfolio, seededWith(game) || game.portfolio.cash);
-    return `Investing ${money(p.currentValue)} across ${p.holdingsCount} real companies.`;
+    return `Investing ${money(p.currentValue)} across ${plural(
+    p.holdingsCount,
+    'real company',
+    'real companies',
+  )}.`;
   }
   if (game.listing.listed) {
     return `Runs a public company worth ${money(round2(game.listing.price * game.listing.shares))}.`;

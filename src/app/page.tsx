@@ -233,7 +233,7 @@ import {
 import { missionsFor } from '@/lib/missions';
 import { HELD_A_WHILE_WEEKS, topUp } from '@/lib/credits';
 import { checkIn as buildCheckIn, storyFor, type Answers } from '@/lib/checkin';
-import { money } from '@/lib/copy';
+import { money, plural } from '@/lib/copy';
 import { awardFor } from '@/lib/credits';
 import { CloseScreen } from '@/components/CloseScreen';
 import { WeekEndScreen } from '@/components/WeekEndScreen';
@@ -2385,7 +2385,7 @@ export default function Page() {
   if (ledger.earned > 0) {
     titleExtras.push({
       emoji: '🎟️',
-      label: `${balanceOf(ledger)} credits`,
+      label: plural(balanceOf(ledger), 'credit'),
       onClick: openFrom('title', 'credits'),
     });
   }
@@ -2993,6 +2993,7 @@ export default function Page() {
           }}
           onSell={handleSellStock}
           onAdvanceWeek={handleAdvanceWeek}
+          onHome={() => setPhase('title')}
           onOpenGate={() => setPhase('gate')}
           onClub={
             isUnlocked('club', game, career)

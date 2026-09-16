@@ -421,7 +421,7 @@ const DETECTORS: Detector[] = [
       return [
         {
           when: `Week ${portfolio.week}`,
-          what: `Held ${held.length} companies with nothing bigger than ${Math.round(biggest * 100)}% of the money in any one of them.`,
+          what: `Held ${plural(held.length, 'company', 'companies')} with nothing bigger than ${Math.round(biggest * 100)}% of the money in any one of them.`,
         },
       ];
     },

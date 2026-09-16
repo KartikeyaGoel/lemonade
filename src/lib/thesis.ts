@@ -26,6 +26,7 @@
  */
 
 import { formatMillions, metricsFor, type Company } from './companies';
+import { plural } from './copy';
 
 export interface QuantClaim {
   id: string;
@@ -57,7 +58,7 @@ export const QUANT_CLAIMS: QuantClaim[] = [
     evidence: (c, price, asOf) => {
       const pe = metricsFor(c, price, asOf).pe;
       if (pe === null) return `${c.name} has no profit to divide by, so there is no payback time at all.`;
-      return `${c.name} costs ${pe.toFixed(0)} years of profit. Thirty or under counts as quick.`;
+      return `${c.name} costs ${plural(Math.round(pe), 'year')} of profit. Thirty or under counts as quick.`;
     },
   },
   {
@@ -90,9 +91,9 @@ export const QUANT_CLAIMS: QuantClaim[] = [
       const pe = metricsFor(c, price, asOf).pe;
       const { growth } = metricsFor(c, price, asOf).year;
       if (pe === null) return `${c.name} has no P/E, so there is nothing to weigh against its growth.`;
-      if (growth <= 0) return `${c.name} is not growing, so paying ${pe.toFixed(0)} years of profit is not being paid for by growth.`;
+      if (growth <= 0) return `${c.name} is not growing, so paying ${plural(Math.round(pe), 'year')} of profit is not being paid for by growth.`;
       const ratio = pe / (growth * 100);
-      return `${pe.toFixed(0)} years of profit ÷ ${Math.round(growth * 100)}% growth = ${ratio.toFixed(1)}. Four or under means the growth is roughly paying for the price.`;
+      return `${plural(Math.round(pe), 'year')} of profit ÷ ${Math.round(growth * 100)}% growth = ${ratio.toFixed(1)}. Four or under means the growth is roughly paying for the price.`;
     },
   },
   {
@@ -628,11 +629,11 @@ export function scoreAll(
   if (scores.length === 0) {
     summary = 'You did not write a reason down for anything, so there is nothing to learn from yet.';
   } else if (lucky === 0 && sound === scores.length) {
-    summary = `${sound} of ${scores.length} reasons held up. Whatever the money did, your thinking was sound — that is the part that repeats.`;
+    summary = `${sound} of ${plural(scores.length, 'reason')} held up. Whatever the money did, your thinking was sound — that is the part that repeats.`;
   } else if (lucky > 0) {
     summary = `${lucky} of your ${scores.length} ${lucky === 1 ? 'win was' : 'wins were'} luck: the money went up and the reason was wrong. Noticing that is worth more than the money.`;
   } else {
-    summary = `${sound} of ${scores.length} reasons held up against the numbers. Work on the others before you work on the picks.`;
+    summary = `${sound} of ${plural(scores.length, 'reason')} held up against the numbers. Work on the others before you work on the picks.`;
   }
 
   return { scores, sound, lucky, summary };

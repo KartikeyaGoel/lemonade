@@ -1125,3 +1125,85 @@ describe('the allowlist itself stays honest', () => {
     expect(one + more).toBe(KNOWN_SHAPES.length);
   });
 });
+
+/**
+ * A price-to-earnings ratio nobody ever paid.
+ *
+ * `metricsFor(company, price, asOf)` prices a company. Both optional
+ * arguments default to *today* — `company.price` and the newest filing — and
+ * the market replays a week from the past, so a screen that omits them shows
+ * a 2026 share price over the accounts a child was reading and quotes a
+ * multiple that never existed. `currentPrice` carries a comment saying exactly
+ * that, added when the same defect was found in its own fallback.
+ *
+ * `FinaleScreen` omitted them anyway, and the last screen of the whole arc
+ * read
+ *
+ *     Apple   44x   $913.90   -9%
+ *
+ * where the 44 was computed from today's price and the $913.90 from the
+ * replayed week's. Three figures side by side, one of them from a different
+ * year. Found by playing the market stage to the end. §87.
+ *
+ * ## What this would miss
+ *
+ * A call that passes a price from the wrong place — the right shape with the
+ * wrong argument. It checks that the decision was *made*, not that it was made
+ * correctly, which is the same limit `scripts/check-one-day.mjs` has and worth
+ * saying out loud.
+ */
+/**
+ * Calls that price a company at today's price on purpose, with the reason.
+ *
+ * One, and it is worth naming what it is: `valueRanking` is reachable only
+ * from `tests/market.test.ts`. Its own comment says it exists "to check the
+ * kid's reasoning after the fact", and nothing in the app calls it — so that
+ * is §40, a mechanic wired to nothing, and it is classified here rather than
+ * given a price it has no portfolio to get. If it is ever wired up it will
+ * need one, and this entry is where somebody will find that out.
+ */
+const CLASSIFIED = [
+  {
+    file: 'src/lib/market.ts',
+    call: 'metricsFor(company)',
+    why: 'valueRanking has no portfolio in scope and no caller in the app — §40',
+  },
+];
+
+describe('nothing prices a company at a price it was not held at', () => {
+  it('passes a price and a date wherever a portfolio is in scope', () => {
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(ts|tsx)$/.test(entry.name)) files.push(full);
+      }
+    };
+    walk(resolve(process.cwd(), 'src'));
+    expect(files.length, 'no source files found').toBeGreaterThan(20);
+
+    const offenders: string[] = [];
+
+    for (const file of files) {
+      const text = readFileSync(file, 'utf8');
+      /* A portfolio in scope means a replayed week is in scope. */
+      const replaying = /PortfolioState|portfolio\./.test(text);
+      if (!replaying) continue;
+
+      for (const match of text.matchAll(/metricsFor\(([^)]*)\)/g)) {
+        const args = match[1].split(',').length;
+        if (args < 3 && !CLASSIFIED.some((c) => file.endsWith(c.file) && c.call === match[0])) {
+          const line = text.slice(0, match.index).split('\n').length;
+          offenders.push(`${file}:${line}  metricsFor with ${args} argument(s): ${match[0]}`);
+        }
+      }
+    }
+
+    expect(
+      offenders,
+      'these price a company without saying which week, so they price it today:\n' +
+        offenders.join('\n'),
+    ).toEqual([]);
+  });
+});
